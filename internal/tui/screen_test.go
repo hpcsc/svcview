@@ -1,0 +1,182 @@
+//go:build unit
+
+package tui_test
+
+import (
+	"context"
+	"errors"
+	"flag"
+	"io"
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+	"time"
+
+	tea "charm.land/bubbletea/v2"
+	"github.com/charmbracelet/x/ansi"
+	"github.com/hpcsc/svcview/internal/service"
+	"github.com/hpcsc/svcview/internal/tui"
+	"github.com/stretchr/testify/require"
+)
+
+var updateGolden = flag.Bool("update", false, "write the golden files from the screen")
+
+func servicesNamed(names ...string) func() ([]service.Service, error) {
+	return func() ([]service.Service, error) {
+		var services []service.Service
+		for _, name := range names {
+			services = append(services, service.Service{Name: name})
+		}
+		return services, nil
+	}
+}
+
+func open(t *testing.T, domain string, read func() ([]service.Service, error), width, height int) tea.Model {
+	t.Helper()
+	var screen tea.Model = tui.NewScreen(domain, read)
+	start := screen.Init()
+	require.NotNil(t, start)
+	screen, _ = screen.Update(tea.WindowSizeMsg{Width: width, Height: height})
+	screen, _ = screen.Update(start())
+	return screen
+}
+
+func requireGolden(t *testing.T, name string, screen tea.Model) {
+	t.Helper()
+	path := filepath.Join("testdata", name+".golden")
+	content := screen.View().Content
+	if *updateGolden {
+		require.NoError(t, os.WriteFile(path, []byte(content), 0o644))
+	}
+	want, err := os.ReadFile(path)
+	require.NoError(t, err)
+	require.Equal(t, string(want), content)
+}
+
+func press(screen tea.Model, key tea.KeyPressMsg) tea.Cmd {
+	_, cmd := screen.Update(key)
+	return cmd
+}
+
+func runWithInput(t *testing.T, screen tui.Screen, input string) error {
+	t.Helper()
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	program := tea.NewProgram(screen,
+		tea.WithContext(ctx),
+		tea.WithInput(strings.NewReader(input)),
+		tea.WithOutput(io.Discard),
+		tea.WithWindowSize(60, 12))
+	_, err := program.Run()
+	return err
+}
+
+func TestScreen(t *testing.T) {
+	t.Run("start", func(t *testing.T) {
+		t.Run("reads the services with no key press and shows them", func(t *testing.T) {
+			screen := open(t, "gui/501", servicesNamed("com.example.worker"), 60, 12)
+
+			require.Contains(t, screen.View().Content, "com.example.worker")
+		})
+
+		t.Run("takes the whole terminal, so the shell gets its screen back at the end", func(t *testing.T) {
+			screen := open(t, "gui/501", servicesNamed("com.example.worker"), 60, 12)
+
+			require.True(t, screen.View().AltScreen)
+		})
+
+		t.Run("a terminal that is smaller than the panes does not stop the screen", func(t *testing.T) {
+			for width := range 8 {
+				for height := range 6 {
+					screen := open(t, "gui/501", servicesNamed("com.example.worker"), width, height)
+
+					require.NotPanics(t, func() { screen.View() }, "width %d, height %d", width, height)
+				}
+			}
+		})
+
+		t.Run("shows no rows before the size of the terminal is known", func(t *testing.T) {
+			var screen tea.Model = tui.NewScreen("gui/501", servicesNamed("com.example.worker"))
+			screen, _ = screen.Update(screen.Init()())
+
+			require.Empty(t, screen.View().Content)
+		})
+	})
+
+	t.Run("header", func(t *testing.T) {
+		t.Run("shows svcview and the domain", func(t *testing.T) {
+			screen := open(t, "gui/502", servicesNamed(), 60, 12)
+
+			header, _, _ := strings.Cut(screen.View().Content, "\n")
+			require.Contains(t, header, "svcview")
+			require.Contains(t, header, "gui/502")
+		})
+	})
+
+	t.Run("list", func(t *testing.T) {
+		t.Run("shows the group Other with one row for each service, sorted by name", func(t *testing.T) {
+			screen := open(t, "gui/501", servicesNamed("homebrew.mxcl.redis", "com.example.worker", "com.apple.a"), 60, 12)
+
+			requireGolden(t, "sorted", screen)
+		})
+
+		t.Run("takes 40 percent of the width, rounded down", func(t *testing.T) {
+			widths := map[int]int{}
+			for _, width := range []int{100, 99} {
+				lines := strings.Split(open(t, "gui/501", servicesNamed(), width, 12).View().Content, "\n")
+				widths[width] = ansi.StringWidth(lines[2])
+			}
+
+			require.Equal(t, map[int]int{100: 40, 99: 39}, widths)
+		})
+
+		t.Run("keeps the top border as wide as the pane when the title fills it", func(t *testing.T) {
+			lines := strings.Split(open(t, "gui/501", servicesNamed("com.example.worker"), 30, 6).View().Content, "\n")
+
+			var widths []int
+			for _, line := range lines[2:] {
+				widths = append(widths, ansi.StringWidth(line))
+			}
+			require.Equal(t, []int{12, 12, 12, 12}, widths)
+		})
+
+		t.Run("cuts a name that is longer than the list pane and ends it with …, and leaves a name that fits", func(t *testing.T) {
+			screen := open(t, "gui/501", servicesNamed("com.example.a-name-that-is-too-long", "com.example.exactly", "com.example.fits"), 60, 12)
+
+			requireGolden(t, "long-name", screen)
+		})
+
+		t.Run("with no services, shows no rows", func(t *testing.T) {
+			screen := open(t, "gui/501", servicesNamed(), 60, 12)
+
+			requireGolden(t, "no-services", screen)
+		})
+
+		t.Run("when the read gives an error, shows the error and no rows", func(t *testing.T) {
+			failing := func() ([]service.Service, error) {
+				return []service.Service{{Name: "com.example.worker"}}, errors.New("open /Users/someone/Library/LaunchAgents: permission denied")
+			}
+
+			screen := open(t, "gui/501", failing, 60, 12)
+
+			requireGolden(t, "read-error", screen)
+		})
+	})
+
+	t.Run("keys", func(t *testing.T) {
+		t.Run("q ends the screen", func(t *testing.T) {
+			require.NoError(t, runWithInput(t, tui.NewScreen("gui/501", servicesNamed("com.example.worker")), "q"))
+		})
+
+		t.Run("ctrl+c ends the screen", func(t *testing.T) {
+			require.NoError(t, runWithInput(t, tui.NewScreen("gui/501", servicesNamed("com.example.worker")), "\x03"))
+		})
+
+		t.Run("another key does not end the screen", func(t *testing.T) {
+			screen := open(t, "gui/501", servicesNamed("com.example.worker"), 60, 12)
+
+			require.Nil(t, press(screen, tea.KeyPressMsg{Code: 'x', Text: "x"}))
+		})
+	})
+}

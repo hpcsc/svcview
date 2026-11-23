@@ -123,14 +123,14 @@ When the read of the services gives an error, the list shows the error and no ro
 screen.
 
 **Acceptance Criteria:**
-- [ ] At start, with no key press, the screen reads the services one time and shows them.
-- [ ] The header shows `svcview` and the domain, for example `gui/501`.
-- [ ] The list shows the group `Other`, and under it one row for each service with its full name, sorted by name.
-- [ ] A name that is longer than the list pane is cut to fit and ends with `…`. A name that fits is not cut.
-- [ ] With no services, the list shows no rows.
-- [ ] When the read gives an error, the list shows the error and no rows.
-- [ ] `q` and `ctrl+c` end the screen.
-- [ ] Golden files hold the screen at a fixed width and height.
+- [x] At start, with no key press, the screen reads the services one time and shows them.
+- [x] The header shows `svcview` and the domain, for example `gui/501`.
+- [x] The list shows the group `Other`, and under it one row for each service with its full name, sorted by name.
+- [x] A name that is longer than the list pane is cut to fit and ends with `…`. A name that fits is not cut.
+- [x] With no services, the list shows no rows.
+- [x] When the read gives an error, the list shows the error and no rows.
+- [x] `q` and `ctrl+c` end the screen.
+- [x] Golden files hold the screen at a fixed width and height.
 
 **Affected Files/Modules:**
 - `internal/tui/screen.go` — new: the type `Screen`, the Bubble Tea model, with its keys and the read at start

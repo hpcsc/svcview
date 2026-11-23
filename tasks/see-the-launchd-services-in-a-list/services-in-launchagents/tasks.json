@@ -29,7 +29,7 @@
     },
     {
       "n": 2,
-      "done": false,
+      "done": true,
       "title": "Show the services in a list on the screen",
       "language": "Go",
       "testable": true,
