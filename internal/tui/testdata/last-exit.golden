@@ -3,7 +3,7 @@
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭ Services ────────────────────╮
 │ Other                        │
-│  [31m●[m com.example.a-killed      │
+│ [34m▌[m[31m●[m[100m com.example.a-killed     [m │
 │  [31m◐[m com.example.b-exit-78     │
 │  [31m○[m com.example.c-exit-1      │
 │  [32m●[m com.example.d-running     │

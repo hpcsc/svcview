@@ -83,6 +83,16 @@ describe('the screen', () => {
     await session.waitForText('● com.example.loaded', { timeout: 5000 })
   })
 
+  it('↓ selects the next row, which then starts with ▌', async () => {
+    const session = await openCli(scratchDir(), [], { HOME: homeWithPlists(['com.example.a', 'com.example.b']) })
+    await session.waitForText('▌○ com.example.a')
+
+    await session.press('down')
+
+    await session.waitForText('▌○ com.example.b')
+    expect(await session.text()).toContain('  ○ com.example.a')
+  })
+
   it('counts the services in each state in the header', async () => {
     const home = homeWithPlists([
       'com.example.a-running',

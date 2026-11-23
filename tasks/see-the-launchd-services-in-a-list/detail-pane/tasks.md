@@ -116,15 +116,15 @@ for its PID as its uptime.
 row starts with a `▌` in the accent color and has a background color. A refresh keeps the same service selected.
 
 **Acceptance Criteria:**
-- [ ] At start, the first row is selected.
-- [ ] `↓` selects the next row, and `↑` the row before it. At the last row `↓` does nothing, and at the first row
+- [x] At start, the first row is selected.
+- [x] `↓` selects the next row, and `↑` the row before it. At the last row `↓` does nothing, and at the first row
       `↑` does nothing.
-- [ ] The selected row starts with a `▌` in the accent color, blue of the ANSI palette, and has a background color.
+- [x] The selected row starts with a `▌` in the accent color, blue of the ANSI palette, and has a background color.
       The other rows have no `▌`.
-- [ ] A refresh keeps the selection on the same name, also when rows come or go before it. When the selected
+- [x] A refresh keeps the selection on the same name, also when rows come or go before it. When the selected
       service is gone, the row that takes its place is selected, or the last row when it was the last.
-- [ ] With no rows, no row is selected, and `↑` and `↓` do nothing.
-- [ ] An e2e test presses `↓`, and sees the `▌` on the second row.
+- [x] With no rows, no row is selected, and `↑` and `↓` do nothing.
+- [x] An e2e test presses `↓`, and sees the `▌` on the second row.
 
 **Affected Files/Modules:**
 - `internal/tui/screen.go` — the selected service, the keys `↑` and `↓`, and the `▌` and the background of the

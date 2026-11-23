@@ -15,6 +15,7 @@ import (
 const (
 	headerHeight = 3
 	refreshEvery = 2 * time.Second
+	accent       = ansi.Blue
 )
 
 type refresh struct{}
@@ -29,6 +30,7 @@ type Screen struct {
 	read     func() ([]service.Service, error)
 	lastRead servicesRead
 	hasRead  bool
+	selected string
 	width    int
 	height   int
 }
@@ -49,12 +51,17 @@ func (s Screen) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		switch msg.String() {
 		case "q", "ctrl+c":
 			return s, tea.Quit
+		case "up":
+			s.selected = s.selectedAfterMove(-1)
+		case "down":
+			s.selected = s.selectedAfterMove(1)
 		}
 	case servicesRead:
 		slices.SortFunc(msg.services, func(a, b service.Service) int {
 			return strings.Compare(a.Name, b.Name)
 		})
 		s.lastRead, s.hasRead = msg, true
+		s.selected = s.selectedAfterRead()
 		return s, tea.Tick(refreshEvery, func(time.Time) tea.Msg { return refresh{} })
 	case refresh:
 		return s, s.readServices
@@ -71,6 +78,33 @@ func (s Screen) View() tea.View {
 func (s Screen) readServices() tea.Msg {
 	services, err := s.read()
 	return servicesRead{services: services, err: err}
+}
+
+func (s Screen) rows() []service.Service {
+	if s.lastRead.err != nil {
+		return nil
+	}
+	return s.lastRead.services
+}
+
+func (s Screen) selectedAfterRead() string {
+	rows := s.rows()
+	if len(rows) == 0 {
+		return s.selected
+	}
+	at, _ := slices.BinarySearchFunc(rows, s.selected, func(svc service.Service, name string) int {
+		return strings.Compare(svc.Name, name)
+	})
+	return rows[min(at, len(rows)-1)].Name
+}
+
+func (s Screen) selectedAfterMove(step int) string {
+	rows := s.rows()
+	at := slices.IndexFunc(rows, func(svc service.Service) bool { return svc.Name == s.selected })
+	if at < 0 {
+		return s.selected
+	}
+	return rows[min(max(at+step, 0), len(rows)-1)].Name
 }
 
 func (s Screen) content() string {
@@ -111,9 +145,22 @@ func (s Screen) listText(width int) []string {
 	}
 	text := []string{"Other"}
 	for _, svc := range s.lastRead.services {
+		if svc.Name == s.selected {
+			text = append(text, s.selectedRow(svc, width))
+			continue
+		}
 		text = append(text, " "+s.rowGlyph(svc)+" "+s.printable(svc.Name))
 	}
 	return text
+}
+
+func (s Screen) selectedRow(svc service.Service, width int) string {
+	nameWidth := max(width-2, 0)
+	name := ansi.Truncate(" "+s.printable(svc.Name), nameWidth, "…")
+	name += strings.Repeat(" ", nameWidth-ansi.StringWidth(name))
+	return ansi.NewStyle().ForegroundColor(accent).Styled("▌") +
+		s.rowGlyph(svc) +
+		ansi.NewStyle().BackgroundColor(ansi.BrightBlack).Styled(name)
 }
 
 func (s Screen) stateGlyph(state service.State) string {

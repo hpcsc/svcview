@@ -27,7 +27,7 @@
     },
     {
       "n": 2,
-      "done": false,
+      "done": true,
       "title": "Select a service with the up and down keys",
       "language": "Go",
       "testable": true,

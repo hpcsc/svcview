@@ -68,6 +68,32 @@ func press(screen tea.Model, key tea.KeyPressMsg) tea.Cmd {
 	return cmd
 }
 
+var (
+	up   = tea.KeyPressMsg{Code: tea.KeyUp}
+	down = tea.KeyPressMsg{Code: tea.KeyDown}
+)
+
+func pressKeys(screen tea.Model, keys ...tea.KeyPressMsg) tea.Model {
+	for _, key := range keys {
+		screen, _ = screen.Update(key)
+	}
+	return screen
+}
+
+func selectedName(screen tea.Model) string {
+	for line := range strings.SplitSeq(ansi.Strip(screen.View().Content), "\n") {
+		_, row, found := strings.Cut(line, "▌")
+		if !found {
+			continue
+		}
+		row, _, _ = strings.Cut(row, "│")
+		if fields := strings.Fields(row); len(fields) == 2 {
+			return fields[1]
+		}
+	}
+	return ""
+}
+
 func runWithInput(t *testing.T, screen tui.Screen, input string) error {
 	t.Helper()
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -91,8 +117,31 @@ func changingAt(at time.Duration, before, after func() ([]service.Service, error
 	}
 }
 
+func readsInTurn(reads ...func() ([]service.Service, error)) func() ([]service.Service, error) {
+	next := 0
+	return func() ([]service.Service, error) {
+		read := reads[min(next, len(reads)-1)]
+		next++
+		return read()
+	}
+}
+
+func openWithTick(t *testing.T, read func() ([]service.Service, error)) (tea.Model, tea.Cmd) {
+	t.Helper()
+	var screen tea.Model = tui.NewScreen("gui/501", read)
+	start := screen.Init()
+	screen, _ = screen.Update(tea.WindowSizeMsg{Width: 80, Height: 12})
+	return screen.Update(start())
+}
+
+// readAgain must run in a synctest bubble: the tick waits 2 s on the clock of the bubble.
+func readAgain(screen tea.Model, tick tea.Cmd) (tea.Model, tea.Cmd) {
+	screen, read := screen.Update(tick())
+	return screen.Update(read())
+}
+
 // runFor must run in a synctest bubble: it waits a minute on the clock of the bubble.
-func runFor(t *testing.T, screen tui.Screen, duration time.Duration) tea.Model {
+func runFor(t *testing.T, screen tui.Screen, duration time.Duration, keys ...tea.KeyPressMsg) tea.Model {
 	t.Helper()
 	program := tea.NewProgram(screen,
 		tea.WithInput(nil),
@@ -100,6 +149,10 @@ func runFor(t *testing.T, screen tui.Screen, duration time.Duration) tea.Model {
 		tea.WithoutSignalHandler(),
 		tea.WithWindowSize(80, 12))
 	go func() {
+		time.Sleep(10 * time.Millisecond)
+		for _, key := range keys {
+			program.Send(key)
+		}
 		time.Sleep(duration)
 		program.Quit()
 	}()
@@ -361,6 +414,137 @@ func TestScreen(t *testing.T) {
 
 				require.Equal(t, int32(1), mostAtOnce.Load())
 				require.GreaterOrEqual(t, reads.Load(), int32(3))
+			})
+		})
+	})
+
+	t.Run("select", func(t *testing.T) {
+		t.Run("at start, the first row is selected", func(t *testing.T) {
+			screen := open(t, "gui/501", servicesNamed("com.example.b", "com.example.a"), 80, 12)
+
+			require.Equal(t, "com.example.a", selectedName(screen))
+		})
+
+		t.Run("↓ selects the next row, and ↑ the row before it", func(t *testing.T) {
+			screen := open(t, "gui/501", servicesNamed("com.example.a", "com.example.b", "com.example.c"), 80, 12)
+
+			screen = pressKeys(screen, down, down, up)
+
+			require.Equal(t, "com.example.b", selectedName(screen))
+		})
+
+		t.Run("↓ at the last row keeps the last row selected", func(t *testing.T) {
+			screen := open(t, "gui/501", servicesNamed("com.example.a", "com.example.b"), 80, 12)
+
+			screen = pressKeys(screen, down, down)
+
+			require.Equal(t, "com.example.b", selectedName(screen))
+		})
+
+		t.Run("↑ at the first row keeps the first row selected", func(t *testing.T) {
+			screen := open(t, "gui/501", servicesNamed("com.example.a", "com.example.b"), 80, 12)
+
+			screen = pressKeys(screen, up)
+
+			require.Equal(t, "com.example.a", selectedName(screen))
+		})
+
+		t.Run("the selected row starts with a blue ▌ and has a background color, and the other rows have no ▌", func(t *testing.T) {
+			screen := open(t, "gui/501", readGiving(
+				service.Service{Name: "com.example.a-running", State: service.Running},
+				service.Service{Name: "com.example.b-loaded", State: service.Loaded},
+				service.Service{Name: "com.example.c-not-loaded", State: service.NotLoaded},
+			), 80, 12)
+
+			screen = pressKeys(screen, down)
+
+			requireGolden(t, "selected", screen)
+			require.Equal(t, 1, strings.Count(screen.View().Content, "▌"))
+		})
+
+		t.Run("cuts a selected name that is longer than the list pane and ends it with …", func(t *testing.T) {
+			screen := open(t, "gui/501", servicesNamed("com.example.a-name-that-is-too-long"), 60, 12)
+
+			lines := strings.Split(ansi.Strip(screen.View().Content), "\n")
+
+			require.Equal(t, "│ ▌○ com.example.a-na… │", lines[5])
+		})
+
+		t.Run("with no rows, no row is selected, and ↑ and ↓ do nothing", func(t *testing.T) {
+			screen := open(t, "gui/501", servicesNamed(), 80, 12)
+			before := screen.View().Content
+
+			screen = pressKeys(screen, down, up)
+
+			require.Equal(t, before, screen.View().Content)
+			require.NotContains(t, before, "▌")
+		})
+
+		t.Run("a refresh keeps the same name selected when a row comes before it", func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				read := changingAt(100*time.Millisecond,
+					servicesNamed("com.example.b", "com.example.c"),
+					servicesNamed("com.example.a", "com.example.b", "com.example.c"))
+
+				screen := runFor(t, tui.NewScreen("gui/501", read), 2100*time.Millisecond, down)
+
+				require.Contains(t, screen.View().Content, "com.example.a")
+				require.Equal(t, "com.example.c", selectedName(screen))
+			})
+		})
+
+		t.Run("a refresh keeps the same name selected when a row before it goes", func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				read := changingAt(100*time.Millisecond,
+					servicesNamed("com.example.a", "com.example.b", "com.example.c"),
+					servicesNamed("com.example.b", "com.example.c"))
+
+				screen := runFor(t, tui.NewScreen("gui/501", read), 2100*time.Millisecond, down)
+
+				require.NotContains(t, screen.View().Content, "com.example.a")
+				require.Equal(t, "com.example.b", selectedName(screen))
+			})
+		})
+
+		t.Run("when the selected service is gone, the row that takes its place is selected", func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				read := changingAt(100*time.Millisecond,
+					servicesNamed("com.example.a", "com.example.b", "com.example.c"),
+					servicesNamed("com.example.a", "com.example.c"))
+
+				screen := runFor(t, tui.NewScreen("gui/501", read), 2100*time.Millisecond, down)
+
+				require.Equal(t, "com.example.c", selectedName(screen))
+			})
+		})
+
+		t.Run("when the selected service was the last row and is gone, the last row is selected", func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				read := changingAt(100*time.Millisecond,
+					servicesNamed("com.example.a", "com.example.b", "com.example.c"),
+					servicesNamed("com.example.a", "com.example.b"))
+
+				screen := runFor(t, tui.NewScreen("gui/501", read), 2100*time.Millisecond, down, down)
+
+				require.Equal(t, "com.example.b", selectedName(screen))
+			})
+		})
+
+		t.Run("a read that gives an error, and ↑ and ↓ while the error shows, keep the selected name for the next read that succeeds", func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				failing := func() ([]service.Service, error) {
+					return []service.Service{{Name: "com.example.x"}}, errors.New("exit status 3")
+				}
+				rows := servicesNamed("com.example.a", "com.example.b", "com.example.c")
+				screen, tick := openWithTick(t, readsInTurn(rows, failing, rows))
+				screen = pressKeys(screen, down)
+				screen, tick = readAgain(screen, tick)
+				require.Contains(t, screen.View().Content, "exit status 3")
+				screen = pressKeys(screen, down)
+
+				screen, _ = readAgain(screen, tick)
+
+				require.Equal(t, "com.example.b", selectedName(screen))
 			})
 		})
 	})
