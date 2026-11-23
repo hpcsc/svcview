@@ -3,10 +3,9 @@
 ## Test a Bubble Tea timer on the fake clock of synctest
 - Type: pattern
 - Recorded: 2026-11-23
-- Observed: task 4 — see-the-launchd-services-in-a-list-services-in-launchagents
-- Learning: Run the real tea.NewProgram inside synctest.Test with tea.WithInput(nil), tea.WithOutput(io.Discard), tea.WithoutSignalHandler() and tea.WithWindowSize; quit it from a goroutine after time.Sleep, then call time.Sleep(time.Minute) and synctest.Wait() so the open tea.Tick timers end. internal/tui/screen_test.go runFor does this, and a refresh of 2 s costs no real time.
-- Apply when: A task in internal/tui tests a refresh, a timer, or a command that runs over time, for example the refresh that also runs launchctl list or ps.
-
+- Observed: task 4 — see-the-status-that-each-service-reports-status-summary
+- Learning: Run the real tea.NewProgram inside synctest.Test with tea.WithInput(nil), tea.WithOutput(io.Discard), tea.WithoutSignalHandler() and tea.WithWindowSize; quit it from a goroutine after time.Sleep, then call time.Sleep(time.Minute) and synctest.Wait() so the open tea.Tick timers end. internal/tui/screen_test.go runFor and runSized do this, and a refresh of 2 s costs no real time. A fake read or run that sleeps in the bubble must end within that minute: a goroutine still asleep when the main goroutine of the bubble returns makes synctest panic with 'main bubble goroutine has exited but blocked goroutines remain'.
+- Apply when: A task in internal/tui tests a refresh, a timer, or a command that runs over time, for example the refresh that also runs launchctl list or ps, or a fake status run that takes time.
 ## internal/tui draws its boxes in box.go, with no Lip Gloss
 - Type: convention
 - Recorded: 2026-11-23
@@ -186,3 +185,24 @@
 - Observed: task 1 — see-the-status-that-each-service-reports-status-settings
 - Learning: The ACL read of status-settings (fgetattrlist through unix.Syscall6, the first raw system call and the first file with a build constraint of the repo) was planned low and went green on the first try, because the planning probe gave the layout of the answer. The work was in the tests: real ACLs with /bin/chmod, their cleanup, and a parse function tested with bytes in a _darwin_test.go file. Plan such a task medium when Codebase Context has a probe of the call.
 - Apply when: Planning or assessing a task that calls the kernel through golang.org/x/sys/unix or adds a file with a build constraint, with a probe of the call in Codebase Context.
+
+## An audit fix that adds a file is a commit of its own
+- Type: constraint
+- Recorded: 2026-11-23
+- Observed: see-the-status-that-each-service-reports-status-summary
+- Learning: clerk fixup mark refuses a file that no commit of the branch touches, also with --onto, so an audit fix that adds a file (a new type, or a _test.go for a type whose tests were under another umbrella) becomes a commit of its own. Put each changed file that needs the new file into that commit, and fold only the changes that compile without it: in status-summary, root.go needed status_runs.go, and a fold of root.go alone would have broken the build of the Task 5 commit.
+- Apply when: An audit fix adds a file, for example a new private type that a fix needs, or a test file for the umbrella test of a type.
+
+## Bubble Tea does not wait for the goroutines of its commands
+- Type: constraint
+- Recorded: 2026-11-23
+- Observed: task 5 — see-the-status-that-each-service-reports-status-summary
+- Learning: After Program.Run returns, the goroutines of the tea.Cmd values that the screen started still run, and can still call the functions that the screen got. So a sync.WaitGroup.Add in such a function can race with the Wait after Run, which the audit showed with -race. Code after Run that waits for that work must refuse new work under a lock before it waits, as internal/cli/status_runs.go does.
+- Apply when: A task in internal/cli or internal/tui waits after Program.Run for work that a tea.Cmd starts, for example an action of US-008 that runs launchctl, or the stop of the status runs.
+
+## Prefix the constants of an enum in internal/status with its type
+- Type: convention
+- Recorded: 2026-11-23
+- Observed: task 2 — see-the-status-that-each-service-reports-status-summary
+- Learning: In package status a bare constant reads with the package name: status.Error read as the failure 'status error' of the story, so the levels are LevelInfo, LevelWarn and LevelError. Name each constant of a new enum in internal/status with its type as the prefix.
+- Apply when: A task adds an enum or exported constants to internal/status, for example FailureKind of status-failures.
