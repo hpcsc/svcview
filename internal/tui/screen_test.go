@@ -297,6 +297,13 @@ func TestScreen(t *testing.T) {
 			require.NotContains(t, screen.View().Content, "\x1b[2J")
 		})
 
+		t.Run("shows each control character in a name of a row that is not selected as �", func(t *testing.T) {
+			screen := open(t, "gui/501", servicesNamed("com.example.a", "com.example.b\x1b[2Jworker\nnext"), 100, 12)
+
+			require.Contains(t, ansi.Strip(screen.View().Content), "  ○ com.example.b�[2Jworker�next")
+			require.NotContains(t, screen.View().Content, "\x1b[2J")
+		})
+
 		t.Run("starts each row with the glyph of its state: a green ● for running, a yellow ◐ for loaded, and a gray ○ for not loaded", func(t *testing.T) {
 			screen := open(t, "gui/501", readGiving(
 				service.Service{Name: "com.example.a-running", State: service.Running},
@@ -320,7 +327,7 @@ func TestScreen(t *testing.T) {
 		})
 
 		t.Run("cuts a name that is longer than the list pane and ends it with …, and leaves a name that fits with its glyph", func(t *testing.T) {
-			screen := open(t, "gui/501", servicesNamed("com.example.a-name-that-is-too-long", "com.example.exact", "com.example.fits"), 60, 12)
+			screen := open(t, "gui/501", servicesNamed("com.example.z-name-that-is-too-long", "com.example.exact", "com.example.fits"), 60, 12)
 
 			requireGolden(t, "long-name", screen)
 		})

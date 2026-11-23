@@ -219,9 +219,8 @@ func (s Screen) listText(width int) []string {
 }
 
 func (s Screen) selectedRow(svc service.Service, width int) string {
-	nameWidth := max(width-2, 0)
-	name := ansi.Truncate(" "+s.printable(svc.Name), nameWidth, "…")
-	name += strings.Repeat(" ", nameWidth-ansi.StringWidth(name))
+	name := " " + s.printable(svc.Name)
+	name += strings.Repeat(" ", max(width-2-ansi.StringWidth(name), 0))
 	return ansi.NewStyle().ForegroundColor(accent).Styled("▌") +
 		s.rowGlyph(svc) +
 		ansi.NewStyle().BackgroundColor(ansi.BrightBlack).Styled(name)
