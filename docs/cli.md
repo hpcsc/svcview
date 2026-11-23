@@ -274,7 +274,7 @@ The output of a status command is one JSON object of version 1 on stdout:
 | `at` | Optional | The time of the data, as an RFC 3339 text | The age of `at` in the detail pane |
 | `summary` | Optional | Text | The summary in the row of the service |
 | `level` | Optional | `info`, `warn`, or `error`. The default is `info`. | The color of the summary |
-| `fields` | Optional | A list of objects. Each has the texts `name` and `value`, and can have `progress`, a number from 0 to 1. svcview does not check the range of `progress`. | Nothing |
+| `fields` | Optional | A list of objects. Each has the texts `name` and `value`, and can have `progress`, a number from 0 to 1. A `progress` outside 0 to 1 makes the output invalid. | Nothing |
 | `events` | Optional | A list of objects. Each has `at`, an RFC 3339 text, `level`, and the text `text`. | Nothing |
 
 svcview ignores a property that it does not know, so a program can add a property before svcview uses it. The names
@@ -337,6 +337,7 @@ The parse error names the place in the output as a JSON pointer, and says what v
 | A `level` other than `info`, `warn`, or `error` | `"/level" is "debug", and it must be info, warn or error` |
 | A property with a value of another shape | `"/at" must be an RFC 3339 time in a text, such as "2026-11-23T09:12:00Z"`, or `"/fields/0/value" must be a text` |
 | A field or an event with a property missing | `"/fields/1/name" is missing`, or `"/events/0/text" is missing` |
+| A field with a `progress` less than 0 or more than 1. The error names the first such field. | `"/fields/2/progress" is 1.5, and it must be from 0 to 1` |
 
 svcview starts each status command in a process group of its own. It stops that process group with `SIGKILL` at
 `timeout`, when the program ends, and when svcview quits. svcview quits on `q` and `ctrl+c`, when its terminal

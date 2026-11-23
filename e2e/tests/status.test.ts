@@ -80,6 +80,19 @@ describe('the status command', () => {
     await session.waitForText('│ busy ')
   })
 
+  it('a status command that prints a field whose progress is 1.5 shows status invalid in the row, and the parse error that names the field in the detail pane', async () => {
+    const home = homeWithPlists(['com.example.worker.01'])
+    writeConfig(
+      join(home, '.config', 'svcview'),
+      workersWithStatusCommand(`[printf, '{"version":1,"fields":[{"name":"mode","value":"busy"},{"name":"step","value":"review","progress":1.5}]}']`),
+    )
+
+    const session = await openCli(scratchDir(), [], { HOME: home })
+
+    await session.waitForText('01  status invalid')
+    await session.waitForText('"/fields/1/progress" is 1.5, and it must be from 0 to 1')
+  })
+
   it('a status command whose child process writes a file after 2 s, with a timeout of 10 s, does not write it when svcview quits after the run starts', async () => {
     const home = homeWithPlists(['com.example.worker.01'])
     const marker = join(scratchDir(), 'written')

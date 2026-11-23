@@ -119,6 +119,8 @@ func parseOutput(stdout []byte) (*Output, error) {
 			return nil, fmt.Errorf(`"/fields/%d/name" is missing`, i)
 		case field.Value == nil:
 			return nil, fmt.Errorf(`"/fields/%d/value" is missing`, i)
+		case field.Progress != nil && (*field.Progress < 0 || *field.Progress > 1):
+			return nil, fmt.Errorf(`"/fields/%d/progress" is %g, and it must be from 0 to 1`, i, *field.Progress)
 		}
 		output.Fields = append(output.Fields, Field{Name: *field.Name, Value: *field.Value, Progress: field.Progress})
 	}

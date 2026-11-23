@@ -118,18 +118,18 @@ shows the parse error and the first lines of the output, as for each other statu
 `progress` outside 0 to 1 makes the output invalid.
 
 **Acceptance Criteria:**
-- [ ] An output with a field whose `progress` is 1.5 gives a status invalid with the parse error
+- [x] An output with a field whose `progress` is 1.5 gives a status invalid with the parse error
       `"/fields/0/progress" is 1.5, and it must be from 0 to 1`, and no output.
-- [ ] A `progress` of -0.1, and a `progress` a little more than 1, such as 1.000001, give a status invalid with the
+- [x] A `progress` of -0.1, and a `progress` a little more than 1, such as 1.000001, give a status invalid with the
       same form of parse error.
-- [ ] When two fields have a `progress` outside 0 to 1, the parse error names the first of them in the order of the
+- [x] When two fields have a `progress` outside 0 to 1, the parse error names the first of them in the order of the
       output, by its place in `fields`.
-- [ ] A `progress` of 0, of 1, and of each number between them gives an output with that progress.
-- [ ] `internal/status/command_test.go:429-437` checks the opposite today. It changes to check the status invalid.
-- [ ] In `docs/cli.md`, the table of the output says that `progress` is a number from 0 to 1, and that a `progress`
+- [x] A `progress` of 0, of 1, and of each number between them gives an output with that progress.
+- [x] `internal/status/command_test.go:429-437` checks the opposite today. It changes to check the status invalid.
+- [x] In `docs/cli.md`, the table of the output says that `progress` is a number from 0 to 1, and that a `progress`
       outside 0 to 1 makes the output invalid. The sentence that says that svcview does not check the range is gone.
       The table of the parse errors has a row for a `progress` outside 0 to 1.
-- [ ] e2e test: a status command that prints an output with a field whose `progress` is 1.5 shows `status invalid`
+- [x] e2e test: a status command that prints an output with a field whose `progress` is 1.5 shows `status invalid`
       in the row, and the parse error that names the field in the detail pane.
 
 **Affected Files/Modules:**

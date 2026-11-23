@@ -426,14 +426,19 @@ func TestCommand(t *testing.T) {
 			}
 		})
 
-		t.Run("a field whose progress is outside 0 to 1 gives an output with that progress", func(t *testing.T) {
-			result := printing(t, `{"version":1,"fields":[{"name":"step","value":"review","progress":1.5},{"name":"done","value":"0","progress":-0.1}]}`).Run(context.Background(), worker())
+		t.Run("a field whose progress is outside 0 to 1 gives a status invalid with a parse error that names the first such field and gives its progress", func(t *testing.T) {
+			for stdout, parseError := range map[string]string{
+				`{"version":1,"fields":[{"name":"step","value":"review","progress":1.5}]}`:      `"/fields/0/progress" is 1.5, and it must be from 0 to 1`,
+				`{"version":1,"fields":[{"name":"step","value":"review","progress":-0.1}]}`:     `"/fields/0/progress" is -0.1, and it must be from 0 to 1`,
+				`{"version":1,"fields":[{"name":"step","value":"review","progress":1.000001}]}`: `"/fields/0/progress" is 1.000001, and it must be from 0 to 1`,
+				`{"version":1,"fields":[{"name":"mode","value":"busy"},{"name":"step","value":"review","progress":0.6},{"name":"done","value":"14","progress":2},{"name":"failed","value":"1","progress":-1}]}`: `"/fields/2/progress" is 2, and it must be from 0 to 1`,
+			} {
+				result := printing(t, stdout).Run(context.Background(), worker())
 
-			require.Nil(t, result.Failure)
-			require.Equal(t, &status.Output{Fields: []status.Field{
-				{Name: "step", Value: "review", Progress: new(1.5)},
-				{Name: "done", Value: "0", Progress: new(-0.1)},
-			}}, result.Output)
+				require.NotNil(t, result.Failure, stdout)
+				require.Equal(t, [2]any{status.FailureKindInvalid, parseError}, [2]any{result.Failure.Kind, result.Failure.Text}, stdout)
+				require.Nil(t, result.Output, stdout)
+			}
 		})
 
 		t.Run("a program that exits with a code other than 0 gives a status error with the exit code and the lines of stderr, also when it prints a JSON object of version 1", func(t *testing.T) {
