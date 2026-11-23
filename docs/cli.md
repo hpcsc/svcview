@@ -63,7 +63,7 @@ This screen has the group `Workers`, with the match `^com\.example\.worker\.` an
 | --- | --- |
 | The header | The domain `gui/<uid>` of the user, and the number of services in each state. |
 | The list | One row for each service that has a plist in `~/Library/LaunchAgents`, in [the groups of the config file](#groups), and then in the group `Other`. Each group starts with a line with its name, and an empty line separates two groups. In each group, the services are sorted by name. Each row starts with the glyph of the state of the service, and a row in a group shows the short name of the service. svcview cuts a name that is too long for the list with `…`. When the list has more lines than the pane, it scrolls to keep the selected row in view. When the selected row is the first row of its group, and the pane has room for more than one line, the line of the group shows too. In a group with a status command, a row shows [the summary of the status](#in-the-list-and-the-detail-pane) after the short name. The list takes 40 percent of the width. |
-| The detail pane | The selected service. Its title is the full name of the service. The pane shows the state, the PID, the uptime, and the last exit, and in a group with a status command, the age of the status. |
+| The detail pane | The selected service. Its title is the full name of the service. The pane shows the state, the PID, the uptime, and the last exit, and in a group with a status command, the age of the status and the [failure](#failures) of the last run. |
 | The help line | `? help` |
 
 The name of a service is the `Label` of its plist. svcview gets the state, the PID, and the last exit of each
@@ -82,6 +82,7 @@ service from `launchctl list`, and the uptime from `ps`.
 | A summary of the level `warn` | Yellow |
 | A summary of the level `error` | Red |
 | A template value that the plist does not have, for example `the plist has no WORKER_STATUS_FILE` | Red, in place of the summary |
+| A [failure](#failures) of the status command: `status error`, `status timeout`, or `status invalid` | Red, in place of the summary |
 
 svcview uses the 16 colors of the ANSI palette, so the theme of the terminal sets the real colors. Each state has a
 glyph of a different shape, so the screen shows the state without color too.
@@ -93,7 +94,7 @@ glyph of a different shape, so the screen shows the state without color too.
 | `PID` | The PID of the process of a `running` service. A service that does not run shows `-`. |
 | `up` | The time since the process of the service started, in its two largest units: for example `up 45s`, `up 3m12s`, `up 3h12m`, or `up 4d9h`. A service that does not run shows `-`. A service whose PID `ps` does not report shows `-` too. |
 | `last exit` | The exit code of the last run, or the name of the signal that ended it, for example `SIGKILL`. |
-| `Status` | The age of the status, for example `Status 1s ago`, in a group with a [status command](#the-status-command). The line shows after the first run of the status command of the service ends. |
+| `Status` | The age of the status, for example `Status 1s ago`, in a group with a [status command](#the-status-command). The line shows after the first run of the status command of the service ends. After a [failure](#failures), the lines under `Status` tell why the run failed. |
 
 ### Refresh
 
@@ -194,7 +195,7 @@ groups:
 | --- | --- | --- |
 | `status.command` | The program and its arguments, as a list of texts with the program first. Each text can use the [template values](#template-values). | Required |
 | `status.every` | The time between two runs of the command for one service. The value is a Go duration that is more than 0. | `2s` |
-| `status.timeout` | The time after which svcview stops a run. The value is a Go duration that is more than 0. | `1s` |
+| `status.timeout` | The time after which svcview stops a run, with each process that the command started. The value is a Go duration that is more than 0. | `1s` |
 
 svcview runs the program and its arguments with no shell. Thus `$HOME`, `;`, `|`, `*` and a space in a text reach
 the program as they are. For a shell, write `[sh, -c, '...']`. The command runs with the environment and the working
@@ -207,8 +208,9 @@ runs the command of each service of the group every `every`. The command runs in
 1. svcview does not start a second run for a service until the run of that service ends. The next run starts at
    the first `every` after the run ends.
 2. A service that a read adds gets its first run at the next `every` of its group.
-3. svcview stops a run at `timeout`. It reads a maximum of 1 MiB from stdout, and it does not read stderr.
-4. When svcview quits, it stops each command that still runs.
+3. svcview stops a run at `timeout`. It reads a maximum of 1 MiB from stdout, and it keeps the last 20 lines of
+   stderr.
+4. When svcview quits, it stops each command that still runs, with each process that the command started.
 
 #### Template values
 
@@ -272,29 +274,78 @@ The output of a status command is one JSON object of version 1 on stdout:
 | `at` | Optional | The time of the data, as an RFC 3339 text | The age of `at` in the detail pane |
 | `summary` | Optional | Text | The summary in the row of the service |
 | `level` | Optional | `info`, `warn`, or `error`. The default is `info`. | The color of the summary |
-| `fields` | Optional | A list of objects. Each has the texts `name` and `value`, and can have `progress`, a number from 0 to 1. | Nothing |
+| `fields` | Optional | A list of objects. Each has the texts `name` and `value`, and can have `progress`, a number from 0 to 1. svcview does not check the range of `progress`. | Nothing |
 | `events` | Optional | A list of objects. Each has `at`, an RFC 3339 text, `level`, and the text `text`. | Nothing |
 
 svcview ignores a property that it does not know, so a program can add a property before svcview uses it. The names
 of the properties are case-sensitive, and an object must not have a name two times. A new line after the object is
 valid. A second JSON value after the object is not valid.
 
-svcview shows the summary only when the command exits with 0 and prints a valid object. Any other run shows no
-summary.
+svcview shows the summary only when the command exits with 0 and prints a valid object. Any other run is a
+[failure](#failures), and the row shows the failure in place of the summary.
 
 #### In the list and the detail pane
 
 The row of a service shows the `summary` of the last run that ended, after the short name. The summaries of the
 rows of one group start in one column. `level` sets the color of the summary: the default color for `info`, yellow
 for `warn`, and red for `error`. A template value that the plist does not have shows in red in place of the summary,
-for example `the plist has no WORKER_STATUS_FILE`. The row shows nothing after the short name before the first run
-ends, and after a run that gives no summary. svcview cuts a summary that is too long for the list with `…`.
+for example `the plist has no WORKER_STATUS_FILE`, and so does a [failure](#failures). The row shows nothing after
+the short name before the first run ends, and after a valid output with no `summary`. svcview cuts a summary that is
+too long for the list with `…`.
 
 The detail pane shows the line `Status` under the data from launchd, with the age of the status, for example
 `Status 1s ago`. The age is the time since `at` when the output has `at`. In each other case, it is the time since
 the last run ended. The age has the units of `up`, and an `at` after the current time shows `0s`. The age grows
 each time the screen draws, also with no new run. Before the first run of the service ends, the detail pane shows
-no line `Status`.
+no line `Status`. After a failure, the detail pane shows under `Status` the text of the failure, and then its lines.
+
+#### Failures
+
+A run that gives no valid output is a failure. The row shows the failure in red in place of the summary, and the
+detail pane shows under `Status` why the run failed:
+
+| Failure | The row shows | The detail pane shows under `Status` |
+| --- | --- | --- |
+| The program exits with a code other than 0, a signal ends it, or svcview cannot start it | `status error` | `exit code 3`, `ended by SIGTERM`, or why svcview cannot start the program, for example `exec: "worker": executable file not found in $PATH`. Then the last 20 lines of stderr. |
+| The run lasts longer than `timeout` | `status timeout` | The command line: the program and its arguments after svcview applies the template values, for example `sh -c 'sleep 30'`. A text that a shell reads in another way is in single quotes. |
+| The output is not a JSON object of version 1, or is larger than 1 MiB | `status invalid` | The parse error, and then the first 20 lines of the output |
+| A template value that the plist does not have | The reason, for example `the plist has no WORKER_STATUS_FILE` | The same reason. svcview runs no program. |
+
+These rules decide which failure a run shows:
+
+1. A run that lasts longer than `timeout` is a `status timeout`, whatever the program printed before.
+2. An output larger than 1 MiB is a `status invalid`. svcview stops the read of stdout at 1 MiB, so the program can
+   end with `SIGPIPE` or with an exit code other than 0. The row still shows `status invalid`.
+3. A program that exits with a code other than 0 is a `status error`, also when it prints a valid output.
+4. A program that exits with 0, while a process that it started keeps stdout or stderr open for more than 1 s after
+   the exit, is a `status error` with the text `exec: WaitDelay expired before I/O complete`. For example,
+   `sh -c 'worker-daemon & cat status.json'` gives this failure, because `worker-daemon` keeps the stdout of the
+   shell. svcview then stops `worker-daemon` with the process group. Rule 1 comes first: when `timeout` ends before
+   that 1 s, the run is a `status timeout`.
+
+The parse error names the place in the output as a JSON pointer, and says what version 1 needs there:
+
+| Output | Parse error |
+| --- | --- |
+| No text, or only white space | `the output is empty` |
+| More than 1 MiB | `the output is larger than 1 MiB` |
+| Text that is not valid JSON, for example `busy` | `the output is not valid JSON: invalid character 'b' at start of value` |
+| An object with a name two times | `the output is not valid JSON: duplicate object member name "summary"` |
+| A JSON value that is not an object, for example `[{"version": 1}]` | `the output is a JSON list, not an object` |
+| A second JSON value or other text after the object | `the output has more text after its JSON object` |
+| No `version`, or a `version` other than 1 | `"/version" is missing, and it must be 1`, or `"/version" is 2, and it must be 1` |
+| A `level` other than `info`, `warn`, or `error` | `"/level" is "debug", and it must be info, warn or error` |
+| A property with a value of another shape | `"/at" must be an RFC 3339 time in a text, such as "2026-11-23T09:12:00Z"`, or `"/fields/0/value" must be a text` |
+| A field or an event with a property missing | `"/fields/1/name" is missing`, or `"/events/0/text" is missing` |
+
+svcview starts each status command in a process group of its own. It stops that process group with `SIGKILL` at
+`timeout`, when the program ends, and when svcview quits. svcview quits on `q` and `ctrl+c`, when its terminal
+closes, and on `SIGTERM`. Thus no process that the command starts runs longer than the run, for example the `sleep`
+of `sh -c 'sleep 30 &'`. A process that leaves the process group, for example with `setsid`, does not stop.
+
+svcview keeps the last 20 lines of stderr and the first 20 lines of an output that is not valid, and a maximum of
+4096 bytes of each line. The detail pane does not scroll: it shows the lines that fit in the pane, and cuts each
+line at the width of the pane with `…`. Each control character in a line shows as `�`.
 
 #### A fast status command
 

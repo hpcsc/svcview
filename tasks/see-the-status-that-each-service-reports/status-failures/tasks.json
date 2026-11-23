@@ -78,7 +78,7 @@
     },
     {
       "n": 4,
-      "done": false,
+      "done": true,
       "title": "Describe the failures of a status command in docs/cli.md",
       "language": "Markdown",
       "testable": false,

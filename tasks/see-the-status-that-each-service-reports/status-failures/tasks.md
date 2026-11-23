@@ -224,15 +224,15 @@ it, and the limits of a run. With the sections on the status settings, the templ
 author of a program can write a status command from the docs, with no read of the svcview code.
 
 **Acceptance Criteria:**
-- [ ] A table lists each failure: a program that exits with a code other than 0 or cannot start, a run longer than
+- [x] A table lists each failure: a program that exits with a code other than 0 or cannot start, a run longer than
       `status.timeout`, and an output that is not valid or is larger than 1 MiB, with what the row and the detail
       pane show for each.
-- [ ] It says that svcview stops the process group of the command at the timeout, and that a process that leaves
+- [x] It says that svcview stops the process group of the command at the timeout, and that a process that leaves
       that group does not stop.
-- [ ] It says that svcview keeps the last 20 lines of stderr and the first 20 lines of an output that is not valid.
-- [ ] It says that a program that exits with a code other than 0 shows `status error` also when it prints a valid
+- [x] It says that svcview keeps the last 20 lines of stderr and the first 20 lines of an output that is not valid.
+- [x] It says that a program that exits with a code other than 0 shows `status error` also when it prints a valid
       output.
-- [ ] The glyphs and colors table has the red of a failure.
+- [x] The glyphs and colors table has the red of a failure.
 
 **Affected Files/Modules:**
 - `docs/cli.md` — the failures of a status command
