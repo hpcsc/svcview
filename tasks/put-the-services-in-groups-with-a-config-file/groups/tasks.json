@@ -74,7 +74,7 @@
     },
     {
       "n": 4,
-      "done": false,
+      "done": true,
       "title": "Describe the groups in docs/cli.md",
       "language": "Markdown",
       "testable": false,

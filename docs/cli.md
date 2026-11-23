@@ -43,23 +43,26 @@ terminal, for example in a pipe, it prints the help and opens no screen.
 
 ```
 ╭ svcview ──────────────────────────────────────────────────────────── gui/501 ╮
-│  ● 1 running   ◐ 0 loaded   ○ 0 not loaded                                   │
+│  ● 2 running   ◐ 0 loaded   ○ 1 not loaded                                   │
 ╰──────────────────────────────────────────────────────────────────────────────╯
-╭ Services ────────────────────╮╭ com.example.worker ──────────────────────────╮
-│ Other                        ││ ● running     PID 4122                       │
-│ ▌● com.example.worker        ││ up 3h12m      last exit 0                    │
+╭ Services ────────────────────╮╭ com.example.worker.01 ───────────────────────╮
+│ Workers                      ││ ● running     PID 4122                       │
+│ ▌● 01                        ││ up 3h12m      last exit 0                    │
+│  ● 02                        ││                                              │
 │                              ││                                              │
-│                              ││                                              │
-│                              ││                                              │
-│                              ││                                              │
+│ Other                        ││                                              │
+│  ○ homebrew.mxcl.postgres    ││                                              │
 ╰──────────────────────────────╯╰──────────────────────────────────────────────╯
  ? help
 ```
 
+This screen has the group `Workers`, with the match `^com\.example\.worker\.`, in its
+[config file](#the-config-file).
+
 | Part | What it shows |
 | --- | --- |
 | The header | The domain `gui/<uid>` of the user, and the number of services in each state. |
-| The list | One row for each service that has a plist in `~/Library/LaunchAgents`, in the group `Other`, sorted by name. Each row starts with the glyph of the state of the service. svcview cuts a name that is too long for the list with `…`. When the list has more rows than the pane, it scrolls to keep the selected row in view. The list takes 40 percent of the width. |
+| The list | One row for each service that has a plist in `~/Library/LaunchAgents`, in [the groups of the config file](#groups), and then in the group `Other`. Each group starts with a line with its name, and an empty line separates two groups. In each group, the services are sorted by name. Each row starts with the glyph of the state of the service, and a row in a group shows the short name of the service. svcview cuts a name that is too long for the list with `…`. When the list has more lines than the pane, it scrolls to keep the selected row in view. When the selected row is the first row of its group, and the pane has room for more than one line, the line of the group shows too. The list takes 40 percent of the width. |
 | The detail pane | The selected service. Its title is the full name of the service. The pane shows the state, the PID, the uptime, and the last exit. |
 | The help line | `? help` |
 
@@ -92,7 +95,7 @@ glyph of a different shape, so the screen shows the state without color too.
 One `refresh` after each read ends, svcview reads the plists and runs `launchctl list` and `ps` again, with no key
 press. The setting `refresh` of [the config file](#the-config-file) sets the time, and the default is 2 s. svcview
 reads a plist again only when the modification time of the file changes. The same service stays selected. When the
-selected service is gone, the row after it is selected, or the last row when it was the last.
+selected service is gone, the row after it in the list is selected, or the last row when it was the last.
 
 When `launchctl list` fails, or prints a header line other than `PID`, `Status`, `Label`, the list shows the error
 and no rows. When `ps` fails, no service shows an uptime.
@@ -101,7 +104,7 @@ and no rows. When `ps` fails, no service shows an uptime.
 
 | Key | Action |
 | --- | --- |
-| `↑` `↓` | Select a service. |
+| `↑` `↓` | Select a service. The keys move one row at a time in the order of the list, also from one group to the next. |
 | `?` | Show the help, which lists all keys, or hide it. |
 | `esc` | Hide the help. |
 | `q` or `ctrl+c` | Quit. |
@@ -122,11 +125,47 @@ file.
 ```yaml
 # ~/.config/svcview/config.yaml
 refresh: 5s
+groups:
+  - name: Workers
+    match: ^com\.example\.worker\.
+  - name: Apple
+    match: ^com\.apple\.
 ```
 
 | Setting | What it does | Default |
 | --- | --- | --- |
 | `refresh` | The time between two reads of the services. One `refresh` after each read ends, svcview reads the plists and runs `launchctl list` and `ps` again. The value is a Go duration that is more than 0, for example `500ms`, `5s`, or `1m30s`. | `2s` |
+| `groups` | The groups of the list, in the order of the list. Each group has a `name` and a `match`. | No groups |
+
+### Groups
+
+Each entry in `groups` is a group of the list, with two settings:
+
+| Setting | What it does |
+| --- | --- |
+| `name` | The name of the group, which the list shows on the line of the group. Two names that differ in case, for example `Workers` and `workers`, are two names. |
+| `match` | A [Go regular expression](https://pkg.go.dev/regexp/syntax). The group holds each service whose name the expression matches. A match in any part of the name counts, unless the expression has `^` or `$`. |
+
+These rules put each service in one group:
+
+1. svcview tries the groups in the order of the config file. A service is in the first group whose `match` matches
+   its name, also when the `match` of a later group matches the name too.
+2. A service that no group matches is in the group `Other`. The list shows `Other` after the groups of the config
+   file.
+3. In each group, the services are sorted by name.
+4. A group with no service shows no line. When each service is in a group of the config file, the list shows no
+   line `Other`.
+
+With no `groups`, each service is in the group `Other`.
+
+A row in a group shows the short name of its service: the part of the name after the text that `match` matched,
+when the match starts at the first character of the name. For example, `^com\.example\.worker\.` gives `01` for
+`com.example.worker.01`. The row shows the full name when the match starts after the first character, when the
+match is the whole name, and in the group `Other`. The title of the detail pane always shows the full name.
+
+Write a `match` in single quotes, for example `'[0-9]+\.worker'`. With no quotes, a `match` that starts with a
+character such as `[` or `*` is not valid YAML. In double quotes, YAML reads each `\` as the start of an escape, so
+`"^com\.example"` is not valid YAML.
 
 ### Errors
 
@@ -137,6 +176,16 @@ These errors stop svcview before the screen opens. svcview prints the error, whi
 - A file that is not valid YAML, or whose top level is not a set of settings such as `refresh: 5s`.
 - A file that svcview cannot read.
 - A file that another user can write.
+
+These errors in `groups` stop svcview too. Each error names the file, and an error in one group also names the
+group. A group with no name has the name of its place in `groups`, for example `group 2`.
+
+- A `groups` that is not a list, or an entry that is not a set of settings such as `name: Workers`.
+- A group with no `name`, or with no `match`.
+- A `match` that is not a Go regular expression.
+- A setting in a group that svcview does not know, or a setting that a group sets two times.
+- Two groups with the same name.
+- A group with the name `Other`, because `Other` is the group of the services that no group matches.
 
 ### A config file that another user can write
 

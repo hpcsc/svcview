@@ -228,17 +228,17 @@ other than the full name of its service.
 name, and the errors of a group that stop svcview at start. The section on the screen shows a list with a group.
 
 **Acceptance Criteria:**
-- [ ] The section on the config file lists `groups`, with `name` and `match`, and gives an example group with the
+- [x] The section on the config file lists `groups`, with `name` and `match`, and gives an example group with the
       `match` `^com\.example\.worker\.`.
-- [ ] It gives the rules that put a service in a group: the order of the config file, the first group whose `match`
+- [x] It gives the rules that put a service in a group: the order of the config file, the first group whose `match`
       matches the name, the group `Other` for each service that no group matches, and the sort by name in each
       group.
-- [ ] It gives the rule of the short name, with the example `01` for `com.example.worker.01`, and says that the
+- [x] It gives the rule of the short name, with the example `01` for `com.example.worker.01`, and says that the
       rows of `Other` and the title of the detail pane show the full name.
-- [ ] It lists the errors of a group that stop svcview at start: an invalid regular expression, a group with no
+- [x] It lists the errors of a group that stop svcview at start: an invalid regular expression, a group with no
       name or no match, an unknown setting in a group, two groups with the same name, and a group named `Other`.
       Each error names the file and the group.
-- [ ] The section on the screen says that the list shows the groups of the config file, and its example screen
+- [x] The section on the screen says that the list shows the groups of the config file, and its example screen
       shows a group with short names, and `Other`.
 
 **Affected Files/Modules:**
