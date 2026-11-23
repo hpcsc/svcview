@@ -240,3 +240,31 @@
 - Observed: see-the-status-that-each-service-reports-status-failures
 - Learning: The boundary of status-failures said that a progress outside 0 to 1 does not make the output invalid, but parseOutput of status-summary refused it. The run had to remove that check with no criterion for it, and the proposal and US-004 still ask for it. Plan the removal as a criterion of a task, and tell the story that owns the rule.
 - Apply when: Planning a deliverable whose boundaries say that a rule, a check or a validation does not apply, in a package that an earlier deliverable changed.
+
+## clerk finish cannot commit the deletion of a file
+- Type: constraint
+- Recorded: 2026-11-23
+- Observed: task 4 — see-the-fields-and-the-events-of-a-status-fields-and-events
+- Learning: clerk finish refuses a path that does not exist, and it refuses a deletion staged with git rm as another-task-still-staged when an earlier task recorded the file. Task 4 of fields-and-events planned to replace internal/tui/testdata/status-fields.golden with status-fields-events.golden; it kept the old golden file and its test, and added the new one. Keep the file, or delete it in a commit of its own outside clerk finish and say why in the message.
+- Apply when: A task deletes or renames a file, for example a golden file in internal/tui/testdata.
+
+## A test of the local time zone sets time.Local to a fixed zone that is not UTC
+- Type: pattern
+- Recorded: 2026-11-23
+- Observed: task 4 — see-the-fields-and-the-events-of-a-status-fields-and-events
+- Learning: CI runs task test:unit on ubuntu-latest, where the zone is UTC, so a test that builds its time in time.Local cannot catch a time that shows in UTC in place of the local zone; an audit found this in fields-and-events. The test of an event in another zone in internal/tui/screen_test.go sets time.Local = time.FixedZone("UTC+5:30", ...) and restores it with t.Cleanup; no test in internal/tui runs in parallel, so this is safe. The e2e Docker image has zoneinfo files, so an e2e test can give svcview a TZ such as Asia/Kathmandu too.
+- Apply when: A unit or e2e test checks a time of day that svcview shows in the local time zone, for example the time of an event.
+
+## Split an audit fix across earlier commits with git commit-tree, and keep the tip tree the same
+- Type: pattern
+- Recorded: 2026-11-23
+- Observed: task 2,3,4 — see-the-fields-and-the-events-of-a-status-fields-and-events
+- Learning: clerk fixup mark folds a change made at HEAD into one commit. In fields-and-events the audit fix (a test of a task 2 criterion, and a rename of a golden subtest of tasks 2 and 3) went into the task 4 commit, and run-verifier reported tasks 2 and 3 as scattered. The split: write the file as each earlier commit must have it, build each commit with git commit-tree from a temporary GIT_INDEX_FILE with the old message and author, rebuild the later commits on their old trees, check that git diff of the old and the new tip is empty, run the tests at each new commit in a temporary worktree, and move the branch with git update-ref. The suite receipt stays valid, because it is bound to the tip tree. Run the script with bash: zsh here has an alias mk.
+- Apply when: An audit fix changes lines that two or more task commits added, or run-verifier reports a task whose work is in a later commit, on a branch that is not pushed.
+
+## Match the learnings index with the clerk commands as well as the story
+- Type: constraint
+- Recorded: 2026-11-23
+- Observed: see-the-fields-and-the-events-of-a-status-fields-and-events
+- Learning: clerk learn index --match with only the packages and nouns of the story does not list the entries about clerk itself. fields-and-events missed 'Run clerk mutants and clerk audit run under mise exec' and 'Pass --integrate to clerk land when the request asks to land on main', and repeated both: its audit lost the mutants lens, and bare clerk land archived the breakdown without the integration. Add clerk, mutants, audit, land, finish and fixup to the terms of the first read.
+- Apply when: The ground step of a run in this repo reads the learnings index.
