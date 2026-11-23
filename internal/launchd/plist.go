@@ -4,7 +4,6 @@ import (
 	"os"
 	"time"
 
-	"github.com/hpcsc/svcview/internal/service"
 	plistformat "howett.net/plist"
 )
 
@@ -32,8 +31,4 @@ func (p plist) readIfChanged(path string, modTime time.Time) plist {
 		return p
 	}
 	return readPlist(path, modTime)
-}
-
-func (p plist) service() (service.Service, bool) {
-	return service.Service{Name: p.name}, p.name != ""
 }

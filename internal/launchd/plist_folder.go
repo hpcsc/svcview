@@ -5,8 +5,6 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
-
-	"github.com/hpcsc/svcview/internal/service"
 )
 
 type plistFolder struct {
@@ -14,7 +12,7 @@ type plistFolder struct {
 	kept map[string]plist
 }
 
-func (f *plistFolder) services() ([]service.Service, error) {
+func (f *plistFolder) names() ([]string, error) {
 	entries, err := os.ReadDir(f.path)
 	if errors.Is(err, fs.ErrNotExist) {
 		return nil, nil
@@ -22,8 +20,8 @@ func (f *plistFolder) services() ([]service.Service, error) {
 	if err != nil {
 		return nil, err
 	}
-	var services []service.Service
-	named := map[string]bool{}
+	var names []string
+	seen := map[string]bool{}
 	kept := map[string]plist{}
 	for _, entry := range entries {
 		if filepath.Ext(entry.Name()) != ".plist" {
@@ -36,13 +34,12 @@ func (f *plistFolder) services() ([]service.Service, error) {
 		}
 		p := f.kept[path].readIfChanged(path, info.ModTime())
 		kept[path] = p
-		svc, ok := p.service()
-		if !ok || named[svc.Name] {
+		if p.name == "" || seen[p.name] {
 			continue
 		}
-		named[svc.Name] = true
-		services = append(services, svc)
+		seen[p.name] = true
+		names = append(names, p.name)
 	}
 	f.kept = kept
-	return services, nil
+	return names, nil
 }
