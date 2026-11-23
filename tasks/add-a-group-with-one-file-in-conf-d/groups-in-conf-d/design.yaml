@@ -1,0 +1,46 @@
+design: planned
+types:
+  - name: Settings
+    package: internal/config
+    change: changed
+    does: the settings of svcview, read from the config files of the config folder
+    owns:
+      - svcview reads config.yaml, then each entry of conf.d whose name ends in .yaml and does not start with a dot, in the byte order of the names
+      - each config file passes one check on the open file before svcview reads it; the file is a regular file, its owner is the user of svcview, its group and other users cannot write it, and its ACL has no entries; the error names the file
+      - the open of a config file does not wait on a named pipe, and a symbolic link counts with the file that it points to
+      - a symbolic link to no file counts as no file, and a conf.d that does not exist counts as a conf.d with no files
+      - a conf.d that is not a folder, or that svcview cannot list, stops svcview at start, and the error names conf.d
+      - the groups of each config file join the groups of the files before it in one place, which holds each check that spans the groups of all files
+      - the groups keep the file order, so a service that the groups of two files match is in the group of the earlier file
+      - only config.yaml sets refresh; a refresh in a file of conf.d stops svcview at start, and the error names the file
+      - no two groups of all the config files have the same name; the error names the file of the second group, the group, and the file of the first
+    fields: [Refresh, Groups]
+    methods: [GroupOf]
+  - name: Group
+    package: internal/config
+    change: changed
+    does: a named set of services from a config file, the services whose names its match matches
+    owns:
+      - a group knows the config file that sets it, so an error about the group names that file also after the join
+      - a group stays comparable, because the screen finds the group of a row by its value
+    fields: [Name, match, Status, configFile]
+    methods: [ShortName]
+functions:
+  - config.Read(folder, uid, aclEntries) (Settings, error)
+words:
+  - concept: config.yaml or a .yaml file in conf.d, which svcview reads at start
+    word: config file
+    not: [settings file, drop-in, fragment, snippet, part]
+  - concept: the folder in the config folder with a config file for each program that adds its groups
+    word: conf.d
+    not: [drop-in folder, include folder, plugins, extensions]
+  - concept: to put the groups of all config files in one list, in file order
+    word: join
+    not: [merge, combine, overlay, concatenate]
+  - concept: config.yaml first, then the files of conf.d in the byte order of their names
+    word: file order
+    not: [load order, precedence, priority]
+  - concept: a file that is not a folder, a named pipe, a socket, or a device
+    word: regular file
+    not: [plain file, normal file]
+dependencies: []

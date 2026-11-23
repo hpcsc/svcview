@@ -1,0 +1,128 @@
+{
+  "story": "svcview adds the groups of each file in conf.d to the groups of config.yaml",
+  "story_id": "launchd-tui/US-005",
+  "tasks_file": "tasks/add-a-group-with-one-file-in-conf-d/groups-in-conf-d/tasks.md",
+  "tasks": [
+    {
+      "n": 1,
+      "done": false,
+      "title": "Refuse a config file that is not a regular file",
+      "language": "Go",
+      "testable": true,
+      "certainty": "medium",
+      "blast_radius": "high",
+      "patterns_to_follow": [
+        "internal/config/config.go:28-62",
+        "internal/config/config_test.go:200-209",
+        "internal/config/config_test.go:260-278"
+      ],
+      "depends_on": [],
+      "affected_files": [
+        "internal/config/config.go",
+        "internal/config/config_test.go"
+      ]
+    },
+    {
+      "n": 2,
+      "done": false,
+      "title": "Read the groups of each `*.yaml` file in `conf.d` after `config.yaml`",
+      "language": "Go",
+      "testable": true,
+      "certainty": "medium",
+      "blast_radius": "high",
+      "patterns_to_follow": [
+        "internal/config/config.go:28-62",
+        "internal/launchd/plist_folder.go:15-45",
+        "internal/config/config_test.go:200-348",
+        "internal/config/config_test.go:357-362",
+        "internal/config/config_test.go:680-686",
+        "e2e/testUtils.ts:80-86",
+        "e2e/tests/config.test.ts:48-59",
+        "e2e/tests/config.test.ts:109-137",
+        "docs/e2e-tests.md:143-186",
+        "task:1"
+      ],
+      "depends_on": [
+        1
+      ],
+      "affected_files": [
+        "internal/config/config.go",
+        "internal/config/config_test.go",
+        "e2e/testUtils.ts",
+        "e2e/tests/config.test.ts",
+        "docs/e2e-tests.md"
+      ]
+    },
+    {
+      "n": 3,
+      "done": false,
+      "title": "Refuse a `refresh` in a file of `conf.d`",
+      "language": "Go",
+      "testable": true,
+      "certainty": "medium",
+      "blast_radius": "low",
+      "patterns_to_follow": [
+        "internal/config/config.go:96-104",
+        "internal/config/config_test.go:143-156",
+        "e2e/tests/config.test.ts:17-29",
+        "task:2"
+      ],
+      "depends_on": [
+        2
+      ],
+      "affected_files": [
+        "internal/config/config.go",
+        "internal/config/config_test.go",
+        "e2e/tests/config.test.ts"
+      ]
+    },
+    {
+      "n": 4,
+      "done": false,
+      "title": "Refuse a group whose name a group of an earlier config file has",
+      "language": "Go",
+      "testable": true,
+      "certainty": "medium",
+      "blast_radius": "low",
+      "patterns_to_follow": [
+        "internal/config/config.go:115-135",
+        "internal/config/config_test.go:630-638",
+        "internal/config/config_test.go:650-655",
+        "e2e/tests/config.test.ts:83-98",
+        "task:2"
+      ],
+      "depends_on": [
+        2
+      ],
+      "affected_files": [
+        "internal/config/config.go",
+        "internal/config/group.go",
+        "internal/config/config_test.go",
+        "e2e/tests/config.test.ts"
+      ]
+    },
+    {
+      "n": 5,
+      "done": false,
+      "title": "Describe the files of `conf.d` in docs/cli.md",
+      "language": "Markdown",
+      "testable": false,
+      "certainty": "high",
+      "blast_radius": "low",
+      "patterns_to_follow": [
+        "docs/cli.md:148-176",
+        "docs/cli.md:178-207",
+        "docs/cli.md:428-456",
+        "docs/cli.md:458-495"
+      ],
+      "depends_on": [
+        3,
+        4
+      ],
+      "affected_files": [
+        "docs/cli.md"
+      ]
+    }
+  ],
+  "design_file": "tasks/add-a-group-with-one-file-in-conf-d/groups-in-conf-d/design.yaml"
+}
