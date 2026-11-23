@@ -161,17 +161,17 @@ kernel for the extended security of the file descriptor. A file with no ACL, or 
 0. An answer of the kernel that svcview cannot read gives an error. On other systems it gives 0 for each file.
 
 **Acceptance Criteria:**
-- [ ] On macOS, a file with no ACL gives 0 entries, and so does a file after `/bin/chmod -N`.
-- [ ] On macOS, a file with one ACL entry gives 1, for an entry that allows a right and for an entry that only
+- [x] On macOS, a file with no ACL gives 0 entries, and so does a file after `/bin/chmod -N`.
+- [x] On macOS, a file with one ACL entry gives 1, for an entry that allows a right and for an entry that only
       denies; a file with two entries gives 2.
-- [ ] On macOS, a file whose ACL lost its only entry through `/bin/chmod -a# 0` gives 0.
-- [ ] The count is that of the open file, so a file opened through a symbolic link gives the count of the file that
+- [x] On macOS, a file whose ACL lost its only entry through `/bin/chmod -a# 0` gives 0.
+- [x] The count is that of the open file, so a file opened through a symbolic link gives the count of the file that
       the link points to.
-- [ ] An answer that does not start with the magic of the extended security, or that is shorter than its entry
+- [x] An answer that does not start with the magic of the extended security, or that is shorter than its entry
       count says, gives an error, not a count.
-- [ ] On other systems, each file gives 0.
-- [ ] The tests that change an ACL run only on macOS, and use `/bin/chmod`. On other systems they skip.
-- [ ] `go build ./...` passes for `GOOS=darwin` with `GOARCH=arm64` and `GOARCH=amd64`, and for `GOOS=linux`.
+- [x] On other systems, each file gives 0.
+- [x] The tests that change an ACL run only on macOS, and use `/bin/chmod`. On other systems they skip.
+- [x] `go build ./...` passes for `GOOS=darwin` with `GOARCH=arm64` and `GOARCH=amd64`, and for `GOOS=linux`.
 
 **Affected Files/Modules:**
 - `internal/config/acl_darwin.go` — new: the read of the extended security of an open file on macOS

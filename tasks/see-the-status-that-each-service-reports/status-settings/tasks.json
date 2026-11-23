@@ -5,7 +5,7 @@
   "tasks": [
     {
       "n": 1,
-      "done": false,
+      "done": true,
       "title": "Read the ACL of an open file on macOS",
       "language": "Go",
       "testable": true,
@@ -39,7 +39,9 @@
         "docs/e2e-tests.md:143-203",
         "task:1"
       ],
-      "depends_on": [1],
+      "depends_on": [
+        1
+      ],
       "affected_files": [
         "internal/config/config.go",
         "internal/config/config_test.go",
@@ -62,7 +64,9 @@
         "internal/config/config_test.go:348-432",
         "e2e/tests/config.test.ts:16-28"
       ],
-      "depends_on": [2],
+      "depends_on": [
+        2
+      ],
       "affected_files": [
         "internal/status/command.go",
         "internal/status/command_test.go",
@@ -82,7 +86,9 @@
       "patterns_to_follow": [
         "docs/cli.md:170-212"
       ],
-      "depends_on": [2],
+      "depends_on": [
+        2
+      ],
       "affected_files": [
         "docs/cli.md"
       ]
