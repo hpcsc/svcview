@@ -18,12 +18,16 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
+	"github.com/hpcsc/svcview/internal/config"
 	"github.com/hpcsc/svcview/internal/service"
 	"github.com/hpcsc/svcview/internal/tui"
 	"github.com/stretchr/testify/require"
 )
 
-var updateGolden = flag.Bool("update", false, "write the golden files from the screen")
+var (
+	updateGolden   = flag.Bool("update", false, "write the golden files from the screen")
+	refreshEvery2s = config.Settings{Refresh: 2 * time.Second}
+)
 
 func servicesNamed(names ...string) func() ([]service.Service, error) {
 	return func() ([]service.Service, error) {
@@ -43,7 +47,7 @@ func readGiving(services ...service.Service) func() ([]service.Service, error) {
 
 func open(t *testing.T, domain string, read func() ([]service.Service, error), width, height int) tea.Model {
 	t.Helper()
-	var screen tea.Model = tui.NewScreen(domain, read)
+	var screen tea.Model = tui.NewScreen(domain, read, refreshEvery2s)
 	start := screen.Init()
 	require.NotNil(t, start)
 	screen, _ = screen.Update(tea.WindowSizeMsg{Width: width, Height: height})
@@ -142,7 +146,7 @@ func readsInTurn(reads ...func() ([]service.Service, error)) func() ([]service.S
 
 func openWithTick(t *testing.T, read func() ([]service.Service, error)) (tea.Model, tea.Cmd) {
 	t.Helper()
-	var screen tea.Model = tui.NewScreen("gui/501", read)
+	var screen tea.Model = tui.NewScreen("gui/501", read, refreshEvery2s)
 	start := screen.Init()
 	screen, _ = screen.Update(tea.WindowSizeMsg{Width: 80, Height: 12})
 	return screen.Update(start())
@@ -202,7 +206,7 @@ func TestScreen(t *testing.T) {
 		})
 
 		t.Run("shows no rows before the size of the terminal is known", func(t *testing.T) {
-			var screen tea.Model = tui.NewScreen("gui/501", servicesNamed("com.example.worker"))
+			var screen tea.Model = tui.NewScreen("gui/501", servicesNamed("com.example.worker"), refreshEvery2s)
 			screen, _ = screen.Update(screen.Init()())
 
 			require.Empty(t, screen.View().Content)
@@ -254,7 +258,7 @@ func TestScreen(t *testing.T) {
 		})
 
 		t.Run("shows no counts before the first read ends", func(t *testing.T) {
-			var screen tea.Model = tui.NewScreen("gui/501", servicesNamed("com.example.worker"))
+			var screen tea.Model = tui.NewScreen("gui/501", servicesNamed("com.example.worker"), refreshEvery2s)
 			screen, _ = screen.Update(tea.WindowSizeMsg{Width: 80, Height: 12})
 
 			lines := strings.Split(ansi.Strip(screen.View().Content), "\n")
@@ -366,7 +370,7 @@ func TestScreen(t *testing.T) {
 			synctest.Test(t, func(t *testing.T) {
 				read := changingAt(100*time.Millisecond, servicesNamed("com.example.worker"), servicesNamed("com.example.worker", "com.example.added"))
 
-				screen := runFor(t, tui.NewScreen("gui/501", read), 2100*time.Millisecond)
+				screen := runFor(t, tui.NewScreen("gui/501", read, refreshEvery2s), 2100*time.Millisecond)
 
 				require.Contains(t, screen.View().Content, "com.example.added")
 			})
@@ -376,7 +380,7 @@ func TestScreen(t *testing.T) {
 			synctest.Test(t, func(t *testing.T) {
 				read := changingAt(100*time.Millisecond, servicesNamed("com.example.worker"), servicesNamed("com.example.worker", "com.example.added"))
 
-				screen := runFor(t, tui.NewScreen("gui/501", read), 1900*time.Millisecond)
+				screen := runFor(t, tui.NewScreen("gui/501", read, refreshEvery2s), 1900*time.Millisecond)
 
 				require.Contains(t, screen.View().Content, "com.example.worker")
 				require.NotContains(t, screen.View().Content, "com.example.added")
@@ -387,7 +391,7 @@ func TestScreen(t *testing.T) {
 			synctest.Test(t, func(t *testing.T) {
 				read := changingAt(100*time.Millisecond, servicesNamed("com.example.worker", "com.example.removed"), servicesNamed("com.example.worker"))
 
-				screen := runFor(t, tui.NewScreen("gui/501", read), 2100*time.Millisecond)
+				screen := runFor(t, tui.NewScreen("gui/501", read, refreshEvery2s), 2100*time.Millisecond)
 
 				require.Contains(t, screen.View().Content, "com.example.worker")
 				require.NotContains(t, screen.View().Content, "com.example.removed")
@@ -400,7 +404,7 @@ func TestScreen(t *testing.T) {
 					readGiving(service.Service{Name: "com.example.worker", State: service.Loaded}),
 					readGiving(service.Service{Name: "com.example.worker", State: service.Running}))
 
-				screen := runFor(t, tui.NewScreen("gui/501", read), 2100*time.Millisecond)
+				screen := runFor(t, tui.NewScreen("gui/501", read, refreshEvery2s), 2100*time.Millisecond)
 
 				require.Contains(t, ansi.Strip(screen.View().Content), "● com.example.worker")
 			})
@@ -412,7 +416,7 @@ func TestScreen(t *testing.T) {
 					readGiving(service.Service{Name: "com.example.worker", State: service.Loaded}),
 					readGiving(service.Service{Name: "com.example.worker", State: service.Running}))
 
-				screen := runFor(t, tui.NewScreen("gui/501", read), 2100*time.Millisecond)
+				screen := runFor(t, tui.NewScreen("gui/501", read, refreshEvery2s), 2100*time.Millisecond)
 
 				require.Contains(t, ansi.Strip(screen.View().Content), "● 1 running   ◐ 0 loaded   ○ 0 not loaded")
 			})
@@ -424,7 +428,7 @@ func TestScreen(t *testing.T) {
 					readGiving(service.Service{Name: "com.example.worker", State: service.Running, PID: 4122, Uptime: new(time.Hour)}),
 					readGiving(service.Service{Name: "com.example.worker", State: service.Running, PID: 4123, Uptime: new(5 * time.Second), LastExit: service.LastExit{Signal: "SIGKILL"}}))
 
-				screen := runFor(t, tui.NewScreen("gui/501", read), 2100*time.Millisecond)
+				screen := runFor(t, tui.NewScreen("gui/501", read, refreshEvery2s), 2100*time.Millisecond)
 
 				content := ansi.Strip(screen.View().Content)
 				require.Contains(t, content, "● running     PID 4123")
@@ -439,10 +443,31 @@ func TestScreen(t *testing.T) {
 				}
 				read := changingAt(100*time.Millisecond, failing, servicesNamed("com.example.worker"))
 
-				screen := runFor(t, tui.NewScreen("gui/501", read), 2100*time.Millisecond)
+				screen := runFor(t, tui.NewScreen("gui/501", read, refreshEvery2s), 2100*time.Millisecond)
 
 				require.Contains(t, screen.View().Content, "com.example.worker")
 				require.NotContains(t, screen.View().Content, "permission denied")
+			})
+		})
+
+		t.Run("with a refresh of 5 s, shows a service that is added, no later than 5 s after the read before it", func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				read := changingAt(100*time.Millisecond, servicesNamed("com.example.worker"), servicesNamed("com.example.worker", "com.example.added"))
+
+				screen := runFor(t, tui.NewScreen("gui/501", read, config.Settings{Refresh: 5 * time.Second}), 5100*time.Millisecond)
+
+				require.Contains(t, screen.View().Content, "com.example.added")
+			})
+		})
+
+		t.Run("with a refresh of 5 s, does not read again before 5 s have passed", func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				read := changingAt(100*time.Millisecond, servicesNamed("com.example.worker"), servicesNamed("com.example.worker", "com.example.added"))
+
+				screen := runFor(t, tui.NewScreen("gui/501", read, config.Settings{Refresh: 5 * time.Second}), 4900*time.Millisecond)
+
+				require.Contains(t, screen.View().Content, "com.example.worker")
+				require.NotContains(t, screen.View().Content, "com.example.added")
 			})
 		})
 
@@ -460,7 +485,7 @@ func TestScreen(t *testing.T) {
 					return []service.Service{{Name: "com.example.worker"}}, nil
 				}
 
-				runFor(t, tui.NewScreen("gui/501", slow), 20*time.Second)
+				runFor(t, tui.NewScreen("gui/501", slow, refreshEvery2s), 20*time.Second)
 
 				require.Equal(t, int32(1), mostAtOnce.Load())
 				require.GreaterOrEqual(t, reads.Load(), int32(3))
@@ -576,7 +601,7 @@ func TestScreen(t *testing.T) {
 		})
 
 		t.Run("shows no service before the first read ends", func(t *testing.T) {
-			var screen tea.Model = tui.NewScreen("gui/501", servicesNamed("com.example.worker"))
+			var screen tea.Model = tui.NewScreen("gui/501", servicesNamed("com.example.worker"), refreshEvery2s)
 			screen, _ = screen.Update(tea.WindowSizeMsg{Width: 80, Height: 12})
 
 			lines := strings.Split(ansi.Strip(screen.View().Content), "\n")
@@ -719,7 +744,7 @@ func TestScreen(t *testing.T) {
 					servicesNamed("com.example.1", "com.example.2", "com.example.3", "com.example.4", "com.example.5", "com.example.6", "com.example.7", "com.example.8", "com.example.9"),
 					servicesNamed("com.example.1", "com.example.2", "com.example.3", "com.example.4", "com.example.5", "com.example.6", "com.example.7"))
 
-				screen := runFor(t, tui.NewScreen("gui/501", read), 2100*time.Millisecond, down, down, down, down, down, down, down, down)
+				screen := runFor(t, tui.NewScreen("gui/501", read, refreshEvery2s), 2100*time.Millisecond, down, down, down, down, down, down, down, down)
 
 				require.Equal(t, []string{
 					"○ com.example.2",
@@ -753,7 +778,7 @@ func TestScreen(t *testing.T) {
 					servicesNamed("com.example.1", "com.example.2", "com.example.3", "com.example.4", "com.example.5", "com.example.6", "com.example.7"),
 					servicesNamed("com.example.1", "com.example.2", "com.example.7"))
 
-				screen := runFor(t, tui.NewScreen("gui/501", read), 2100*time.Millisecond, down, down, down, down, down, down)
+				screen := runFor(t, tui.NewScreen("gui/501", read, refreshEvery2s), 2100*time.Millisecond, down, down, down, down, down, down)
 
 				require.Equal(t, []string{
 					"Other",
@@ -782,7 +807,7 @@ func TestScreen(t *testing.T) {
 					servicesNamed("com.example.b", "com.example.c"),
 					servicesNamed("com.example.a", "com.example.b", "com.example.c"))
 
-				screen := runFor(t, tui.NewScreen("gui/501", read), 2100*time.Millisecond, down)
+				screen := runFor(t, tui.NewScreen("gui/501", read, refreshEvery2s), 2100*time.Millisecond, down)
 
 				require.Contains(t, screen.View().Content, "com.example.a")
 				require.Equal(t, "com.example.c", selectedName(screen))
@@ -795,7 +820,7 @@ func TestScreen(t *testing.T) {
 					servicesNamed("com.example.a", "com.example.b", "com.example.c"),
 					servicesNamed("com.example.b", "com.example.c"))
 
-				screen := runFor(t, tui.NewScreen("gui/501", read), 2100*time.Millisecond, down)
+				screen := runFor(t, tui.NewScreen("gui/501", read, refreshEvery2s), 2100*time.Millisecond, down)
 
 				require.NotContains(t, screen.View().Content, "com.example.a")
 				require.Equal(t, "com.example.b", selectedName(screen))
@@ -808,7 +833,7 @@ func TestScreen(t *testing.T) {
 					servicesNamed("com.example.a", "com.example.b", "com.example.c"),
 					servicesNamed("com.example.a", "com.example.c"))
 
-				screen := runFor(t, tui.NewScreen("gui/501", read), 2100*time.Millisecond, down)
+				screen := runFor(t, tui.NewScreen("gui/501", read, refreshEvery2s), 2100*time.Millisecond, down)
 
 				require.Equal(t, "com.example.c", selectedName(screen))
 			})
@@ -820,7 +845,7 @@ func TestScreen(t *testing.T) {
 					servicesNamed("com.example.a", "com.example.b", "com.example.c"),
 					servicesNamed("com.example.a", "com.example.b"))
 
-				screen := runFor(t, tui.NewScreen("gui/501", read), 2100*time.Millisecond, down, down)
+				screen := runFor(t, tui.NewScreen("gui/501", read, refreshEvery2s), 2100*time.Millisecond, down, down)
 
 				require.Equal(t, "com.example.b", selectedName(screen))
 			})
@@ -847,11 +872,11 @@ func TestScreen(t *testing.T) {
 
 	t.Run("keys", func(t *testing.T) {
 		t.Run("q ends the screen", func(t *testing.T) {
-			require.NoError(t, runWithInput(t, tui.NewScreen("gui/501", servicesNamed("com.example.worker")), "q"))
+			require.NoError(t, runWithInput(t, tui.NewScreen("gui/501", servicesNamed("com.example.worker"), refreshEvery2s), "q"))
 		})
 
 		t.Run("ctrl+c ends the screen", func(t *testing.T) {
-			require.NoError(t, runWithInput(t, tui.NewScreen("gui/501", servicesNamed("com.example.worker")), "\x03"))
+			require.NoError(t, runWithInput(t, tui.NewScreen("gui/501", servicesNamed("com.example.worker"), refreshEvery2s), "\x03"))
 		})
 
 		t.Run("? shows each key of the screen with its action, in place of the panes", func(t *testing.T) {
@@ -900,7 +925,7 @@ func TestScreen(t *testing.T) {
 		})
 
 		t.Run("q ends the screen while the help shows", func(t *testing.T) {
-			require.NoError(t, runWithInput(t, tui.NewScreen("gui/501", servicesNamed("com.example.worker")), "?q"))
+			require.NoError(t, runWithInput(t, tui.NewScreen("gui/501", servicesNamed("com.example.worker"), refreshEvery2s), "?q"))
 		})
 
 		t.Run("the help line at the bottom of the screen shows ? help, under the panes and under the help", func(t *testing.T) {

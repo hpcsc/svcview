@@ -10,13 +10,13 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
+	"github.com/hpcsc/svcview/internal/config"
 	"github.com/hpcsc/svcview/internal/service"
 )
 
 const (
 	headerHeight    = 3
 	helpLine        = " ? help"
-	refreshEvery    = 2 * time.Second
 	accent          = ansi.Blue
 	detailLeftWidth = 14
 )
@@ -31,6 +31,7 @@ type servicesRead struct {
 type Screen struct {
 	domain   string
 	read     func() ([]service.Service, error)
+	settings config.Settings
 	lastRead servicesRead
 	hasRead  bool
 	selected string
@@ -40,8 +41,8 @@ type Screen struct {
 	height   int
 }
 
-func NewScreen(domain string, read func() ([]service.Service, error)) Screen {
-	return Screen{domain: domain, read: read}
+func NewScreen(domain string, read func() ([]service.Service, error), settings config.Settings) Screen {
+	return Screen{domain: domain, read: read, settings: settings}
 }
 
 func (s Screen) Init() tea.Cmd {
@@ -76,7 +77,7 @@ func (s Screen) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		})
 		s.lastRead, s.hasRead = msg, true
 		s.selected = s.selectedAfterRead()
-		cmd = tea.Tick(refreshEvery, func(time.Time) tea.Msg { return refresh{} })
+		cmd = tea.Tick(s.settings.Refresh, func(time.Time) tea.Msg { return refresh{} })
 	case refresh:
 		return s, s.readServices
 	}

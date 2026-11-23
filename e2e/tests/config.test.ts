@@ -1,6 +1,6 @@
 import { join } from 'node:path'
 import { describe, expect, it, onTestFinished, vi } from 'vitest'
-import { buildTag, homeWithPlists, openCli, runCli, scratchDir, writeConfig } from '../testUtils'
+import { addPlist, buildTag, homeWithPlists, openCli, runCli, scratchDir, writeConfig } from '../testUtils'
 
 describe('the config file', () => {
   it('an unknown setting in $XDG_CONFIG_HOME/svcview/config.yaml stops svcview with the exit code 1 and an error that names the file, before the screen opens', async () => {
@@ -54,6 +54,18 @@ describe('the config file', () => {
     const session = await openCli(scratchDir(), [], { HOME: home })
 
     await session.waitForText('com.example.worker')
+  })
+
+  it('with refresh: 1m, a plist that is added while the screen is open does not show within 4 s', async () => {
+    const home = homeWithPlists(['com.example.worker'])
+    writeConfig(join(home, '.config', 'svcview'), 'refresh: 1m\n')
+    const session = await openCli(scratchDir(), [], { HOME: home })
+    await session.waitForText('com.example.worker')
+
+    addPlist(home, 'com.example.added')
+    await new Promise((done) => setTimeout(done, 4000))
+
+    expect(await session.text()).not.toContain('com.example.added')
   })
 
   it('svcview version does not read the config file', async () => {

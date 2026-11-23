@@ -55,11 +55,12 @@ func showScreen(ctx context.Context, input io.Reader, output io.Writer) error {
 		return err
 	}
 	uid := os.Getuid()
-	if _, err := config.Read(config.Folder(home, os.Getenv("XDG_CONFIG_HOME")), uid); err != nil {
+	settings, err := config.Read(config.Folder(home, os.Getenv("XDG_CONFIG_HOME")), uid)
+	if err != nil {
 		return err
 	}
 	domain := launchd.NewDomain(home, uid)
-	screen := tui.NewScreen(domain.String(), domain.Services)
+	screen := tui.NewScreen(domain.String(), domain.Services, settings)
 	_, err = tea.NewProgram(screen, tea.WithContext(ctx), tea.WithInput(input), tea.WithOutput(output)).Run()
 	return err
 }

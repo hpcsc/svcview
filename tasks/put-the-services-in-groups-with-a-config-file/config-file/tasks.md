@@ -228,13 +228,13 @@ the read that does not stop svcview lets that file in.
 `svcview` opens the screen with the settings that it read.
 
 **Acceptance Criteria:**
-- [ ] The screen takes the settings when svcview makes it, and reads the services again one `refresh` after each
+- [x] The screen takes the settings when svcview makes it, and reads the services again one `refresh` after each
       read ends.
-- [ ] With a refresh of 5 s, the screen does not read again before 5 s have passed, and shows a change no later
+- [x] With a refresh of 5 s, the screen does not read again before 5 s have passed, and shows a change no later
       than 5 s after the read before it.
-- [ ] With the default settings, the screen reads again every 2 s, as before.
-- [ ] `svcview` opens the screen with the settings of its config file.
-- [ ] An e2e test sets `refresh: 1m` in `config.yaml`, and sees that a plist added while the screen is open does not
+- [x] With the default settings, the screen reads again every 2 s, as before.
+- [x] `svcview` opens the screen with the settings of its config file.
+- [x] An e2e test sets `refresh: 1m` in `config.yaml`, and sees that a plist added while the screen is open does not
       show within 4 s.
 
 **Affected Files/Modules:**
