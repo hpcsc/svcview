@@ -134,17 +134,17 @@ bottom of the pane. The selected service stays the same. When the list has the f
 as before. `?` shows both actions of `↑` and `↓`.
 
 **Acceptance Criteria:**
-- [ ] With the focus on the detail pane, `↓` moves the text of the pane up one line: its first line goes out of view,
+- [x] With the focus on the detail pane, `↓` moves the text of the pane up one line: its first line goes out of view,
       and the next line shows at the bottom. `↑` moves the text back down one line.
-- [ ] `↑` when the first line shows, and `↓` when the last line is at the bottom of the pane, change nothing. A text
+- [x] `↑` when the first line shows, and `↓` when the last line is at the bottom of the pane, change nothing. A text
       that fits in the pane does not move.
-- [ ] Only the lines inside the detail pane move. Its title and its border stay.
-- [ ] With the focus on the detail pane, `↑` and `↓` do not change the selected service, and the list does not move.
-- [ ] With the focus on the list, `↑` and `↓` select a service as before, and the detail pane does not scroll.
-- [ ] While the help shows, `↑` and `↓` change nothing, as before.
-- [ ] `?` shows `↑ ↓` with both actions: select a service, or scroll the detail pane when it has the focus. The text
+- [x] Only the lines inside the detail pane move. Its title and its border stay.
+- [x] With the focus on the detail pane, `↑` and `↓` do not change the selected service, and the list does not move.
+- [x] With the focus on the list, `↑` and `↓` select a service as before, and the detail pane does not scroll.
+- [x] While the help shows, `↑` and `↓` change nothing, as before.
+- [x] `?` shows `↑ ↓` with both actions: select a service, or scroll the detail pane when it has the focus. The text
       `select a service` stays in the help.
-- [ ] e2e test: a status file with 40 events, `tab`, and then `↓` until the last event shows: the first line of the
+- [x] e2e test: a status file with 40 events, `tab`, and then `↓` until the last event shows: the first line of the
       detail pane is no longer on the screen, and the same service stays selected.
 
 **Affected Files/Modules:**

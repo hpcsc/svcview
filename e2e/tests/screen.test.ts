@@ -1,7 +1,15 @@
-import { readFileSync } from 'node:fs'
+import { readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { addPlist, homeWithPlists, openCli, scratchDir, setLaunchctlList, setLaunchctlOutput } from '../testUtils'
+import {
+  addPlist,
+  homeWithPlists,
+  openCli,
+  scratchDir,
+  setLaunchctlList,
+  setLaunchctlOutput,
+  writeConfig,
+} from '../testUtils'
 
 describe('the screen', () => {
   it('in a terminal, with no command, shows the domain and the services in LaunchAgents, sorted by name', async () => {
@@ -113,6 +121,36 @@ describe('the screen', () => {
     const after = await session.text()
     expect(after).toContain('PID 4123')
     expect(after).toContain('last exit SIGKILL')
+  })
+
+  it('tab gives the focus to the detail pane, and ↓ then scrolls it to the last of 40 events, with the same service selected', async () => {
+    const home = homeWithPlists(['com.example.worker.02'])
+    const statusFile = join(scratchDir(), 'status.json')
+    const events = Array.from({ length: 40 }, (_, i) => ({
+      at: `2026-11-23T09:${String(i).padStart(2, '0')}:00Z`,
+      level: 'info',
+      text: `event ${String(i + 1).padStart(2, '0')}`,
+    }))
+    writeFileSync(statusFile, `${JSON.stringify({ version: 1, events })}\n`)
+    addPlist(home, 'com.example.worker.01', { WORKER_STATUS_FILE: statusFile })
+    writeConfig(
+      join(home, '.config', 'svcview'),
+      `groups:\n  - name: Workers\n    match: '^com\\.example\\.worker\\.'\n    status:\n      command: [cat, '{{.Env.WORKER_STATUS_FILE}}']\n`,
+    )
+    const session = await openCli(scratchDir(), [], { HOME: home, TZ: 'UTC' })
+    await session.waitForText('│ 09:00 ● event 01 ')
+    expect(await session.text()).not.toContain('event 40')
+
+    await session.press('tab')
+    for (let presses = 0; presses < 20 && !(await session.text()).includes('event 40'); presses++) {
+      await session.press('down')
+    }
+
+    await session.waitForText('│ 09:39 ● event 40 ')
+    const screen = await session.text()
+    expect(screen).not.toContain('not loaded  PID -')
+    expect(screen).toContain('▌○ 01')
+    expect(screen).toContain('╭ com.example.worker.01 ─')
   })
 
   it('? shows all keys, and q ends svcview while the help shows', async () => {

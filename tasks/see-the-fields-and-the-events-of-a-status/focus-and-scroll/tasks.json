@@ -27,7 +27,7 @@
     },
     {
       "n": 2,
-      "done": false,
+      "done": true,
       "title": "Scroll the detail pane with \u2191 and \u2193 when it has the focus",
       "language": "Go",
       "testable": true,

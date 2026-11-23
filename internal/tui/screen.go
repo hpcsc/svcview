@@ -80,6 +80,7 @@ type Screen struct {
 	runNotEnded map[string]bool
 	selected    string
 	listTop     int
+	detailTop   int
 	focus       pane
 	showHelp    bool
 	width       int
@@ -119,13 +120,17 @@ func (s Screen) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if !s.showHelp {
 				s.focus = s.focus.other()
 			}
-		case "up":
-			if !s.showHelp {
-				s.selected = s.selectedAfterMove(-1)
+		case "up", "down":
+			step := 1
+			if msg.String() == "up" {
+				step = -1
 			}
-		case "down":
-			if !s.showHelp {
-				s.selected = s.selectedAfterMove(1)
+			switch {
+			case s.showHelp:
+			case s.focus == detailPane:
+				s.detailTop = s.detailTopInView(s.detailTop + step)
+			default:
+				s.selected = s.selectedAfterMove(step)
 			}
 		}
 	case servicesRead:
@@ -243,6 +248,11 @@ func (s Screen) listTopInView() int {
 	return max(min(top, s.lineOf(len(s.rows())-1)+1-shown), 0)
 }
 
+func (s Screen) detailTopInView(top int) int {
+	shown := max(s.paneHeight()-2, 0)
+	return max(min(top, len(s.selectedDetailText())-shown), 0)
+}
+
 func (s Screen) selectedAt() int {
 	return slices.IndexFunc(s.rows(), func(r row) bool { return r.service.Name == s.selected })
 }
@@ -295,8 +305,8 @@ func (s Screen) panes() []string {
 	list.text = s.listText(list.textWidth())[s.listTop:]
 	detail := box{width: s.width - list.width, height: list.height, borderStyle: s.borderStyle(detailPane)}
 	if at := s.selectedAt(); at >= 0 {
-		svc := s.rows()[at].service
-		detail.title, detail.text = s.printable(svc.Name), s.detailText(svc)
+		text := s.selectedDetailText()
+		detail.title, detail.text = s.printable(s.rows()[at].service.Name), text[min(s.detailTop, len(text)):]
 	}
 	var lines []string
 	detailLines := detail.render()
@@ -315,7 +325,7 @@ func (s Screen) borderStyle(p pane) ansi.Style {
 
 func (s Screen) helpText() []string {
 	return []string{
-		"↑ ↓       select a service",
+		"↑ ↓       select a service, or scroll the detail pane when it has the focus",
 		"tab       move the focus to the other pane",
 		"?         show or hide this help",
 		"esc       hide this help",
@@ -428,6 +438,14 @@ func (s Screen) selectedRow(r row, name, statusText string, color ansi.Color, wi
 		line = s.textStyle(nil, ansi.BrightBlack).Styled(name) + s.textStyle(color, ansi.BrightBlack).Styled(statusText) + s.textStyle(nil, ansi.BrightBlack).Styled(padding)
 	}
 	return ansi.NewStyle().ForegroundColor(accent).Styled("▌") + s.rowGlyph(r.service) + line
+}
+
+func (s Screen) selectedDetailText() []string {
+	at := s.selectedAt()
+	if at < 0 {
+		return nil
+	}
+	return s.detailText(s.rows()[at].service)
 }
 
 func (s Screen) detailText(svc service.Service) []string {

@@ -2,7 +2,7 @@
 │  [32m●[m 0 running   [33m◐[m 0 loaded   [90m○[m 1 not loaded                                   │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭ Help ────────────────────────────────────────────────────────────────────────╮
-│ ↑ ↓       select a service                                                   │
+│ ↑ ↓       select a service, or scroll the detail pane when it has the focus  │
 │ tab       move the focus to the other pane                                   │
 │ ?         show or hide this help                                             │
 │ esc       hide this help                                                     │
