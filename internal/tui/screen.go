@@ -30,9 +30,13 @@ type servicesRead struct {
 	err  error
 }
 
-type statusRead struct {
+type runEnded struct {
 	name   string
 	result status.Result
+}
+
+type statusTick struct {
+	group config.Group
 }
 
 type row struct {
@@ -50,29 +54,31 @@ func (r row) shortName() string {
 }
 
 type Screen struct {
-	domain     string
-	read       func() ([]service.Service, error)
-	runStatus  func(status.Command, service.Service) status.Result
-	settings   config.Settings
-	groupOrder []config.Group
-	lastRead   servicesRead
-	hasRead    bool
-	statuses   map[string]status.Result
-	selected   string
-	listTop    int
-	showHelp   bool
-	width      int
-	height     int
+	domain      string
+	read        func() ([]service.Service, error)
+	runStatus   func(status.Command, service.Service) status.Result
+	settings    config.Settings
+	groupOrder  []config.Group
+	lastRead    servicesRead
+	hasRead     bool
+	statuses    map[string]status.Result
+	runNotEnded map[string]bool
+	selected    string
+	listTop     int
+	showHelp    bool
+	width       int
+	height      int
 }
 
 func NewScreen(domain string, read func() ([]service.Service, error), runStatus func(status.Command, service.Service) status.Result, settings config.Settings) Screen {
 	return Screen{
-		domain:     domain,
-		read:       read,
-		runStatus:  runStatus,
-		settings:   settings,
-		groupOrder: slices.Concat(settings.Groups, []config.Group{config.Other}),
-		statuses:   map[string]status.Result{},
+		domain:      domain,
+		read:        read,
+		runStatus:   runStatus,
+		settings:    settings,
+		groupOrder:  slices.Concat(settings.Groups, []config.Group{config.Other}),
+		statuses:    map[string]status.Result{},
+		runNotEnded: map[string]bool{},
 	}
 }
 
@@ -108,9 +114,12 @@ func (s Screen) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		s.selected = s.selectedAfterRead()
 		cmd = tea.Tick(s.settings.Refresh, func(time.Time) tea.Msg { return refresh{} })
 		if firstRead {
-			cmd = tea.Batch(cmd, s.runStatuses())
+			cmd = tea.Batch(cmd, s.startStatusRuns())
 		}
-	case statusRead:
+	case statusTick:
+		cmd = tea.Batch(s.runStatuses(msg.group), s.nextStatusTick(msg.group))
+	case runEnded:
+		delete(s.runNotEnded, msg.name)
 		s.statuses[msg.name] = msg.result
 	case refresh:
 		return s, s.readServices
@@ -135,10 +144,25 @@ func (s Screen) readServices() tea.Msg {
 	return servicesRead{rows: rows, err: err}
 }
 
-func (s Screen) runStatuses() tea.Cmd {
+func (s Screen) startStatusRuns() tea.Cmd {
+	var cmds []tea.Cmd
+	for _, group := range s.settings.Groups {
+		if group.Status != nil {
+			cmds = append(cmds, s.runStatuses(group), s.nextStatusTick(group))
+		}
+	}
+	return tea.Batch(cmds...)
+}
+
+func (s Screen) nextStatusTick(group config.Group) tea.Cmd {
+	return tea.Tick(group.Status.Every, func(time.Time) tea.Msg { return statusTick{group: group} })
+}
+
+func (s Screen) runStatuses(group config.Group) tea.Cmd {
 	var runs []tea.Cmd
 	for _, r := range s.rows() {
-		if r.group.Status != nil {
+		if r.group == group && !s.runNotEnded[r.service.Name] {
+			s.runNotEnded[r.service.Name] = true
 			runs = append(runs, s.runStatusOf(r))
 		}
 	}
@@ -148,7 +172,7 @@ func (s Screen) runStatuses() tea.Cmd {
 func (s Screen) runStatusOf(r row) tea.Cmd {
 	run, command, svc := s.runStatus, *r.group.Status, r.service
 	return func() tea.Msg {
-		return statusRead{name: svc.Name, result: run(command, svc)}
+		return runEnded{name: svc.Name, result: run(command, svc)}
 	}
 }
 

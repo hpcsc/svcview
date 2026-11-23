@@ -327,16 +327,16 @@ The row and the detail pane show the last run that ended. When svcview quits, it
 still runs.
 
 **Acceptance Criteria:**
-- [ ] With `every` of 2 s, a service gets a run every 2 s, and the row shows a new `summary` no later than 2 s after
+- [x] With `every` of 2 s, a service gets a run every 2 s, and the row shows a new `summary` no later than 2 s after
       the output changes.
-- [ ] Two groups with different `every` run their commands each at its own `every`.
-- [ ] A run that lasts longer than `every` gets no second run of the same service while it runs; the next run starts
+- [x] Two groups with different `every` run their commands each at its own `every`.
+- [x] A run that lasts longer than `every` gets no second run of the same service while it runs; the next run starts
       at an `every` after it ends.
-- [ ] A service that a read adds gets runs at the next `every` of its group; a service that a read removes gets no
+- [x] A service that a read adds gets runs at the next `every` of its group; a service that a read removes gets no
       more runs.
-- [ ] A service that is `not loaded` gets runs as a `running` service does.
-- [ ] When svcview quits, each status command that still runs stops.
-- [ ] e2e tests: when the status file changes, the row shows the new `summary` with no key press. A status command
+- [x] A service that is `not loaded` gets runs as a `running` service does.
+- [x] When svcview quits, each status command that still runs stops.
+- [x] e2e tests: when the status file changes, the row shows the new `summary` with no key press. A status command
       that writes a file after 2 s, with a `timeout` of 10 s, does not write it when svcview quits after the run
       starts.
 

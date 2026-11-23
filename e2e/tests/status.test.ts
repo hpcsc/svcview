@@ -1,6 +1,7 @@
-import { writeFileSync } from 'node:fs'
+import { existsSync, renameSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { describe, it } from 'vitest'
+import { setTimeout as sleep } from 'node:timers/promises'
+import { describe, expect, it } from 'vitest'
 import { addPlist, homeWithPlists, openCli, scratchDir, writeConfig } from '../testUtils'
 
 const workersWithStatusCommand = (command: string): string =>
@@ -27,5 +28,38 @@ describe('the status command', () => {
     const session = await openCli(scratchDir(), [], { HOME: home })
 
     await session.waitForText('01  the plist has no MISSING')
+  })
+
+  it('when the status file changes, the row shows the new summary with no key press', async () => {
+    const home = homeWithPlists([])
+    const statusFile = join(scratchDir(), 'status.json')
+    writeFileSync(statusFile, '{"version":1,"summary":"idle"}\n')
+    addPlist(home, 'com.example.worker.01', { WORKER_STATUS_FILE: statusFile })
+    writeConfig(join(home, '.config', 'svcview'), workersWithStatusCommand(`[cat, '{{.Env.WORKER_STATUS_FILE}}']`))
+
+    const session = await openCli(scratchDir(), [], { HOME: home })
+    await session.waitForText('01  idle')
+    writeFileSync(`${statusFile}.new`, '{"version":1,"summary":"busy"}\n')
+    renameSync(`${statusFile}.new`, statusFile)
+
+    await session.waitForText('01  busy', { timeout: 5000 })
+  })
+
+  it('a status command that writes a file after 2 s, with a timeout of 10 s, does not write it when svcview quits after the run starts', async () => {
+    const home = homeWithPlists(['com.example.worker.01'])
+    const marker = join(scratchDir(), 'written')
+    writeConfig(
+      join(home, '.config', 'svcview'),
+      `groups:\n  - name: Workers\n    match: '^com\\.example\\.worker\\.'\n    status:\n      command: [sh, -c, 'touch "$0.started"; sleep 2; touch "$0"', '${marker}']\n      timeout: 10s\n`,
+    )
+
+    const session = await openCli(scratchDir(), [], { HOME: home })
+    await session.waitForText('com.example.worker.01')
+    await expect.poll(() => existsSync(`${marker}.started`)).toBe(true)
+    await session.press('q')
+    await session.waitForText('EXIT:0')
+    await sleep(3000)
+
+    expect(existsSync(marker)).toBe(false)
   })
 })

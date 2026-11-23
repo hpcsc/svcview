@@ -224,6 +224,35 @@ func workersWithStatus(t *testing.T, otherNameAndMatch ...string) config.Setting
 	return settings
 }
 
+func statusEvery(t *testing.T, every time.Duration) *status.Command {
+	t.Helper()
+	command, err := status.NewCommand([]string{"cat", "{{.Env.WORKER_STATUS_FILE}}"}, every, 0)
+	require.NoError(t, err)
+	return &command
+}
+
+type runStarts struct {
+	lock   sync.Mutex
+	start  time.Time
+	byName map[string][]time.Duration
+}
+
+func newRunStarts() *runStarts {
+	return &runStarts{start: time.Now(), byName: map[string][]time.Duration{}}
+}
+
+func (r *runStarts) add(name string) {
+	r.lock.Lock()
+	defer r.lock.Unlock()
+	r.byName[name] = append(r.byName[name], time.Since(r.start))
+}
+
+func (r *runStarts) get() map[string][]time.Duration {
+	r.lock.Lock()
+	defer r.lock.Unlock()
+	return r.byName
+}
+
 func runsGiving(results map[string]status.Result) func(status.Command, service.Service) status.Result {
 	return func(_ status.Command, svc service.Service) status.Result {
 		result := results[svc.Name]
@@ -655,6 +684,133 @@ func TestScreen(t *testing.T) {
 				runFor(t, tui.NewScreen("gui/501", readGiving(services...), run, workersWithStatus(t, "Databases", "redis")), 100*time.Millisecond)
 
 				require.ElementsMatch(t, services[:3], ran)
+			})
+		})
+
+		t.Run("with an every of 2 s, each service gets a run every 2 s, also when it is not loaded, and the row shows a new summary no later than 2 s after the output changes", func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				starts := newRunStarts()
+				read := readGiving(
+					service.Service{Name: "com.example.worker.a", State: service.Running, PID: 4122},
+					service.Service{Name: "com.example.worker.b", State: service.NotLoaded},
+				)
+				run := func(_ status.Command, svc service.Service) status.Result {
+					starts.add(svc.Name)
+					if time.Since(starts.start) < 3*time.Second {
+						return summary("idle", status.LevelInfo)
+					}
+					return summary("busy", status.LevelInfo)
+				}
+
+				screen := runSized(t, tui.NewScreen("gui/501", read, run, workersWithStatus(t)), 80, 12, 5*time.Second)
+
+				require.Equal(t, []string{"Workers", "▌● a  busy", "○ b  busy"}, listRows(screen)[:3])
+				require.Equal(t, map[string][]time.Duration{
+					"com.example.worker.a": {0, 2 * time.Second, 4 * time.Second},
+					"com.example.worker.b": {0, 2 * time.Second, 4 * time.Second},
+				}, starts.get())
+			})
+		})
+
+		t.Run("two groups with different every run their commands each at its own every", func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				starts := newRunStarts()
+				settings := groups(t, "Workers", `^com\.example\.worker\.`, "Databases", "redis")
+				settings.Groups[0].Status = statusEvery(t, 2*time.Second)
+				settings.Groups[1].Status = statusEvery(t, 3*time.Second)
+				var lock sync.Mutex
+				everyOf := map[string]time.Duration{}
+				run := func(command status.Command, svc service.Service) status.Result {
+					starts.add(svc.Name)
+					lock.Lock()
+					defer lock.Unlock()
+					everyOf[svc.Name] = command.Every
+					return status.Result{}
+				}
+
+				runFor(t, tui.NewScreen("gui/501", servicesNamed("com.example.worker.a", "homebrew.mxcl.redis"), run, settings), 6500*time.Millisecond)
+
+				require.Equal(t, map[string][]time.Duration{
+					"com.example.worker.a": {0, 2 * time.Second, 4 * time.Second, 6 * time.Second},
+					"homebrew.mxcl.redis":  {0, 3 * time.Second, 6 * time.Second},
+				}, starts.get())
+				require.Equal(t, map[string]time.Duration{"com.example.worker.a": 2 * time.Second, "homebrew.mxcl.redis": 3 * time.Second}, everyOf)
+			})
+		})
+
+		t.Run("a run that lasts longer than every gets no second run of the same service while it runs, and the next run starts at the first every after it ends", func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				starts := newRunStarts()
+				var running, mostAtOnce atomic.Int32
+				run := func(_ status.Command, svc service.Service) status.Result {
+					starts.add(svc.Name)
+					now := running.Add(1)
+					if now > mostAtOnce.Load() {
+						mostAtOnce.Store(now)
+					}
+					time.Sleep(3 * time.Second)
+					running.Add(-1)
+					return status.Result{}
+				}
+
+				runFor(t, tui.NewScreen("gui/501", servicesNamed("com.example.worker.a"), run, workersWithStatus(t)), 9*time.Second)
+
+				require.Equal(t, map[string][]time.Duration{"com.example.worker.a": {0, 4 * time.Second, 8 * time.Second}}, starts.get())
+				require.Equal(t, int32(1), mostAtOnce.Load())
+			})
+		})
+
+		t.Run("a service that a read adds gets runs at the next every of its group, and a service that a read removes gets no more runs", func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				starts := newRunStarts()
+				settings := workersWithStatus(t)
+				settings.Groups[0].Status = statusEvery(t, 3*time.Second)
+				read := changingAt(3500*time.Millisecond, servicesNamed("com.example.worker.a", "com.example.worker.b"), servicesNamed("com.example.worker.a", "com.example.worker.c"))
+				run := func(_ status.Command, svc service.Service) status.Result {
+					starts.add(svc.Name)
+					return status.Result{}
+				}
+
+				runFor(t, tui.NewScreen("gui/501", read, run, settings), 7*time.Second)
+
+				require.Equal(t, map[string][]time.Duration{
+					"com.example.worker.a": {0, 3 * time.Second, 6 * time.Second},
+					"com.example.worker.b": {0, 3 * time.Second},
+					"com.example.worker.c": {6 * time.Second},
+				}, starts.get())
+			})
+		})
+
+		t.Run("the row keeps the summary and the detail pane keeps the line Status after a read of the services", func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				settings := workersWithStatus(t)
+				settings.Groups[0].Status = statusEvery(t, 3*time.Second)
+				run := runsGiving(map[string]status.Result{"com.example.worker.a": summary("busy", status.LevelInfo)})
+
+				screen := runFor(t, tui.NewScreen("gui/501", servicesNamed("com.example.worker.a"), run, settings), 2500*time.Millisecond)
+
+				require.Equal(t, []string{"Workers", "▌○ a  busy"}, listRows(screen)[:2])
+				require.Equal(t, "Status 1m2s ago", detailPane(screen)[2])
+			})
+		})
+
+		t.Run("a read that gives an error starts no runs, and the next read that succeeds gets runs at the next every", func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				starts := newRunStarts()
+				failing := func() ([]service.Service, error) {
+					return nil, errors.New("launchctl list: exit status 3")
+				}
+				read := changingAt(time.Second, failing, servicesNamed("com.example.worker.a"))
+				settings := workersWithStatus(t)
+				settings.Groups[0].Status = statusEvery(t, 3*time.Second)
+				run := func(_ status.Command, svc service.Service) status.Result {
+					starts.add(svc.Name)
+					return status.Result{}
+				}
+
+				runFor(t, tui.NewScreen("gui/501", read, run, settings), 4500*time.Millisecond)
+
+				require.Equal(t, map[string][]time.Duration{"com.example.worker.a": {3 * time.Second}}, starts.get())
 			})
 		})
 

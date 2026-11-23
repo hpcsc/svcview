@@ -102,7 +102,7 @@
     },
     {
       "n": 5,
-      "done": false,
+      "done": true,
       "title": "Run the status command of each service every status.every, one run at a time",
       "language": "Go",
       "testable": true,
