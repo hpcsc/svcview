@@ -5,7 +5,7 @@
   "tasks": [
     {
       "n": 1,
-      "done": false,
+      "done": true,
       "title": "Read the settings of config.yaml in the config folder",
       "language": "Go",
       "testable": true,

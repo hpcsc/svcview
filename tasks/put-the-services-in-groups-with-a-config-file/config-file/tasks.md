@@ -95,18 +95,18 @@ describes the config file and `refresh`.
 file.
 
 **Acceptance Criteria:**
-- [ ] The config folder is `$XDG_CONFIG_HOME/svcview` when `XDG_CONFIG_HOME` is set, and `~/.config/svcview` when
+- [x] The config folder is `$XDG_CONFIG_HOME/svcview` when `XDG_CONFIG_HOME` is set, and `~/.config/svcview` when
       it is not. An empty or a relative `XDG_CONFIG_HOME` counts as not set, as the XDG Base Directory
       Specification says.
-- [ ] With no `config.yaml` in the config folder, with no config folder, or with an empty `config.yaml`, the
+- [x] With no `config.yaml` in the config folder, with no config folder, or with an empty `config.yaml`, the
       settings are the defaults: a refresh of 2 s.
-- [ ] `refresh` takes a Go duration, for example `5s` or `1m30s`.
-- [ ] A `refresh` that is not a duration, or that is not more than 0, gives an error that names the file and the
+- [x] `refresh` takes a Go duration, for example `5s` or `1m30s`.
+- [x] A `refresh` that is not a duration, or that is not more than 0, gives an error that names the file and the
       setting.
-- [ ] A setting that svcview does not know gives an error that names the file and the setting.
-- [ ] A `config.yaml` that is not valid YAML, or whose top level is not a set of settings, gives an error that
+- [x] A setting that svcview does not know gives an error that names the file and the setting.
+- [x] A `config.yaml` that is not valid YAML, or whose top level is not a set of settings, gives an error that
       names the file.
-- [ ] A `config.yaml` that svcview cannot read, for example a folder with that name, gives an error that names the
+- [x] A `config.yaml` that svcview cannot read, for example a folder with that name, gives an error that names the
       file.
 
 **Affected Files/Modules:**
