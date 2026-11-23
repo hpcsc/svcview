@@ -35,7 +35,7 @@ func servicesNamed(names ...string) func() ([]service.Service, error) {
 	}
 }
 
-func servicesRead(services ...service.Service) func() ([]service.Service, error) {
+func readGiving(services ...service.Service) func() ([]service.Service, error) {
 	return func() ([]service.Service, error) {
 		return slices.Clone(services), nil
 	}
@@ -152,7 +152,7 @@ func TestScreen(t *testing.T) {
 		})
 
 		t.Run("counts the services in each state under the domain, each count after the glyph of its state in its color, with 0 for a state with no service", func(t *testing.T) {
-			screen := open(t, "gui/501", servicesRead(
+			screen := open(t, "gui/501", readGiving(
 				service.Service{Name: "com.example.a-running", State: service.Running},
 				service.Service{Name: "com.example.b-running", State: service.Running},
 				service.Service{Name: "com.example.c-not-loaded", State: service.NotLoaded},
@@ -216,7 +216,7 @@ func TestScreen(t *testing.T) {
 		})
 
 		t.Run("starts each row with the glyph of its state: a green ● for running, a yellow ◐ for loaded, and a gray ○ for not loaded", func(t *testing.T) {
-			screen := open(t, "gui/501", servicesRead(
+			screen := open(t, "gui/501", readGiving(
 				service.Service{Name: "com.example.a-running", State: service.Running},
 				service.Service{Name: "com.example.b-loaded", State: service.Loaded},
 				service.Service{Name: "com.example.c-not-loaded", State: service.NotLoaded},
@@ -226,7 +226,7 @@ func TestScreen(t *testing.T) {
 		})
 
 		t.Run("draws the glyph red when the last exit is other than 0, whatever the state, and keeps the color of the state in the header", func(t *testing.T) {
-			screen := open(t, "gui/501", servicesRead(
+			screen := open(t, "gui/501", readGiving(
 				service.Service{Name: "com.example.a-killed", State: service.Running, LastExit: service.LastExit{Signal: "SIGKILL"}},
 				service.Service{Name: "com.example.b-exit-78", State: service.Loaded, LastExit: service.LastExit{Code: 78}},
 				service.Service{Name: "com.example.c-exit-1", State: service.NotLoaded, LastExit: service.LastExit{Code: 1}},
@@ -308,8 +308,8 @@ func TestScreen(t *testing.T) {
 		t.Run("shows the glyph of the new state of a service at the next read", func(t *testing.T) {
 			synctest.Test(t, func(t *testing.T) {
 				read := changingAt(100*time.Millisecond,
-					servicesRead(service.Service{Name: "com.example.worker", State: service.Loaded}),
-					servicesRead(service.Service{Name: "com.example.worker", State: service.Running}))
+					readGiving(service.Service{Name: "com.example.worker", State: service.Loaded}),
+					readGiving(service.Service{Name: "com.example.worker", State: service.Running}))
 
 				screen := runFor(t, tui.NewScreen("gui/501", read), 2100*time.Millisecond)
 
@@ -320,8 +320,8 @@ func TestScreen(t *testing.T) {
 		t.Run("changes the counts at the read that changes a state", func(t *testing.T) {
 			synctest.Test(t, func(t *testing.T) {
 				read := changingAt(100*time.Millisecond,
-					servicesRead(service.Service{Name: "com.example.worker", State: service.Loaded}),
-					servicesRead(service.Service{Name: "com.example.worker", State: service.Running}))
+					readGiving(service.Service{Name: "com.example.worker", State: service.Loaded}),
+					readGiving(service.Service{Name: "com.example.worker", State: service.Running}))
 
 				screen := runFor(t, tui.NewScreen("gui/501", read), 2100*time.Millisecond)
 
