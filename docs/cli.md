@@ -89,9 +89,10 @@ glyph of a different shape, so the screen shows the state without color too.
 
 ### Refresh
 
-Every 2 s, svcview reads the plists and runs `launchctl list` and `ps` again, with no key press. It reads a plist
-again only when the modification time of the file changes. The same service stays selected. When the selected
-service is gone, the row after it is selected, or the last row when it was the last.
+One `refresh` after each read ends, svcview reads the plists and runs `launchctl list` and `ps` again, with no key
+press. The setting `refresh` of [the config file](#the-config-file) sets the time, and the default is 2 s. svcview
+reads a plist again only when the modification time of the file changes. The same service stays selected. When the
+selected service is gone, the row after it is selected, or the last row when it was the last.
 
 When `launchctl list` fails, or prints a header line other than `PID`, `Status`, `Label`, the list shows the error
 and no rows. When `ps` fails, no service shows an uptime.
@@ -104,6 +105,62 @@ and no rows. When `ps` fails, no service shows an uptime.
 | `?` | Show the help, which lists all keys, or hide it. |
 | `esc` | Hide the help. |
 | `q` or `ctrl+c` | Quit. |
+
+## The config file
+
+Before svcview opens the screen, it reads `config.yaml` in the config folder:
+
+| `XDG_CONFIG_HOME` | The config folder |
+| --- | --- |
+| An absolute path | `$XDG_CONFIG_HOME/svcview/` |
+| Not set, empty, or a relative path | `~/.config/svcview/` |
+
+svcview reads the file only at start, so a change to the file takes effect at the next start. With no
+`config.yaml`, each setting has its default. `svcview version`, `svcview update`, and the help do not read the
+file.
+
+```yaml
+# ~/.config/svcview/config.yaml
+refresh: 5s
+```
+
+| Setting | What it does | Default |
+| --- | --- | --- |
+| `refresh` | The time between two reads of the services. One `refresh` after each read ends, svcview reads the plists and runs `launchctl list` and `ps` again. The value is a Go duration that is more than 0, for example `500ms`, `5s`, or `1m30s`. | `2s` |
+
+### Errors
+
+These errors stop svcview before the screen opens. svcview prints the error, which names the file, and exits with 1.
+
+- A setting that svcview does not know, or a setting that the file sets two times.
+- A `refresh` that is not a duration, or that is not more than 0.
+- A file that is not valid YAML, or whose top level is not a set of settings such as `refresh: 5s`.
+- A file that svcview cannot read.
+- A file that another user can write.
+
+### A config file that another user can write
+
+svcview runs as your user and does what its config file says. A user who can write the file can then control what
+svcview does with your rights. So svcview refuses `config.yaml` when its group or other users can write it, or when
+a user other than you owns it.
+
+svcview checks the file that it reads, so for a symbolic link it checks the file that the link points to. It does
+not check the folders that hold the file.
+
+svcview checks the mode and the owner of the file, not its ACL. On macOS, an ACL can let another user write a file
+whose mode is `0644`, and svcview still reads that file. `ls -le` shows the ACL of a file, and `chmod -N` removes it.
+
+To give the file a mode that svcview accepts, remove the write permission of the group and of other users:
+
+```shell
+chmod go-w ~/.config/svcview/config.yaml
+```
+
+When another user owns the file, make it yours first:
+
+```shell
+sudo chown "$USER" ~/.config/svcview/config.yaml
+```
 
 ## Version and update
 

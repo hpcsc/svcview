@@ -265,14 +265,14 @@ the read that does not stop svcview lets that file in.
 svcview at start, and why svcview refuses a config file that another user can write.
 
 **Acceptance Criteria:**
-- [ ] `docs/cli.md` has a section on the config file. It says where svcview looks for `config.yaml`, with
+- [x] `docs/cli.md` has a section on the config file. It says where svcview looks for `config.yaml`, with
       `XDG_CONFIG_HOME` and without it, and that svcview reads the file only at start.
-- [ ] The section lists `refresh`, with its meaning and its default `2s`, and gives an example `config.yaml`.
-- [ ] The section says that an unknown setting, or a `refresh` that is not a time more than 0, stops svcview at
+- [x] The section lists `refresh`, with its meaning and its default `2s`, and gives an example `config.yaml`.
+- [x] The section says that an unknown setting, or a `refresh` that is not a time more than 0, stops svcview at
       start, and that the error names the file.
-- [ ] The section says that svcview refuses a config file that another user can write, why it does, and how to
+- [x] The section says that svcview refuses a config file that another user can write, why it does, and how to
       give the file a mode that svcview accepts.
-- [ ] The section on the refresh says that the time comes from `refresh`.
+- [x] The section on the refresh says that the time comes from `refresh`.
 
 **Affected Files/Modules:**
 - `docs/cli.md` — a section on the config file, and the refresh
