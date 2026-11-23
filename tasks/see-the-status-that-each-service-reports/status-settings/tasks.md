@@ -306,16 +306,16 @@ precedent, but no setting holds a set of settings in a group, and no code checks
 ACL entry, how to see the ACL and how to remove it. It no longer says that svcview does not check the ACL.
 
 **Acceptance Criteria:**
-- [ ] The section "A config file that another user can write" says that svcview refuses `config.yaml` when its ACL
+- [x] The section "A config file that another user can write" says that svcview refuses `config.yaml` when its ACL
       has one or more entries, whatever the entries allow or deny, and why: an ACL can let another user write a file
       whose mode is `0644`, and svcview cannot tell an entry of the owner from an entry of another user.
-- [ ] It says that `/bin/ls -le` shows the ACL and `chmod -N` removes it, and that an ACL with no entries is
+- [x] It says that `/bin/ls -le` shows the ACL and `chmod -N` removes it, and that an ACL with no entries is
       accepted.
-- [ ] It says that on Linux the mode shows a POSIX ACL entry that lets another user write the file, so the check of
+- [x] It says that on Linux the mode shows a POSIX ACL entry that lets another user write the file, so the check of
       the mode refuses that file.
-- [ ] No text of `docs/cli.md` says that svcview does not check the ACL, or that svcview reads a file whose ACL lets
+- [x] No text of `docs/cli.md` says that svcview does not check the ACL, or that svcview reads a file whose ACL lets
       another user write it.
-- [ ] The list of errors names a file that has an ACL.
+- [x] The list of errors names a file that has an ACL.
 
 **Affected Files/Modules:**
 - `docs/cli.md` — the ACL in the section on a config file that another user can write, and in the errors

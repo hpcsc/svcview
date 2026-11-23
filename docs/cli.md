@@ -176,6 +176,7 @@ These errors stop svcview before the screen opens. svcview prints the error, whi
 - A file that is not valid YAML, or whose top level is not a set of settings such as `refresh: 5s`.
 - A file that svcview cannot read.
 - A file that another user can write.
+- A file that has an ACL with one or more entries, or whose ACL svcview cannot read.
 
 These errors in `groups` stop svcview too. Each error names the file, and an error in one group also names the
 group. A group with no name has the name of its place in `groups`, for example `group 2`.
@@ -190,14 +191,29 @@ group. A group with no name has the name of its place in `groups`, for example `
 ### A config file that another user can write
 
 svcview runs as your user and does what its config file says. A user who can write the file can then control what
-svcview does with your rights. So svcview refuses `config.yaml` when its group or other users can write it, or when
-a user other than you owns it.
+svcview does with your rights. So svcview refuses `config.yaml` when its group or other users can write it, when
+a user other than you owns it, or when it has an ACL with one or more entries.
 
 svcview checks the file that it reads, so for a symbolic link it checks the file that the link points to. It does
 not check the folders that hold the file.
 
-svcview checks the mode and the owner of the file, not its ACL. On macOS, an ACL can let another user write a file
-whose mode is `0644`, and svcview still reads that file. `ls -le` shows the ACL of a file, and `chmod -N` removes it.
+On macOS, an ACL can let another user write a file whose mode is `0644`. Each entry of an ACL names a user or a
+group by a GUID, and svcview cannot tell an entry for you from an entry for another user. So svcview refuses
+`config.yaml` when its ACL has one or more entries, whatever the entries allow or deny. It also refuses the file when
+it cannot read the ACL. An ACL with no entries gives no rights to anyone, so svcview reads that file.
+
+`/bin/ls -le` shows the ACL of a file, and `/bin/chmod -N` removes it:
+
+```shell
+/bin/ls -le ~/.config/svcview/config.yaml
+/bin/chmod -N ~/.config/svcview/config.yaml
+```
+
+Use `/bin/ls` and `/bin/chmod`. The GNU `ls` and `chmod`, for example those of Homebrew, can come first on your
+`PATH`, and they have no `-e` and no `-N`.
+
+On Linux, svcview reads no ACL. A POSIX ACL entry that lets another user write the file sets the group write bit of
+the mode, so the check of the mode refuses that file.
 
 To give the file a mode that svcview accepts, remove the write permission of the group and of other users:
 
