@@ -4,6 +4,7 @@ import (
 	"slices"
 	"strings"
 	"time"
+	"unicode"
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
@@ -82,14 +83,23 @@ func (s Screen) content() string {
 
 func (s Screen) listText(width int) []string {
 	if s.lastRead.err != nil {
-		return strings.Split(ansi.Wrap(s.lastRead.err.Error(), width, ""), "\n")
+		return strings.Split(ansi.Wrap(s.printable(s.lastRead.err.Error()), width, ""), "\n")
 	}
 	if len(s.lastRead.services) == 0 {
 		return nil
 	}
 	text := []string{"Other"}
 	for _, svc := range s.lastRead.services {
-		text = append(text, " "+svc.Name)
+		text = append(text, " "+s.printable(svc.Name))
 	}
 	return text
+}
+
+func (s Screen) printable(text string) string {
+	return strings.Map(func(r rune) rune {
+		if unicode.IsControl(r) {
+			return '�'
+		}
+		return r
+	}, text)
 }

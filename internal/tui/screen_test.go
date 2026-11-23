@@ -172,6 +172,13 @@ func TestScreen(t *testing.T) {
 			require.Equal(t, []int{12, 12, 12, 12}, widths)
 		})
 
+		t.Run("shows each control character in a name as �, so the name cannot add a line or send a sequence to the terminal", func(t *testing.T) {
+			screen := open(t, "gui/501", servicesNamed("com.example.\x1b[2Jworker\nnext"), 100, 12)
+
+			require.Contains(t, screen.View().Content, "com.example.�[2Jworker�next")
+			require.NotContains(t, screen.View().Content, "\x1b")
+		})
+
 		t.Run("cuts a name that is longer than the list pane and ends it with …, and leaves a name that fits", func(t *testing.T) {
 			screen := open(t, "gui/501", servicesNamed("com.example.a-name-that-is-too-long", "com.example.exactly", "com.example.fits"), 60, 12)
 
