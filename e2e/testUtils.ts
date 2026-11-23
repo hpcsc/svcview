@@ -85,6 +85,15 @@ export function writeConfig(configFolder: string, content: string, mode = 0o644)
   return path
 }
 
+export function writeConfD(configFolder: string, name: string, content: string, mode = 0o644): string {
+  const folder = join(configFolder, 'conf.d')
+  mkdirSync(folder, { recursive: true })
+  const path = join(folder, name)
+  writeFileSync(path, content)
+  chmodSync(path, mode)
+  return path
+}
+
 export interface Result {
   stdout: string
   stderr: string

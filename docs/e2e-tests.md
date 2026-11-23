@@ -143,9 +143,9 @@ A test that passes its own `PATH` to `openCli` replaces the `PATH` with the fake
 ### The config file
 
 Before svcview opens the screen, it reads `config.yaml` in `$XDG_CONFIG_HOME/svcview/`, or in
-`$HOME/.config/svcview/` when `XDG_CONFIG_HOME` is not set. On a Mac whose user sets `XDG_CONFIG_HOME`, a test
-would then read the real config file of that user. So the tests start svcview with no `XDG_CONFIG_HOME` of the
-test run:
+`$HOME/.config/svcview/` when `XDG_CONFIG_HOME` is not set, and then each `*.yaml` file in `conf.d/` of that folder.
+On a Mac whose user sets `XDG_CONFIG_HOME`, a test would then read the real config files of that user. So the tests
+start svcview with no `XDG_CONFIG_HOME` of the test run:
 
 - `openCli` unsets `XDG_CONFIG_HOME` before it sets the `env` of the test.
 - `runCli` gives svcview the environment of the test run without `XDG_CONFIG_HOME`.
@@ -155,6 +155,7 @@ A test that puts `XDG_CONFIG_HOME` in its `env` gives svcview that value.
 | Helper | Job |
 | --- | --- |
 | `writeConfig(configFolder, content, mode)` | Makes the config folder, writes `content` to `config.yaml` in it, and gives the file the mode `mode`, `0o644` when the test gives none. It returns the path of the file, which each error of the config file names. |
+| `writeConfD(configFolder, name, content, mode)` | Makes `conf.d` in the config folder, writes `content` to the file `name` in it, and gives the file the mode `mode`, `0o644` when the test gives none. It returns the path of the file, which each error of that file names. |
 
 ```ts
 const home = homeWithPlists(['com.example.worker'])
@@ -162,8 +163,8 @@ writeConfig(join(home, '.config', 'svcview'), 'refresh: 1m\n')
 const session = await openCli(scratchDir(), [], { HOME: home })
 ```
 
-svcview refuses a `config.yaml` that its group or other users can write, so `writeConfig` sets the mode with
-`chmod` and does not depend on the umask. In Docker the tests run as root, and root owns the file that a test
+svcview refuses a config file that its group or other users can write, so `writeConfig` and `writeConfD` set the
+mode with `chmod` and do not depend on the umask. In Docker the tests run as root, and root owns the file that a test
 writes, so svcview accepts the owner.
 
 The terminal has 160 columns, and an error that names a long path continues on the next line. A test that checks

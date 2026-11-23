@@ -1,7 +1,8 @@
 import { execFileSync } from 'node:child_process'
+import { rmSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it, onTestFinished, vi } from 'vitest'
-import { addPlist, buildTag, homeWithPlists, openCli, runCli, scratchDir, writeConfig } from '../testUtils'
+import { addPlist, buildTag, homeWithPlists, openCli, runCli, scratchDir, writeConfD, writeConfig } from '../testUtils'
 
 function listLines(screen: string): string[] {
   const lines = screen.split('\n')
@@ -178,5 +179,82 @@ describe('the config file', () => {
 
     expect(result.status).toBe(0)
     expect(result.stdout).toContain('print the tag svcview was built from')
+  })
+})
+
+describe('the files of conf.d', () => {
+  it('with no config.yaml, a conf.d/worker.yaml with the group Workers makes the list show Workers with its service, before Other', async () => {
+    const home = homeWithPlists(['com.example.worker', 'com.apple.a'])
+    writeConfD(join(home, '.config', 'svcview'), 'worker.yaml', 'groups:\n  - name: Workers\n    match: worker\n')
+
+    const session = await openCli(scratchDir(), [], { HOME: home })
+
+    await session.waitForText('com.apple.a')
+    expect(listLines(await session.text()).slice(0, 5)).toEqual([
+      'Workers',
+      '▌○ com.example.worker',
+      '',
+      'Other',
+      '○ com.apple.a',
+    ])
+  })
+
+  it('the list shows the groups of config.yaml, then the groups of each file of conf.d in the order of their names, then Other', async () => {
+    const home = homeWithPlists(['com.example.worker', 'homebrew.mxcl.redis', 'com.example.job', 'com.apple.a'])
+    const configFolder = join(home, '.config', 'svcview')
+    writeConfig(configFolder, 'groups:\n  - name: Databases\n    match: redis\n')
+    writeConfD(configFolder, 'worker.yaml', 'groups:\n  - name: Workers\n    match: worker\n')
+    writeConfD(configFolder, 'jobs.yaml', 'groups:\n  - name: Jobs\n    match: job\n')
+
+    const session = await openCli(scratchDir(), [], { HOME: home })
+
+    await session.waitForText('com.apple.a')
+    expect(listLines(await session.text()).slice(0, 11)).toEqual([
+      'Databases',
+      '▌○ homebrew.mxcl.redis',
+      '',
+      'Jobs',
+      '○ com.example.job',
+      '',
+      'Workers',
+      '○ com.example.worker',
+      '',
+      'Other',
+      '○ com.apple.a',
+    ])
+  })
+
+  it('after the test deletes conf.d/worker.yaml, the next start of svcview shows no line Workers, and the service of Workers is under Other', async () => {
+    const home = homeWithPlists(['com.example.worker', 'com.apple.a'])
+    const path = writeConfD(join(home, '.config', 'svcview'), 'worker.yaml', 'groups:\n  - name: Workers\n    match: worker\n')
+    const installed = await openCli(scratchDir(), [], { HOME: home })
+    await installed.waitForText('com.apple.a')
+    expect(listLines(await installed.text())).toContain('Workers')
+
+    rmSync(path)
+    const uninstalled = await openCli(scratchDir(), [], { HOME: home })
+
+    await uninstalled.waitForText('com.apple.a')
+    const lines = listLines(await uninstalled.text())
+    expect(lines).not.toContain('Workers')
+    expect(lines.slice(0, 3)).toEqual(['Other', '▌○ com.apple.a', '○ com.example.worker'])
+  })
+
+  it('a file of conf.d that all users can write stops svcview with the exit code 1 and an error that names the file, before the screen opens', async () => {
+    const home = homeWithPlists(['com.example.worker'])
+    const path = writeConfD(
+      join(home, '.config', 'svcview'),
+      'worker.yaml',
+      'groups:\n  - name: Workers\n    match: worker\n',
+      0o666,
+    )
+
+    const session = await openCli(scratchDir(), [], { HOME: home })
+
+    await session.waitForText('EXIT:1')
+    const printed = (await session.text()).replaceAll('\n', '')
+    expect(printed).toContain(path)
+    expect(printed).toContain('another user can write')
+    expect(printed).not.toContain('com.example.worker')
   })
 })

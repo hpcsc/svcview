@@ -211,39 +211,39 @@ of `conf.d`. A file that is gone at the next start gives no group, so its servic
 file of `conf.d` names that file. The rules for the entries of `conf.d` are those of the Story Reference.
 
 **Acceptance Criteria:**
-- [ ] The groups of `config.yaml` come first, then the groups of each file of `conf.d` in the byte order of the names
+- [x] The groups of `config.yaml` come first, then the groups of each file of `conf.d` in the byte order of the names
       (`10-b.yaml` before `2-a.yaml`, `B.yaml` before `a.yaml`), and the groups of each file keep the order of that
       file.
-- [ ] A file of `conf.d` gives its groups when no `config.yaml` exists, and the refresh is `2s`.
-- [ ] After the test deletes the file of `conf.d`, a new read has no group of that file, and the services of the
+- [x] A file of `conf.d` gives its groups when no `config.yaml` exists, and the refresh is `2s`.
+- [x] After the test deletes the file of `conf.d`, a new read has no group of that file, and the services of the
       group are in `Other`.
-- [ ] A service that a group of `config.yaml` and a group of a file of `conf.d` match is in the group of
+- [x] A service that a group of `config.yaml` and a group of a file of `conf.d` match is in the group of
       `config.yaml`. A service that the groups of two files of `conf.d` match is in the group of the earlier file.
-- [ ] An entry whose name does not end in `.yaml`, or whose name starts with a dot, is skipped, whatever the entry
+- [x] An entry whose name does not end in `.yaml`, or whose name starts with a dot, is skipped, whatever the entry
       is: a file that is not valid YAML, a file that all users can write, or a folder.
-- [ ] An entry whose name ends in `.yaml` and that is not a regular file stops svcview with the error of Task 1,
+- [x] An entry whose name ends in `.yaml` and that is not a regular file stops svcview with the error of Task 1,
       which names the entry. svcview does not wait on a named pipe there.
-- [ ] An entry that is a symbolic link to no file is skipped. A symbolic link to a file counts with that file.
-- [ ] With no `conf.d`, or with a `conf.d` that is a symbolic link to no folder, the settings are those of
+- [x] An entry that is a symbolic link to no file is skipped. A symbolic link to a file counts with that file.
+- [x] With no `conf.d`, or with a `conf.d` that is a symbolic link to no folder, the settings are those of
       `config.yaml`. A `conf.d` that is a symbolic link to a folder gives the files of that folder.
-- [ ] A `conf.d` that is a file, or that svcview cannot list, gives an error that names `conf.d`, and no settings.
+- [x] A `conf.d` that is a file, or that svcview cannot list, gives an error that names `conf.d`, and no settings.
       The test of a `conf.d` that svcview cannot list skips when it runs as root.
-- [ ] Each refusal of the check of `config.yaml` refuses a file of `conf.d` too, with an error that names the file
+- [x] Each refusal of the check of `config.yaml` refuses a file of `conf.d` too, with an error that names the file
       of `conf.d` and no settings: each test of the check at `config_test.go:200-348` that refuses a file has a
       counterpart for a file of `conf.d`. A file of `conf.d` that passes the check gives its groups.
-- [ ] On macOS, with `config.ACLEntries`: a file of `conf.d` with the mode `0644` and one ACL entry is refused, and
+- [x] On macOS, with `config.ACLEntries`: a file of `conf.d` with the mode `0644` and one ACL entry is refused, and
       so is a symbolic link in `conf.d` to a file with an ACL entry. These tests skip on other systems.
-- [ ] An error in a setting of a file of `conf.d`, for example a setting that svcview does not know or a `match` that
+- [x] An error in a setting of a file of `conf.d`, for example a setting that svcview does not know or a `match` that
       is not a Go regular expression, names that file.
-- [ ] e2e: with no `config.yaml`, a `conf.d/worker.yaml` with the group `Workers` makes the list show `Workers` with
+- [x] e2e: with no `config.yaml`, a `conf.d/worker.yaml` with the group `Workers` makes the list show `Workers` with
       its service, before `Other`.
-- [ ] e2e: with a group in `config.yaml` and a group in each of two files of `conf.d`, the list shows the groups in
+- [x] e2e: with a group in `config.yaml` and a group in each of two files of `conf.d`, the list shows the groups in
       file order, then `Other`.
-- [ ] e2e: after the test deletes `conf.d/worker.yaml`, the next start of svcview shows no line `Workers`, and the
+- [x] e2e: after the test deletes `conf.d/worker.yaml`, the next start of svcview shows no line `Workers`, and the
       service of `Workers` is under `Other`.
-- [ ] e2e: a file of `conf.d` that all users can write stops svcview with `EXIT:1` and an error that names the file,
+- [x] e2e: a file of `conf.d` that all users can write stops svcview with `EXIT:1` and an error that names the file,
       before the screen opens.
-- [ ] `docs/e2e-tests.md` describes the helper that writes a file of `conf.d`.
+- [x] `docs/e2e-tests.md` describes the helper that writes a file of `conf.d`.
 
 **Affected Files/Modules:**
 - `internal/config/config.go` — the list of the files of `conf.d`, the read of each through the check of Task 1,
