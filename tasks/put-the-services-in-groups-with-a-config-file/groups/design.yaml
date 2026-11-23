@@ -1,0 +1,52 @@
+design: planned
+types:
+  - name: Group
+    package: internal/config
+    change: new
+    does: a named set of services from the config file, the services whose names its match matches
+    owns:
+      - a group has a name and a match, and the match is a Go regular expression
+      - the short name of a service is the part of its name after the text that match matched, when the match starts at the first character
+      - when the match does not start at the first character, or covers the whole name, the short name is the full name
+    fields: [Name, match]
+    methods: [ShortName]
+  - name: Settings
+    package: internal/config
+    change: changed
+    does: the settings of svcview, read from config.yaml in the config folder
+    owns:
+      - the groups keep the order of the config file
+      - a service is in the first group whose match matches its name, and in no group when no match matches it
+      - two groups never have the same name, and no group is named Other, the group of the services that no group matches
+      - an invalid match, a group with no name or no match, or an unknown setting in a group stops svcview at start, and the error names the file and the group
+    fields: [Refresh, Groups]
+    methods: [GroupOf]
+  - name: Screen
+    package: internal/tui
+    change: changed
+    does: the Bubble Tea model of the screen of svcview
+    owns:
+      - the list shows each group that has a service in the order of the config file, then the group Other with each service that no group matches
+      - in each group the services are sorted by name, and an empty line separates two groups
+      - the up and down keys move in the order of the list, and a refresh keeps the same name selected, or the row that takes the place of a gone name in that order
+      - a row in a group shows the short name, and a row in Other and the title of the detail pane show the full name
+    fields: []
+    methods: [Init, Update, View]
+words:
+  - concept: a named set of services from the config file
+    word: group
+    not: [category, section, set, cluster]
+  - concept: the Go regular expression of a group, which a name matches
+    word: match
+    not: [pattern, regex, filter, selector]
+  - concept: the part of the name of a service after the text that the match of its group matched
+    word: short name
+    not: [alias, display name, label, suffix, nickname]
+  - concept: the group of the services that no group of the config file matches
+    word: Other
+    not: [ungrouped, default, rest, misc]
+  - concept: the line in the list with the name of a group
+    word: group line
+    not: [header, heading, title, section]
+dependencies:
+  - internal/tui -> internal/config

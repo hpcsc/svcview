@@ -1,0 +1,97 @@
+{
+  "story": "The list shows the services in the groups of the config file",
+  "story_id": "launchd-tui/US-002",
+  "tasks_file": "tasks/put-the-services-in-groups-with-a-config-file/groups/tasks.md",
+  "tasks": [
+    {
+      "n": 1,
+      "done": false,
+      "title": "Read the groups of the config file",
+      "language": "Go",
+      "testable": true,
+      "certainty": "medium",
+      "blast_radius": "low",
+      "patterns_to_follow": [
+        "internal/launchd/launchctl_list.go:43-72",
+        "internal/launchd/domain_test.go:18-40"
+      ],
+      "depends_on": [],
+      "affected_files": [
+        "internal/config/config.go",
+        "internal/config/group.go",
+        "internal/config/config_test.go"
+      ]
+    },
+    {
+      "n": 2,
+      "done": false,
+      "title": "Show the services in the groups of the config file",
+      "language": "Go",
+      "testable": true,
+      "certainty": "medium",
+      "blast_radius": "low",
+      "patterns_to_follow": [
+        "internal/tui/screen.go:98-138",
+        "internal/tui/screen.go:199-219",
+        "internal/tui/screen_test.go:588-846",
+        "task:1"
+      ],
+      "depends_on": [
+        1
+      ],
+      "affected_files": [
+        "internal/tui/screen.go",
+        "internal/tui/screen_test.go",
+        "internal/tui/testdata/",
+        "e2e/tests/config.test.ts"
+      ]
+    },
+    {
+      "n": 3,
+      "done": false,
+      "title": "Show the short name of each service in a group",
+      "language": "Go",
+      "testable": true,
+      "certainty": "medium",
+      "blast_radius": "low",
+      "patterns_to_follow": [
+        "internal/tui/screen.go:199-227",
+        "internal/tui/screen.go:159-173",
+        "task:2"
+      ],
+      "depends_on": [
+        1,
+        2
+      ],
+      "affected_files": [
+        "internal/config/group.go",
+        "internal/config/config_test.go",
+        "internal/tui/screen.go",
+        "internal/tui/screen_test.go",
+        "internal/tui/testdata/",
+        "e2e/tests/config.test.ts"
+      ]
+    },
+    {
+      "n": 4,
+      "done": false,
+      "title": "Describe the groups in docs/cli.md",
+      "language": "Markdown",
+      "testable": false,
+      "certainty": "high",
+      "blast_radius": "low",
+      "patterns_to_follow": [
+        "docs/cli.md:35-106",
+        "docs/proposal-launchd-tui.md:68-108"
+      ],
+      "depends_on": [
+        2,
+        3
+      ],
+      "affected_files": [
+        "docs/cli.md"
+      ]
+    }
+  ],
+  "design_file": "tasks/put-the-services-in-groups-with-a-config-file/groups/design.yaml"
+}

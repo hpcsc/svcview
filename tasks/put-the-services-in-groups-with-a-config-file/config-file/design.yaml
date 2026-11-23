@@ -1,0 +1,45 @@
+design: planned
+types:
+  - name: Settings
+    package: internal/config
+    change: new
+    does: the settings of svcview, read from config.yaml in the config folder
+    owns:
+      - with no config.yaml, or with an empty one, the refresh is 2s
+      - refresh is a Go duration that is more than 0
+      - a setting that svcview does not know stops svcview at start, and the error names the file and the setting
+      - svcview refuses a config.yaml that its group or all users can write, or that another user owns, and the error names the file
+      - the mode and the owner that svcview checks are those of the file that it reads
+    fields: [Refresh]
+    methods: []
+  - name: Screen
+    package: internal/tui
+    change: changed
+    does: the Bubble Tea model of the screen of svcview
+    owns:
+      - the screen reads the services at start, and again one refresh of the settings after each read ends, one read at a time
+    fields: []
+    methods: [Init, Update, View]
+functions:
+  - config.Folder(home, xdgConfigHome) string
+  - config.Read(folder, uid) (Settings, error)
+  - tui.NewScreen(domain, read, settings) Screen
+words:
+  - concept: the file in which the user sets up svcview
+    word: config file
+    not: [settings file, configuration, preferences, rc file]
+  - concept: $XDG_CONFIG_HOME/svcview, or ~/.config/svcview
+    word: config folder
+    not: [config dir, directory, config home, config path]
+  - concept: one entry in a config file
+    word: setting
+    not: [option, key, field, property]
+  - concept: all the settings of svcview, read from its config file
+    word: settings
+    not: [configuration, options, preferences]
+  - concept: the time between two reads of the services, from the setting refresh
+    word: refresh
+    not: [interval, period, poll, tick]
+dependencies:
+  - internal/cli -> internal/config
+  - internal/tui -> internal/config
