@@ -2,18 +2,23 @@ package status
 
 import (
 	"cmp"
+	"context"
 	"errors"
 	"fmt"
+	"os/exec"
 	"slices"
 	"text/template"
 	"text/template/parse"
 	"time"
+
+	"github.com/hpcsc/svcview/internal/service"
 )
 
 const (
 	defaultEvery   = 2 * time.Second
 	defaultTimeout = time.Second
 	templateValues = "{{.Name}}, {{.Env.X}}, {{.StdoutPath}}, {{.StderrPath}} and {{.PlistPath}}, and in a with only after $, such as {{$.Name}}"
+	stopDelay      = time.Second
 )
 
 var valuesWithoutKey = []string{"Name", "StdoutPath", "StderrPath", "PlistPath"}
@@ -35,7 +40,7 @@ func NewCommand(texts []string, every, timeout time.Duration) (Command, error) {
 	}
 	command := Command{Every: cmp.Or(every, defaultEvery), Timeout: cmp.Or(timeout, defaultTimeout)}
 	for _, text := range texts {
-		parsed, err := template.New("text").Parse(text)
+		parsed, err := template.New("text").Option("missingkey=error").Parse(text)
 		if err != nil {
 			return Command{}, fmt.Errorf("the text %q of the command is not a Go template: %w", text, err)
 		}
@@ -48,6 +53,38 @@ func NewCommand(texts []string, every, timeout time.Duration) (Command, error) {
 		command.templates = append(command.templates, parsed)
 	}
 	return command, nil
+}
+
+func (c Command) Run(ctx context.Context, svc service.Service) Result {
+	line, failure := c.commandLine(svc)
+	if failure != nil {
+		return Result{Ended: time.Now(), Failure: failure}
+	}
+	ctx, cancel := context.WithTimeout(ctx, c.Timeout)
+	defer cancel()
+	program := exec.CommandContext(ctx, line[0], line[1:]...)
+	program.WaitDelay = stopDelay
+	var stdout stdoutBuffer
+	program.Stdout = &stdout
+	err := program.Run()
+	result := Result{Ended: time.Now()}
+	if err == nil {
+		result.Output = parseOutput(stdout.data)
+	}
+	return result
+}
+
+func (c Command) commandLine(svc service.Service) ([]string, *Failure) {
+	values := newValues(svc)
+	line := make([]string, 0, len(c.templates))
+	for _, parsed := range c.templates {
+		text, failure := values.apply(parsed)
+		if failure != nil {
+			return nil, failure
+		}
+		line = append(line, text)
+	}
+	return line, nil
 }
 
 func otherValue(node parse.Node, dotIsService bool) string {

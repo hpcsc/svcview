@@ -179,30 +179,30 @@ program runs. svcview stops the program at the timeout of the command, and reads
 Each other run gives a result with no output. The result keeps the time at which the run ended.
 
 **Acceptance Criteria:**
-- [ ] `{{.Name}}` gives the name of the service, `{{.Env.X}}` the value of `X` in its environment, and
+- [x] `{{.Name}}` gives the name of the service, `{{.Env.X}}` the value of `X` in its environment, and
       `{{.StdoutPath}}`, `{{.StderrPath}}` and `{{.PlistPath}}` its log paths and the path of its plist. An
       environment variable with an empty value gives an empty text.
-- [ ] A template value that the service does not have gives the failure `the plist has no X` for `{{.Env.X}}`,
+- [x] A template value that the service does not have gives the failure `the plist has no X` for `{{.Env.X}}`,
       `the plist has no StandardOutPath` and `the plist has no StandardErrorPath` for the log paths, and
       `the service has no plist` for `{{.PlistPath}}`. No program runs.
-- [ ] svcview runs the program with its arguments and no shell: an argument with `$HOME`, `;`, `|`, `*` or a space
+- [x] svcview runs the program with its arguments and no shell: an argument with `$HOME`, `;`, `|`, `*` or a space
       reaches the program as it is.
-- [ ] An output that is a JSON object with `version` 1 gives its `summary`, its `level` (`info` when it has none) and
+- [x] An output that is a JSON object with `version` 1 gives its `summary`, its `level` (`info` when it has none) and
       its `at`, also with a new line after the object.
-- [ ] The output keeps `fields` (each a `name`, a `value` and an optional `progress`) and `events` (each an `at`, a
+- [x] The output keeps `fields` (each a `name`, a `value` and an optional `progress`) and `events` (each an `at`, a
       `level` and a `text`), in their order.
-- [ ] A property that svcview does not know changes nothing.
-- [ ] Each of these gives a result with no output: a `version` other than 1, or none; a `level` other than `info`,
+- [x] A property that svcview does not know changes nothing.
+- [x] Each of these gives a result with no output: a `version` other than 1, or none; a `level` other than `info`,
       `warn` or `error`; an `at` that is not an RFC 3339 time; a `summary` that is not a text; `fields` or `events`
       whose shape is not the one above; an output that is not a JSON object, or that has a second JSON value after
       the object; an empty output.
-- [ ] A program that exits with a code other than 0 gives a result with no output, also when it prints a valid
+- [x] A program that exits with a code other than 0 gives a result with no output, also when it prints a valid
       output.
-- [ ] A program that runs longer than the timeout of the command stops, and gives a result with no output, no later
+- [x] A program that runs longer than the timeout of the command stops, and gives a result with no output, no later
       than 1 s after the timeout.
-- [ ] A program that prints more than 1 MiB on stdout gives a result with no output, and svcview keeps no more than
+- [x] A program that prints more than 1 MiB on stdout gives a result with no output, and svcview keeps no more than
       1 MiB of it.
-- [ ] The result has the time at which the run ended.
+- [x] The result has the time at which the run ended.
 
 **Affected Files/Modules:**
 - `internal/status/command.go` — the run of the command, its result and its failure

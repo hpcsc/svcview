@@ -30,7 +30,7 @@
     },
     {
       "n": 2,
-      "done": false,
+      "done": true,
       "title": "Run the status command of a service with the template values of its plist",
       "language": "Go",
       "testable": true,
