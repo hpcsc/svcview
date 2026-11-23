@@ -1,4 +1,4 @@
-import { existsSync, renameSync, writeFileSync } from 'node:fs'
+import { existsSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { setTimeout as sleep } from 'node:timers/promises'
 import { describe, expect, it } from 'vitest'
@@ -93,6 +93,23 @@ describe('the status command', () => {
     await expect.poll(() => existsSync(`${marker}.started`)).toBe(true)
     await session.press('q')
     await session.waitForText('EXIT:0')
+    await sleep(3000)
+
+    expect(existsSync(marker)).toBe(false)
+  })
+
+  it.each(['SIGHUP', 'SIGTERM'] as const)('a status command whose child process writes a file after 2 s does not write it when svcview gets %s', async (signal) => {
+    const home = homeWithPlists(['com.example.worker.01'])
+    const marker = join(scratchDir(), 'written')
+    writeConfig(
+      join(home, '.config', 'svcview'),
+      `groups:\n  - name: Workers\n    match: '^com\\.example\\.worker\\.'\n    status:\n      command: [sh, -c, 'echo $PPID > "$0.svcview.new"; mv "$0.svcview.new" "$0.svcview"; (sleep 2; touch "$0") & sleep 30', '${marker}']\n      timeout: 10s\n`,
+    )
+
+    const session = await openCli(scratchDir(), [], { HOME: home })
+    await session.waitForText('com.example.worker.01')
+    await expect.poll(() => existsSync(`${marker}.svcview`)).toBe(true)
+    process.kill(Number(readFileSync(`${marker}.svcview`, 'utf8').trim()), signal)
     await sleep(3000)
 
     expect(existsSync(marker)).toBe(false)
