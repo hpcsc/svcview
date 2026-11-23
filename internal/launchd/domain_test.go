@@ -299,14 +299,13 @@ func TestDomain(t *testing.T) {
 			services, err := launchd.NewDomain(home, 501).Services()
 
 			require.ErrorContains(t, err, "exit status 3")
-			require.ErrorContains(t, err, "Bootstrap failed: 5: Input/output error")
-			require.ErrorContains(t, err, "printed on stdout")
+			require.ErrorContains(t, err, "Bootstrap failed: 5: Input/output error\nprinted on stdout")
 			require.Empty(t, services)
 		})
 
 		t.Run("a launchctl list that does not end within its deadline gives an error that says so, and no services, also when a child of launchctl keeps the output open", func(t *testing.T) {
 			home := homeWithPlists(t, "com.example.loaded")
-			fakeLaunchctl(t, "sleep 60\n")
+			fakeLaunchctl(t, "sleep 60\necho never\n")
 			started := time.Now()
 
 			services, err := launchd.NewDomain(home, 501).Services()
