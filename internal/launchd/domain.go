@@ -18,7 +18,7 @@ func NewDomain(home string, uid int) *Domain {
 
 // Callers must not call Services from two goroutines at the same time.
 func (d *Domain) Services() ([]service.Service, error) {
-	names, err := d.plists.names()
+	plists, err := d.plists.read()
 	if err != nil {
 		return nil, err
 	}
@@ -26,10 +26,11 @@ func (d *Domain) Services() ([]service.Service, error) {
 	if err != nil {
 		return nil, err
 	}
-	services := make([]service.Service, 0, len(names))
+	services := make([]service.Service, 0, len(plists))
 	var pids []int
-	for _, name := range names {
-		svc := listed.service(name)
+	for _, p := range plists {
+		svc := listed.service(p.name)
+		svc.Env, svc.StdoutPath, svc.StderrPath, svc.PlistPath = p.env, p.stdoutPath, p.stderrPath, p.path
 		services = append(services, svc)
 		if svc.State == service.Running {
 			pids = append(pids, svc.PID)

@@ -119,6 +119,21 @@ func fakePs(t *testing.T, fixture string) (calls string) {
 	return calls
 }
 
+func withoutPlistPath(services []service.Service) []service.Service {
+	for i := range services {
+		services[i].PlistPath = ""
+	}
+	return services
+}
+
+func plistPaths(services []service.Service) []string {
+	var paths []string
+	for _, svc := range services {
+		paths = append(paths, svc.PlistPath)
+	}
+	return paths
+}
+
 func uptimeByName(services []service.Service) map[string]*time.Duration {
 	uptimes := map[string]*time.Duration{}
 	for _, svc := range services {
@@ -139,7 +154,7 @@ func TestDomain(t *testing.T) {
 			services, err := launchd.NewDomain(home, 501).Services()
 
 			require.NoError(t, err)
-			require.ElementsMatch(t, []service.Service{{Name: "com.example.xml"}, {Name: "com.example.binary"}}, services)
+			require.ElementsMatch(t, []service.Service{{Name: "com.example.xml"}, {Name: "com.example.binary"}}, withoutPlistPath(services))
 		})
 
 		t.Run("the name comes from the Label, not from the file name", func(t *testing.T) {
@@ -149,7 +164,7 @@ func TestDomain(t *testing.T) {
 			services, err := launchd.NewDomain(home, 501).Services()
 
 			require.NoError(t, err)
-			require.Equal(t, []service.Service{{Name: "com.example.xml"}}, services)
+			require.Equal(t, []service.Service{{Name: "com.example.xml", PlistPath: filepath.Join(home, "Library", "LaunchAgents", "another-name.plist")}}, services)
 		})
 
 		t.Run("a file that is not a plist, a plist with no Label, and a file without the .plist extension give no service, and the other files still give theirs", func(t *testing.T) {
@@ -165,7 +180,58 @@ func TestDomain(t *testing.T) {
 			services, err := launchd.NewDomain(home, 501).Services()
 
 			require.NoError(t, err)
-			require.Equal(t, []service.Service{{Name: "com.example.binary"}}, services)
+			require.Equal(t, []service.Service{{Name: "com.example.binary"}}, withoutPlistPath(services))
+		})
+
+		t.Run("a plist with EnvironmentVariables, StandardOutPath and StandardErrorPath gives a service with that environment, those log paths and the path of the plist, and a variable with an empty value is in the environment", func(t *testing.T) {
+			fakeLaunchctlList(t, "launchctl-list-no-services.txt")
+			home := homeWith(t, map[string]string{"com.example.worker.plist": "environment.plist"})
+
+			services, err := launchd.NewDomain(home, 501).Services()
+
+			require.NoError(t, err)
+			require.Equal(t, []service.Service{{
+				Name: "com.example.worker",
+				Env: map[string]string{
+					"WORKER_STATUS_FILE": "/Users/me/Library/Application Support/worker/status.json",
+					"WORKER_QUIET":       "",
+				},
+				StdoutPath: "/Users/me/Library/Logs/worker.out.log",
+				StderrPath: "/Users/me/Library/Logs/worker.err.log",
+				PlistPath:  filepath.Join(home, "Library", "LaunchAgents", "com.example.worker.plist"),
+			}}, services)
+		})
+
+		t.Run("a plist with no EnvironmentVariables, StandardOutPath or StandardErrorPath gives a service with no environment and no log paths", func(t *testing.T) {
+			fakeLaunchctlList(t, "launchctl-list-no-services.txt")
+			home := homeWith(t, map[string]string{"com.example.binary.plist": "binary.plist"})
+
+			services, err := launchd.NewDomain(home, 501).Services()
+
+			require.NoError(t, err)
+			require.Equal(t, []service.Service{{
+				Name:      "com.example.binary",
+				PlistPath: filepath.Join(home, "Library", "LaunchAgents", "com.example.binary.plist"),
+			}}, services)
+		})
+
+		t.Run("a variable whose value is not a text, an EnvironmentVariables that is not a dictionary, or a log path that is not a text, gives the service without that value, and with the other values", func(t *testing.T) {
+			for fixture, expected := range map[string]service.Service{
+				"environment-with-a-number.plist": {
+					Name:       "com.example.worker",
+					Env:        map[string]string{"WORKER_STATUS_FILE": "/Users/me/worker/status.json"},
+					StdoutPath: "/Users/me/Library/Logs/worker.out.log",
+				},
+				"environment-not-a-dictionary.plist": {Name: "com.example.worker", StderrPath: "/Users/me/Library/Logs/worker.err.log"},
+			} {
+				fakeLaunchctlList(t, "launchctl-list-no-services.txt")
+				home := homeWith(t, map[string]string{"com.example.worker.plist": fixture})
+
+				services, err := launchd.NewDomain(home, 501).Services()
+
+				require.NoError(t, err, fixture)
+				require.Equal(t, []service.Service{expected}, withoutPlistPath(services), fixture)
+			}
 		})
 
 		t.Run("a folder with the .plist extension gives no service", func(t *testing.T) {
@@ -176,20 +242,21 @@ func TestDomain(t *testing.T) {
 			services, err := launchd.NewDomain(home, 501).Services()
 
 			require.NoError(t, err)
-			require.Equal(t, []service.Service{{Name: "com.example.binary"}}, services)
+			require.Equal(t, []service.Service{{Name: "com.example.binary"}}, withoutPlistPath(services))
 		})
 
-		t.Run("a symbolic link to a plist gives the service of the plist", func(t *testing.T) {
+		t.Run("a symbolic link to a plist gives the service of the plist, with the path of the link as the path of the plist", func(t *testing.T) {
 			fakeLaunchctlList(t, "launchctl-list-no-services.txt")
 			home := homeWith(t, nil)
-			target, err := filepath.Abs(filepath.Join("testdata", "xml.plist"))
+			target, err := filepath.Abs(filepath.Join("testdata", "environment.plist"))
 			require.NoError(t, err)
-			require.NoError(t, os.Symlink(target, filepath.Join(home, "Library", "LaunchAgents", "com.example.xml.plist")))
+			link := filepath.Join(home, "Library", "LaunchAgents", "com.example.worker.plist")
+			require.NoError(t, os.Symlink(target, link))
 
 			services, err := launchd.NewDomain(home, 501).Services()
 
 			require.NoError(t, err)
-			require.Equal(t, []service.Service{{Name: "com.example.xml"}}, services)
+			require.Equal(t, []string{link}, plistPaths(services))
 		})
 
 		t.Run("a symbolic link to a file that does not exist gives no service, and the other files still give theirs", func(t *testing.T) {
@@ -200,7 +267,7 @@ func TestDomain(t *testing.T) {
 			services, err := launchd.NewDomain(home, 501).Services()
 
 			require.NoError(t, err)
-			require.Equal(t, []service.Service{{Name: "com.example.binary"}}, services)
+			require.Equal(t, []service.Service{{Name: "com.example.binary"}}, withoutPlistPath(services))
 		})
 
 		t.Run("two plists with the same Label give one service", func(t *testing.T) {
@@ -214,7 +281,7 @@ func TestDomain(t *testing.T) {
 			services, err := launchd.NewDomain(home, 501).Services()
 
 			require.NoError(t, err)
-			require.ElementsMatch(t, []service.Service{{Name: "com.example.xml"}, {Name: "com.example.binary"}}, services)
+			require.ElementsMatch(t, []service.Service{{Name: "com.example.xml"}, {Name: "com.example.binary"}}, withoutPlistPath(services))
 		})
 
 		t.Run("a home folder with no Library/LaunchAgents folder gives no services and no error", func(t *testing.T) {
@@ -250,7 +317,7 @@ func TestDomain(t *testing.T) {
 				{Name: "com.example.running", State: service.Running, PID: 4122},
 				{Name: "com.example.loaded", State: service.Loaded},
 				{Name: "com.example.not-loaded", State: service.NotLoaded},
-			}, services)
+			}, withoutPlistPath(services))
 		})
 
 		t.Run("a name that launchctl list shows, but that no plist has, gives no service", func(t *testing.T) {
@@ -261,7 +328,7 @@ func TestDomain(t *testing.T) {
 			services, err := launchd.NewDomain(home, 501).Services()
 
 			require.NoError(t, err)
-			require.Equal(t, []service.Service{{Name: "com.example.running", State: service.Running, PID: 4122}}, services)
+			require.Equal(t, []service.Service{{Name: "com.example.running", State: service.Running, PID: 4122}}, withoutPlistPath(services))
 		})
 
 		t.Run("a Status of 0 is a last exit of 0, a positive Status is that exit code, and a negative Status is the signal of that number as macOS numbers signals", func(t *testing.T) {
@@ -292,7 +359,7 @@ func TestDomain(t *testing.T) {
 				{Name: "com.example.user-2", State: service.Loaded, LastExit: service.LastExit{Signal: "SIGUSR2"}},
 				{Name: "com.example.signal-32", State: service.Loaded, LastExit: service.LastExit{Signal: "signal 32"}},
 				{Name: "com.example.smallest-status", State: service.Loaded, LastExit: service.LastExit{Signal: "signal 2147483648"}},
-			}, services)
+			}, withoutPlistPath(services))
 		})
 
 		t.Run("a service that launchctl list does not show has a last exit of 0", func(t *testing.T) {
@@ -302,7 +369,7 @@ func TestDomain(t *testing.T) {
 			services, err := launchd.NewDomain(home, 501).Services()
 
 			require.NoError(t, err)
-			require.Equal(t, []service.Service{{Name: "com.example.not-listed", State: service.NotLoaded}}, services)
+			require.Equal(t, []service.Service{{Name: "com.example.not-listed", State: service.NotLoaded}}, withoutPlistPath(services))
 		})
 
 		t.Run("a Status that is smaller than the smallest 32-bit int gives an error that names the row, and no services", func(t *testing.T) {
@@ -343,7 +410,7 @@ func TestDomain(t *testing.T) {
 			services, err := launchd.NewDomain(home, 501).Services()
 
 			require.NoError(t, err)
-			require.Equal(t, []service.Service{{Name: "com.example.with\ttab", State: service.Running, PID: 4122}}, services)
+			require.Equal(t, []service.Service{{Name: "com.example.with\ttab", State: service.Running, PID: 4122}}, withoutPlistPath(services))
 		})
 
 		t.Run("an output whose header line is not PID, Status, Label gives an error that names the header line, and no services", func(t *testing.T) {
@@ -402,7 +469,7 @@ func TestDomain(t *testing.T) {
 				{Name: "com.example.second", State: service.Running, LastExit: service.LastExit{Signal: "SIGKILL"}, PID: 4123, Uptime: new(time.Hour + 3*time.Minute + 12*time.Second)},
 				{Name: "com.example.loaded", State: service.Loaded},
 				{Name: "com.example.not-loaded", State: service.NotLoaded},
-			}, services)
+			}, withoutPlistPath(services))
 		})
 
 		t.Run("runs ps one time, with the PIDs of all running services", func(t *testing.T) {
@@ -431,7 +498,7 @@ func TestDomain(t *testing.T) {
 			require.ElementsMatch(t, []service.Service{
 				{Name: "com.example.loaded", State: service.Loaded},
 				{Name: "com.example.not-loaded", State: service.NotLoaded},
-			}, services)
+			}, withoutPlistPath(services))
 			require.NoFileExists(t, calls)
 		})
 
@@ -500,7 +567,7 @@ func TestDomain(t *testing.T) {
 			require.ElementsMatch(t, []service.Service{
 				{Name: "com.example.first", State: service.Running, PID: 4122},
 				{Name: "com.example.second", State: service.Running, LastExit: service.LastExit{Signal: "SIGKILL"}, PID: 4123},
-			}, services)
+			}, withoutPlistPath(services))
 		})
 
 		t.Run("when ps cannot start, no service has an uptime, and the read still gives the services with their state and last exit", func(t *testing.T) {
@@ -514,7 +581,7 @@ func TestDomain(t *testing.T) {
 			require.ElementsMatch(t, []service.Service{
 				{Name: "com.example.first", State: service.Running, PID: 4122},
 				{Name: "com.example.second", State: service.Running, LastExit: service.LastExit{Signal: "SIGKILL"}, PID: 4123},
-			}, services)
+			}, withoutPlistPath(services))
 		})
 
 		t.Run("when ps does not end within its deadline, no service has an uptime, and the read still gives the services, also when a child of ps keeps the output open", func(t *testing.T) {
@@ -529,7 +596,7 @@ func TestDomain(t *testing.T) {
 			require.ElementsMatch(t, []service.Service{
 				{Name: "com.example.first", State: service.Running, PID: 4122},
 				{Name: "com.example.second", State: service.Running, LastExit: service.LastExit{Signal: "SIGKILL"}, PID: 4123},
-			}, services)
+			}, withoutPlistPath(services))
 			require.Less(t, time.Since(started), 10*time.Second)
 		})
 
@@ -578,7 +645,7 @@ func TestDomain(t *testing.T) {
 			services, err := domain.Services()
 
 			require.NoError(t, err)
-			require.ElementsMatch(t, []service.Service{{Name: "com.example.xml"}, {Name: "com.example.binary"}}, services)
+			require.ElementsMatch(t, []service.Service{{Name: "com.example.xml"}, {Name: "com.example.binary"}}, withoutPlistPath(services))
 		})
 
 		t.Run("a plist that is removed after a read gives no service at the next read", func(t *testing.T) {
@@ -592,7 +659,7 @@ func TestDomain(t *testing.T) {
 			services, err := domain.Services()
 
 			require.NoError(t, err)
-			require.Equal(t, []service.Service{{Name: "com.example.binary"}}, services)
+			require.Equal(t, []service.Service{{Name: "com.example.binary"}}, withoutPlistPath(services))
 		})
 
 		t.Run("a plist whose Label changes with its modification time gives the new name at the next read", func(t *testing.T) {
@@ -608,7 +675,27 @@ func TestDomain(t *testing.T) {
 			services, err := domain.Services()
 
 			require.NoError(t, err)
-			require.Equal(t, []service.Service{{Name: "com.example.binary"}}, services)
+			require.Equal(t, []service.Service{{Name: "com.example.binary"}}, withoutPlistPath(services))
+		})
+
+		t.Run("a plist whose EnvironmentVariables changes with its modification time gives the new environment at the next read", func(t *testing.T) {
+			fakeLaunchctlList(t, "launchctl-list-no-services.txt")
+			home := homeWith(t, nil)
+			path := filepath.Join(home, "Library", "LaunchAgents", "com.example.worker.plist")
+			copyFixtureModifiedAt(t, path, "environment.plist", modTime)
+			domain := launchd.NewDomain(home, 501)
+			_, err := domain.Services()
+			require.NoError(t, err)
+			copyFixtureModifiedAt(t, path, "environment-changed.plist", modTime.Add(time.Second))
+
+			services, err := domain.Services()
+
+			require.NoError(t, err)
+			require.Equal(t, []service.Service{{
+				Name:      "com.example.worker",
+				Env:       map[string]string{"WORKER_STATUS_FILE": "/Users/me/worker/status.json"},
+				PlistPath: path,
+			}}, services)
 		})
 
 		t.Run("a plist whose modification time did not change is not read again, so a new Label with the same modification time keeps the old name", func(t *testing.T) {
@@ -624,7 +711,7 @@ func TestDomain(t *testing.T) {
 			services, err := domain.Services()
 
 			require.NoError(t, err)
-			require.Equal(t, []service.Service{{Name: "com.example.xml"}}, services)
+			require.Equal(t, []service.Service{{Name: "com.example.xml"}}, withoutPlistPath(services))
 		})
 
 		t.Run("a file that is not a plist is not read again while its modification time does not change", func(t *testing.T) {
@@ -661,7 +748,7 @@ func TestDomain(t *testing.T) {
 
 			require.NoError(t, err)
 			require.Empty(t, unreadable)
-			require.Equal(t, []service.Service{{Name: "com.example.xml"}}, services)
+			require.Equal(t, []service.Service{{Name: "com.example.xml"}}, withoutPlistPath(services))
 		})
 
 		t.Run("each read runs launchctl list again, so a service that starts after a read is running at the next read", func(t *testing.T) {
@@ -676,8 +763,8 @@ func TestDomain(t *testing.T) {
 			after, err := domain.Services()
 
 			require.NoError(t, err)
-			require.Equal(t, []service.Service{{Name: "com.example.running", State: service.NotLoaded}}, before)
-			require.Equal(t, []service.Service{{Name: "com.example.running", State: service.Running, PID: 4122}}, after)
+			require.Equal(t, []service.Service{{Name: "com.example.running", State: service.NotLoaded}}, withoutPlistPath(before))
+			require.Equal(t, []service.Service{{Name: "com.example.running", State: service.Running, PID: 4122}}, withoutPlistPath(after))
 		})
 
 		t.Run("after an output with an unknown header line, the next read whose output is valid gives the services again", func(t *testing.T) {
@@ -691,7 +778,7 @@ func TestDomain(t *testing.T) {
 			services, err := domain.Services()
 
 			require.NoError(t, err)
-			require.Equal(t, []service.Service{{Name: "com.example.loaded", State: service.Loaded}}, services)
+			require.Equal(t, []service.Service{{Name: "com.example.loaded", State: service.Loaded}}, withoutPlistPath(services))
 		})
 	})
 

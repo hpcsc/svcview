@@ -12,7 +12,7 @@ type plistFolder struct {
 	kept map[string]plist
 }
 
-func (f *plistFolder) names() ([]string, error) {
+func (f *plistFolder) read() ([]plist, error) {
 	entries, err := os.ReadDir(f.path)
 	if errors.Is(err, fs.ErrNotExist) {
 		return nil, nil
@@ -20,7 +20,7 @@ func (f *plistFolder) names() ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	var names []string
+	var plists []plist
 	seen := map[string]bool{}
 	kept := map[string]plist{}
 	for _, entry := range entries {
@@ -38,8 +38,8 @@ func (f *plistFolder) names() ([]string, error) {
 			continue
 		}
 		seen[p.name] = true
-		names = append(names, p.name)
+		plists = append(plists, p)
 	}
 	f.kept = kept
-	return names, nil
+	return plists, nil
 }

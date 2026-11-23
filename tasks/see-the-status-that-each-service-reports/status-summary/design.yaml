@@ -28,7 +28,7 @@ types:
       - Run runs the program with its arguments and no shell
       - Run stops the program at the timeout, and reads no more than 1 MiB of its stdout
       - Run needs nothing of the screen
-    fields: [arguments, Every, Timeout]
+    fields: [templates, Every, Timeout]
     methods: [Run]
   - name: Result
     package: internal/status

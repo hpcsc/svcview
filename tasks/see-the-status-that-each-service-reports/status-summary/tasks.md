@@ -133,15 +133,15 @@ succeeds.
 svcview reads the values again only when the modification time of the plist changes.
 
 **Acceptance Criteria:**
-- [ ] A plist with `EnvironmentVariables`, `StandardOutPath` and `StandardErrorPath` gives a service with the same
+- [x] A plist with `EnvironmentVariables`, `StandardOutPath` and `StandardErrorPath` gives a service with the same
       environment and log paths, and with the path of the plist file in `~/Library/LaunchAgents`.
-- [ ] An environment variable with an empty value is in the environment, with an empty value.
-- [ ] A plist with none of these properties gives a service with no environment and no log paths.
-- [ ] A plist whose `EnvironmentVariables` is not a dictionary of texts, or whose log path is not a text, still
+- [x] An environment variable with an empty value is in the environment, with an empty value.
+- [x] A plist with none of these properties gives a service with no environment and no log paths.
+- [x] A plist whose `EnvironmentVariables` is not a dictionary of texts, or whose log path is not a text, still
       gives its service, with its name, and without the value of the wrong type.
-- [ ] A plist that changes its `EnvironmentVariables` gives the new environment at the next read after its
+- [x] A plist that changes its `EnvironmentVariables` gives the new environment at the next read after its
       modification time changes.
-- [ ] A symbolic link in `~/Library/LaunchAgents` gives the path of the link as the path of the plist.
+- [x] A symbolic link in `~/Library/LaunchAgents` gives the path of the link as the path of the plist.
 
 **Affected Files/Modules:**
 - `internal/service/service.go` — the environment, the log paths and the plist path of a service
@@ -379,6 +379,10 @@ can write a status command that succeeds from these docs, with no read of the sv
       that the command runs in each state of the service, and that a service gets no second run until its run ends.
 - [ ] It lists the five template values, and says that a value that the plist does not have shows as the status,
       for example `the plist has no WORKER_STATUS_FILE`.
+- [ ] It names the texts that stop svcview at start: a template value other than the five, `range`, `define`,
+      `block` and `{{template ...}}`, a field without `$` in the body of a `with`, a field of a variable that the text
+      declares, and a new value for `$`. It says that `every` and `timeout` must not be less than 0, and that 0 gives
+      the default.
 - [ ] It describes the output of version 1: `version`, `at`, `summary`, `level`, `fields` and `events`, with an
       example, the shape of each, and that a property that svcview does not know changes nothing. It says which
       properties the screen shows.

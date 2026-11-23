@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>Label</key>
+	<string>com.example.worker</string>
+	<key>ProgramArguments</key>
+	<array>
+		<string>/usr/local/bin/worker</string>
+	</array>
+	<key>EnvironmentVariables</key>
+	<dict>
+		<key>WORKER_STATUS_FILE</key>
+		<string>/Users/me/worker/status.json</string>
+		<key>WORKER_RETRIES</key>
+		<integer>3</integer>
+	</dict>
+	<key>StandardOutPath</key>
+	<string>/Users/me/Library/Logs/worker.out.log</string>
+	<key>StandardErrorPath</key>
+	<integer>2</integer>
+</dict>
+</plist>

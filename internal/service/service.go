@@ -31,9 +31,13 @@ func (e LastExit) Failed() bool {
 }
 
 type Service struct {
-	Name     string
-	State    State
-	LastExit LastExit
-	PID      int
-	Uptime   *time.Duration
+	Name       string
+	State      State
+	LastExit   LastExit
+	PID        int
+	Uptime     *time.Duration
+	Env        map[string]string
+	StdoutPath string
+	StderrPath string
+	PlistPath  string
 }

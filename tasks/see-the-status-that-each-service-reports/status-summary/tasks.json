@@ -5,7 +5,7 @@
   "tasks": [
     {
       "n": 1,
-      "done": false,
+      "done": true,
       "title": "Read the environment and the log paths of each service from its plist",
       "language": "Go",
       "testable": true,
@@ -41,7 +41,9 @@
         "internal/launchd/launchctl_list.go:43-72",
         "internal/launchd/domain_test.go:59-84"
       ],
-      "depends_on": [1],
+      "depends_on": [
+        1
+      ],
       "affected_files": [
         "internal/status/command.go",
         "internal/status/output.go",
@@ -65,7 +67,9 @@
         "e2e/tests/config.test.ts:99-109",
         "e2e/testUtils.ts:33-50"
       ],
-      "depends_on": [2],
+      "depends_on": [
+        2
+      ],
       "affected_files": [
         "internal/tui/screen.go",
         "internal/tui/screen_test.go",
@@ -87,7 +91,9 @@
         "internal/tui/screen_test.go:183-203",
         "task:3"
       ],
-      "depends_on": [3],
+      "depends_on": [
+        3
+      ],
       "affected_files": [
         "internal/tui/screen.go",
         "internal/tui/screen_test.go",
@@ -109,7 +115,10 @@
         "internal/cli/root.go:52-66",
         "task:3"
       ],
-      "depends_on": [3, 4],
+      "depends_on": [
+        3,
+        4
+      ],
       "affected_files": [
         "internal/tui/screen.go",
         "internal/tui/screen_test.go",
@@ -129,7 +138,9 @@
         "docs/cli.md:35-111",
         "docs/cli.md:112-188"
       ],
-      "depends_on": [5],
+      "depends_on": [
+        5
+      ],
       "affected_files": [
         "docs/cli.md"
       ]
