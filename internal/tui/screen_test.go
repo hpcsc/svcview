@@ -150,6 +150,35 @@ func TestScreen(t *testing.T) {
 			require.Contains(t, header, "svcview")
 			require.Contains(t, header, "gui/502")
 		})
+
+		t.Run("counts the services in each state under the domain, each count after the glyph of its state in its color, with 0 for a state with no service", func(t *testing.T) {
+			screen := open(t, "gui/501", servicesRead(
+				service.Service{Name: "com.example.a-running", State: service.Running},
+				service.Service{Name: "com.example.b-running", State: service.Running},
+				service.Service{Name: "com.example.c-not-loaded", State: service.NotLoaded},
+			), 80, 12)
+
+			requireGolden(t, "counts", screen)
+		})
+
+		t.Run("when the read gives an error, shows no counts", func(t *testing.T) {
+			failing := func() ([]service.Service, error) {
+				return []service.Service{{Name: "com.example.worker", State: service.Running}}, errors.New("launchctl list: exit status 3")
+			}
+
+			screen := open(t, "gui/501", failing, 80, 12)
+
+			lines := strings.Split(ansi.Strip(screen.View().Content), "\n")
+			require.Equal(t, "│"+strings.Repeat(" ", 78)+"│", lines[1])
+		})
+
+		t.Run("shows no counts before the first read ends", func(t *testing.T) {
+			var screen tea.Model = tui.NewScreen("gui/501", servicesNamed("com.example.worker"))
+			screen, _ = screen.Update(tea.WindowSizeMsg{Width: 80, Height: 12})
+
+			lines := strings.Split(ansi.Strip(screen.View().Content), "\n")
+			require.Equal(t, "│"+strings.Repeat(" ", 78)+"│", lines[1])
+		})
 	})
 
 	t.Run("list", func(t *testing.T) {
@@ -163,17 +192,17 @@ func TestScreen(t *testing.T) {
 			widths := map[int]int{}
 			for _, width := range []int{100, 99} {
 				lines := strings.Split(open(t, "gui/501", servicesNamed(), width, 12).View().Content, "\n")
-				widths[width] = ansi.StringWidth(lines[2])
+				widths[width] = ansi.StringWidth(lines[3])
 			}
 
 			require.Equal(t, map[int]int{100: 40, 99: 39}, widths)
 		})
 
 		t.Run("keeps the top border as wide as the pane when the title fills it", func(t *testing.T) {
-			lines := strings.Split(open(t, "gui/501", servicesNamed("com.example.worker"), 30, 6).View().Content, "\n")
+			lines := strings.Split(open(t, "gui/501", servicesNamed("com.example.worker"), 30, 7).View().Content, "\n")
 
 			var widths []int
-			for _, line := range lines[2:] {
+			for _, line := range lines[3:] {
 				widths = append(widths, ansi.StringWidth(line))
 			}
 			require.Equal(t, []int{12, 12, 12, 12}, widths)
@@ -273,6 +302,18 @@ func TestScreen(t *testing.T) {
 				screen := runFor(t, tui.NewScreen("gui/501", read), 2100*time.Millisecond)
 
 				require.Contains(t, ansi.Strip(screen.View().Content), "● com.example.worker")
+			})
+		})
+
+		t.Run("changes the counts at the read that changes a state", func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				read := changingAt(100*time.Millisecond,
+					servicesRead(service.Service{Name: "com.example.worker", State: service.Loaded}),
+					servicesRead(service.Service{Name: "com.example.worker", State: service.Running}))
+
+				screen := runFor(t, tui.NewScreen("gui/501", read), 2100*time.Millisecond)
+
+				require.Contains(t, ansi.Strip(screen.View().Content), "● 1 running   ◐ 0 loaded   ○ 0 not loaded")
 			})
 		})
 

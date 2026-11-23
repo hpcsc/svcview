@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"fmt"
 	"slices"
 	"strings"
 	"time"
@@ -12,7 +13,7 @@ import (
 )
 
 const (
-	headerHeight = 2
+	headerHeight = 3
 	refreshEvery = 2 * time.Second
 )
 
@@ -27,6 +28,7 @@ type Screen struct {
 	domain   string
 	read     func() ([]service.Service, error)
 	lastRead servicesRead
+	hasRead  bool
 	width    int
 	height   int
 }
@@ -52,7 +54,7 @@ func (s Screen) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		slices.SortFunc(msg.services, func(a, b service.Service) int {
 			return strings.Compare(a.Name, b.Name)
 		})
-		s.lastRead = msg
+		s.lastRead, s.hasRead = msg, true
 		return s, tea.Tick(refreshEvery, func(time.Time) tea.Msg { return refresh{} })
 	case refresh:
 		return s, s.readServices
@@ -75,10 +77,25 @@ func (s Screen) content() string {
 	if s.width == 0 {
 		return ""
 	}
-	header := box{title: "svcview", right: s.domain, width: s.width, height: headerHeight}
+	header := box{title: "svcview", right: s.domain, width: s.width, height: headerHeight, text: s.headerText()}
 	list := box{title: "Services", width: s.width * 40 / 100, height: s.height - headerHeight}
 	list.text = s.listText(list.textWidth())
 	return header.render() + "\n" + list.render()
+}
+
+func (s Screen) headerText() []string {
+	if !s.hasRead || s.lastRead.err != nil {
+		return nil
+	}
+	counts := map[service.State]int{}
+	for _, svc := range s.lastRead.services {
+		counts[svc.State]++
+	}
+	var text []string
+	for _, state := range []service.State{service.Running, service.Loaded, service.NotLoaded} {
+		text = append(text, fmt.Sprintf("%s %d %s", s.glyph(state), counts[state], state))
+	}
+	return []string{" " + strings.Join(text, "   ")}
 }
 
 func (s Screen) listText(width int) []string {

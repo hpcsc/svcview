@@ -83,6 +83,27 @@ describe('the screen', () => {
     await session.waitForText('● com.example.loaded', { timeout: 5000 })
   })
 
+  it('counts the services in each state in the header', async () => {
+    const home = homeWithPlists([
+      'com.example.a-running',
+      'com.example.b-running',
+      'com.example.c-loaded',
+      'com.example.d-not-loaded',
+      'com.example.e-not-loaded',
+      'com.example.f-not-loaded',
+    ])
+    setLaunchctlList(home, [
+      { name: 'com.example.a-running', pid: 4122 },
+      { name: 'com.example.b-running', pid: 4123 },
+      { name: 'com.example.c-loaded' },
+    ])
+    const session = await openCli(scratchDir(), [], { HOME: home })
+
+    await session.waitForText('com.example.f-not-loaded')
+
+    expect(await session.text()).toContain('● 2 running   ◐ 1 loaded   ○ 3 not loaded')
+  })
+
   it('when the header line of launchctl list is not PID, Status, Label, shows the error and no rows, until the output is valid again', async () => {
     const home = homeWithPlists(['com.example.worker'])
     setLaunchctlOutput(home, 'PID\tStatus\tName\n-\t0\tcom.example.worker\n')

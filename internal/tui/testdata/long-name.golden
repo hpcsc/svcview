@@ -1,11 +1,11 @@
 ╭ svcview ──────────────────────────────────────── gui/501 ╮
+│  [32m●[m 0 running   [33m◐[m 0 loaded   [90m○[m 3 not loaded               │
 ╰──────────────────────────────────────────────────────────╯
 ╭ Services ────────────╮
 │ Other                │
 │  [90m○[m com.example.a-na… │
 │  [90m○[m com.example.exact │
 │  [90m○[m com.example.fits  │
-│                      │
 │                      │
 │                      │
 │                      │

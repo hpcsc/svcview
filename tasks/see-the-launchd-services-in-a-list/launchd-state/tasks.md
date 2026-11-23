@@ -190,12 +190,12 @@ new glyph at the next refresh.
 each with the glyph of the state in its color.
 
 **Acceptance Criteria:**
-- [ ] The header shows the counts in the form `● 2 running   ◐ 0 loaded   ○ 1 not loaded`, with each glyph in the
+- [x] The header shows the counts in the form `● 2 running   ◐ 0 loaded   ○ 1 not loaded`, with each glyph in the
       color of its state.
-- [ ] A state with no service shows the count 0.
-- [ ] The counts change at the refresh that changes a state.
-- [ ] When the read of the services gives an error, the header shows no counts.
-- [ ] An e2e test sees the counts for a fixture with services in each state.
+- [x] A state with no service shows the count 0.
+- [x] The counts change at the refresh that changes a state.
+- [x] When the read of the services gives an error, the header shows no counts.
+- [x] An e2e test sees the counts for a fixture with services in each state.
 
 **Affected Files/Modules:**
 - `internal/tui/screen.go` — the counts in the header
