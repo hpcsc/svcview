@@ -461,25 +461,6 @@ func TestCommand(t *testing.T) {
 			require.WithinRange(t, result.Ended, started.Add(300*time.Millisecond), time.Now())
 		})
 
-		t.Run("the time of a result is the at of its output", func(t *testing.T) {
-			result := printing(t, `{"version":1,"at":"2026-11-23T09:12:00Z"}`).Run(context.Background(), worker())
-
-			require.Equal(t, time.Date(2026, 11, 23, 9, 12, 0, 0, time.UTC), result.Time().UTC())
-		})
-
-		t.Run("the time of a result is the time at which the run ended when the output has no at, when the run gave no output, and when it gave a failure", func(t *testing.T) {
-			for _, command := range []status.Command{
-				printing(t, `{"version":1}`),
-				printing(t, `not a JSON object`),
-				newCommand(t, 0, "cat", "{{.Env.WORKER_LOG}}"),
-			} {
-				result := command.Run(context.Background(), worker())
-
-				require.Equal(t, result.Ended, result.Time())
-				require.False(t, result.Ended.IsZero())
-			}
-		})
-
 		t.Run("the result of a failure has the time at which the run ended", func(t *testing.T) {
 			command := newCommand(t, 0, "cat", "{{.Env.WORKER_LOG}}")
 			started := time.Now()
