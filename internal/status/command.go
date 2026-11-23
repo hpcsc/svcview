@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"slices"
+	"strings"
 	"syscall"
 	"text/template"
 	"text/template/parse"
@@ -21,6 +22,8 @@ const (
 	defaultTimeout = time.Second
 	templateValues = "{{.Name}}, {{.Env.X}}, {{.StdoutPath}}, {{.StderrPath}} and {{.PlistPath}}, and in a with only after $, such as {{$.Name}}"
 	stopDelay      = time.Second
+
+	plainShellCharacters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789@%+=:,./-_"
 )
 
 var valuesWithoutKey = []string{"Name", "StdoutPath", "StderrPath", "PlistPath"}
@@ -62,19 +65,22 @@ func (c Command) Run(ctx context.Context, svc service.Service) Result {
 	if failure != nil {
 		return Result{Ended: time.Now(), Failure: failure}
 	}
-	ctx, cancel := context.WithTimeout(ctx, c.Timeout)
+	runCtx, cancel := context.WithTimeout(ctx, c.Timeout)
 	defer cancel()
-	program := exec.CommandContext(ctx, line[0], line[1:]...)
+	program := exec.Command(line[0], line[1:]...)
+	program.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 	program.WaitDelay = stopDelay
 	var stdout stdoutBuffer
 	var stderr lastLines
 	program.Stdout, program.Stderr = &stdout, &stderr
-	if err := program.Start(); err != nil {
-		return Result{Ended: time.Now(), Failure: &Failure{Kind: FailureKindError, Text: err.Error()}}
-	}
-	err := program.Wait()
+	stopped, err := c.runProgram(runCtx, program)
 	result := Result{Ended: time.Now()}
+	if ctx.Err() != nil {
+		return result
+	}
 	switch exited, ok := errors.AsType[*exec.ExitError](err); {
+	case stopped:
+		result.Failure = &Failure{Kind: FailureKindTimeout, Text: c.commandLineText(line)}
 	case ok:
 		result.Failure = &Failure{Kind: FailureKindError, Text: c.exitText(exited.ProcessState), Lines: stderr.lines()}
 	case err != nil:
@@ -83,6 +89,34 @@ func (c Command) Run(ctx context.Context, svc service.Service) Result {
 		result.Output = parseOutput(stdout.data)
 	}
 	return result
+}
+
+func (c Command) runProgram(ctx context.Context, program *exec.Cmd) (stopped bool, err error) {
+	if ctx.Err() != nil {
+		return true, nil
+	}
+	if err := program.Start(); err != nil {
+		return false, err
+	}
+	groupStopped := make(chan struct{})
+	cancelGroupStop := context.AfterFunc(ctx, func() {
+		c.stopProcessGroup(program.Process.Pid)
+		close(groupStopped)
+	})
+	err = program.Wait()
+	if !cancelGroupStop() {
+		<-groupStopped
+		stopped = true
+	}
+	c.stopProcessGroup(program.Process.Pid)
+	return stopped, err
+}
+
+func (c Command) stopProcessGroup(pid int) {
+	// a signal to the PID 0 goes to the group of svcview, and to the PID -1 to each process of the user
+	if pid > 1 {
+		_ = syscall.Kill(-pid, syscall.SIGKILL)
+	}
 }
 
 func (c Command) exitText(state *os.ProcessState) string {
@@ -103,6 +137,22 @@ func (c Command) commandLine(svc service.Service) ([]string, *Failure) {
 		line = append(line, text)
 	}
 	return line, nil
+}
+
+func (c Command) commandLineText(line []string) string {
+	texts := make([]string, 0, len(line))
+	for _, text := range line {
+		texts = append(texts, c.shellText(text))
+	}
+	return strings.Join(texts, " ")
+}
+
+func (c Command) shellText(text string) string {
+	plain := text != "" && !strings.ContainsFunc(text, func(r rune) bool { return !strings.ContainsRune(plainShellCharacters, r) })
+	if plain {
+		return text
+	}
+	return "'" + strings.ReplaceAll(text, "'", `'\''`) + "'"
 }
 
 func otherValue(node parse.Node, dotIsService bool) string {

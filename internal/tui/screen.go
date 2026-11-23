@@ -361,8 +361,11 @@ func (s Screen) statusText(name string) (string, ansi.Color) {
 }
 
 func (s Screen) failureRowText(failure *status.Failure) string {
-	if failure.Kind == status.FailureKindError {
+	switch failure.Kind {
+	case status.FailureKindError:
 		return "status error"
+	case status.FailureKindTimeout:
+		return "status timeout"
 	}
 	return failure.Text
 }

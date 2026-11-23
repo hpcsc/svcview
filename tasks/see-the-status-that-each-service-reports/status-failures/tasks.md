@@ -135,16 +135,16 @@ with the command line. The row shows `status timeout` in red, and under `Status`
 line. When svcview quits, it stops the process group of each status command that still runs.
 
 **Acceptance Criteria:**
-- [ ] A command that runs longer than its `timeout` gives a status timeout no later than 1 s after the timeout.
-- [ ] A process that the command started, for example the second `sleep` of `sh -c 'sleep 30 & sleep 30'`, no longer
+- [x] A command that runs longer than its `timeout` gives a status timeout no later than 1 s after the timeout.
+- [x] A process that the command started, for example the second `sleep` of `sh -c 'sleep 30 & sleep 30'`, no longer
       runs after the timeout.
-- [ ] svcview sends a signal only to the process group that it started for the command, never to its own process
+- [x] svcview sends a signal only to the process group that it started for the command, never to its own process
       group and never to each process of the user.
-- [ ] When svcview quits, the process group of each status command that still runs stops.
-- [ ] The row shows `status timeout` in red in place of the summary.
-- [ ] Under the line `Status`, the detail pane shows the command line: the program and its arguments after svcview
+- [x] When svcview quits, the process group of each status command that still runs stops.
+- [x] The row shows `status timeout` in red in place of the summary.
+- [x] Under the line `Status`, the detail pane shows the command line: the program and its arguments after svcview
       applied the template values.
-- [ ] e2e test: a status command `[sleep, '30']` with a `timeout` of `500ms` shows `status timeout` in the row and
+- [x] e2e test: a status command `[sleep, '30']` with a `timeout` of `500ms` shows `status timeout` in the row and
       `sleep 30` in the detail pane.
 
 **Affected Files/Modules:**

@@ -899,6 +899,22 @@ func TestScreen(t *testing.T) {
 			})
 		})
 
+		t.Run("the row shows status timeout in red in place of the summary for a status timeout, and the detail pane shows the command line under Status", func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				read := servicesNamed("com.example.worker.a", "com.example.worker.b")
+				run := runsGiving(map[string]status.Result{
+					"com.example.worker.a": {Failure: &status.Failure{Kind: status.FailureKindTimeout, Text: "sleep 30"}},
+					"com.example.worker.b": {Failure: &status.Failure{Kind: status.FailureKindError, Text: "exit code 3"}},
+				})
+
+				screen := runSized(t, tui.NewScreen("gui/501", read, run, workersWithStatus(t)), 80, 12, 100*time.Millisecond)
+
+				requireGolden(t, "status-timeout", screen)
+				require.Equal(t, []string{"Workers", "▌○ a  status timeout", "○ b  status error"}, listRows(screen)[:3])
+				require.Equal(t, "sleep 30", detailPane(screen)[3])
+			})
+		})
+
 		t.Run("cuts a summary that is longer than the list pane and ends it with …, and shows each control character in a summary or a failure as �", func(t *testing.T) {
 			synctest.Test(t, func(t *testing.T) {
 				read := servicesNamed("com.example.worker.a", "com.example.worker.b")

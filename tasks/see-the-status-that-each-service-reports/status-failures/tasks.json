@@ -28,7 +28,7 @@
     },
     {
       "n": 2,
-      "done": false,
+      "done": true,
       "title": "Stop a status command that runs longer than its timeout, with each process that it started",
       "language": "Go",
       "testable": true,

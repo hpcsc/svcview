@@ -445,15 +445,29 @@ func TestCommand(t *testing.T) {
 			require.Equal(t, []string{strings.Repeat("a", 4000) + strings.Repeat("b", 96), "next"}, result.Failure.Lines)
 		})
 
-		t.Run("a program that exits with 0 while a process that it started keeps its stdout open gives a status error with the lines of stderr, no later than 1 s after the exit", func(t *testing.T) {
-			command := newCommand(t, 10*time.Second, "sh", "-c", `echo started >&2; sleep 5 & printf '{"version":1,"summary":"busy"}'`)
+		t.Run("a program that exits with 0 while a process that it started keeps its stdout open gives a status error with the lines of stderr, no later than 1 s after the exit, and that process stops", func(t *testing.T) {
+			marker := filepath.Join(t.TempDir(), "written")
+			command := newCommand(t, 10*time.Second, "sh", "-c", `echo started >&2; (sleep 2; touch "$0") & printf '{"version":1,"summary":"busy"}'`, marker)
 			started := time.Now()
 
 			result := command.Run(context.Background(), worker())
 
 			require.Equal(t, &status.Failure{Kind: status.FailureKindError, Text: exec.ErrWaitDelay.Error(), Lines: []string{"started"}}, result.Failure)
 			require.Nil(t, result.Output)
-			require.Less(t, time.Since(started), 3*time.Second)
+			require.Less(t, time.Since(started), 1800*time.Millisecond)
+			time.Sleep(1500 * time.Millisecond)
+			require.NoFileExists(t, marker)
+		})
+
+		t.Run("when the program ends, each process that it started and that still runs stops, also when the process does not keep the output of the program", func(t *testing.T) {
+			marker := filepath.Join(t.TempDir(), "written")
+			command := newCommand(t, 10*time.Second, "sh", "-c", `(sleep 1; touch "$0") >/dev/null 2>&1 & printf '{"version":1,"summary":"busy"}'`, marker)
+
+			result := command.Run(context.Background(), worker())
+
+			require.Equal(t, "busy", summaryOf(t, result))
+			time.Sleep(1500 * time.Millisecond)
+			require.NoFileExists(t, marker)
 		})
 
 		t.Run("a program that a signal ends gives a status error with the name of the signal", func(t *testing.T) {
@@ -481,30 +495,137 @@ func TestCommand(t *testing.T) {
 			}
 		})
 
-		t.Run("a program that runs longer than the timeout stops, and gives a result with no output no later than 1 s after the timeout, also when a child of the program keeps its stdout open", func(t *testing.T) {
+		t.Run("a program that runs longer than the timeout gives a status timeout with the command line, no later than 1 s after the timeout", func(t *testing.T) {
 			timeout := 200 * time.Millisecond
-			marker := filepath.Join(t.TempDir(), "ended")
-			command := newCommand(t, timeout, "sh", "-c", `printf '{"version":1,"summary":"busy"}'; sleep 3; touch "$0"`, marker)
+			command := newCommand(t, timeout, "sh", "-c", `printf '{"version":1,"summary":"busy"}'; sleep 30`, "{{.Name}}")
 			started := time.Now()
 
 			result := command.Run(context.Background(), worker())
 
+			require.Equal(t, &status.Failure{Kind: status.FailureKindTimeout, Text: `sh -c 'printf '\''{"version":1,"summary":"busy"}'\''; sleep 30' com.example.worker`}, result.Failure)
 			require.Nil(t, result.Output)
-			require.Less(t, time.Since(started), timeout+1500*time.Millisecond)
-			time.Sleep(3 * time.Second)
+			require.Less(t, time.Since(started), timeout+time.Second)
+		})
+
+		t.Run("the command line of a status timeout quotes each text that a shell reads as more than one word or as other text, and leaves the other texts as they are", func(t *testing.T) {
+			for text, quoted := range map[string]string{
+				"--name=com.example.worker":  "--name=com.example.worker",
+				"/Users/me/a_b@c%d+e:f,g.h":  "/Users/me/a_b@c%d+e:f,g.h",
+				"two words":                  "'two words'",
+				"":                           "''",
+				"it's":                       `'it'\''s'`,
+				"$HOME;*|&<>()\\\"`~#!?[]{}": `'$HOME;*|&<>()\"` + "`" + `~#!?[]{}'`,
+				"é":                          "'é'",
+			} {
+				result := newCommand(t, 100*time.Millisecond, "sh", "-c", "sleep 30", text).Run(context.Background(), worker())
+
+				require.Equal(t, &status.Failure{Kind: status.FailureKindTimeout, Text: "sh -c 'sleep 30' " + quoted}, result.Failure, text)
+			}
+		})
+
+		t.Run("at the timeout, each process that the program started stops too", func(t *testing.T) {
+			marker := filepath.Join(t.TempDir(), "written")
+			command := newCommand(t, 200*time.Millisecond, "sh", "-c", `(sleep 1; touch "$0") & sleep 30`, marker)
+
+			result := command.Run(context.Background(), worker())
+
+			require.NotNil(t, result.Failure)
+			require.Equal(t, status.FailureKindTimeout, result.Failure.Kind)
+			time.Sleep(1500 * time.Millisecond)
 			require.NoFileExists(t, marker)
 		})
 
-		t.Run("a program that stops when its context ends gives a result with no output", func(t *testing.T) {
+		t.Run("a program that exits before the timeout, while a process that it started keeps its stdout open past the timeout, gives a status timeout at the timeout, and that process stops", func(t *testing.T) {
+			marker := filepath.Join(t.TempDir(), "written")
+			command := newCommand(t, 300*time.Millisecond, "sh", "-c", `(sleep 0.7; touch "$0") & printf '{"version":1,"summary":"busy"}'`, marker)
+			started := time.Now()
+
+			result := command.Run(context.Background(), worker())
+
+			require.NotNil(t, result.Failure)
+			require.Equal(t, status.FailureKindTimeout, result.Failure.Kind)
+			require.Less(t, time.Since(started), 650*time.Millisecond)
+			time.Sleep(time.Second)
+			require.NoFileExists(t, marker)
+		})
+
+		t.Run("at the timeout, a process that the program started and that ignores SIGTERM stops too", func(t *testing.T) {
+			marker := filepath.Join(t.TempDir(), "written")
+			command := newCommand(t, 200*time.Millisecond, "sh", "-c", `trap "" TERM; (sleep 1; touch "$0") & sleep 30`, marker)
+
+			result := command.Run(context.Background(), worker())
+
+			require.NotNil(t, result.Failure)
+			require.Equal(t, status.FailureKindTimeout, result.Failure.Kind)
+			time.Sleep(1500 * time.Millisecond)
+			require.NoFileExists(t, marker)
+		})
+
+		t.Run("the stop at the timeout sends no signal to a process outside the process group of the program, such as a process in the group of svcview", func(t *testing.T) {
+			outside := exec.Command("sleep", "30")
+			require.NoError(t, outside.Start())
+			outsideEnded := make(chan struct{})
+			go func() {
+				_ = outside.Wait()
+				close(outsideEnded)
+			}()
+			t.Cleanup(func() {
+				_ = outside.Process.Kill()
+				<-outsideEnded
+			})
+			command := newCommand(t, 200*time.Millisecond, "sh", "-c", `sleep 30 & sleep 30`)
+
+			result := command.Run(context.Background(), worker())
+
+			require.NotNil(t, result.Failure)
+			require.Equal(t, status.FailureKindTimeout, result.Failure.Kind)
+			require.Never(t, func() bool {
+				select {
+				case <-outsideEnded:
+					return true
+				default:
+					return false
+				}
+			}, 300*time.Millisecond, 10*time.Millisecond)
+		})
+
+		t.Run("a timeout that ends before the program starts gives a status timeout", func(t *testing.T) {
+			marker := filepath.Join(t.TempDir(), "ran")
+			command := newCommand(t, time.Nanosecond, "sh", "-c", `touch "$0"`, marker)
+
+			result := command.Run(context.Background(), worker())
+
+			require.NotNil(t, result.Failure)
+			require.Equal(t, status.FailureKindTimeout, result.Failure.Kind)
+			require.Contains(t, result.Failure.Text, `sh -c 'touch "$0"' `)
+			require.NoFileExists(t, marker)
+		})
+
+		t.Run("a context that ended before the start gives a result with no output and no failure", func(t *testing.T) {
 			ctx, cancel := context.WithCancel(context.Background())
-			command := newCommand(t, 10*time.Second, "sh", "-c", `printf '{"version":1,"summary":"busy"}'; sleep 60; echo never`)
+			cancel()
+			marker := filepath.Join(t.TempDir(), "ran")
+			command := newCommand(t, 0, "sh", "-c", `touch "$0"`, marker)
+
+			result := command.Run(ctx, worker())
+
+			require.Equal(t, [2]any{(*status.Output)(nil), (*status.Failure)(nil)}, [2]any{result.Output, result.Failure})
+			require.NoFileExists(t, marker)
+		})
+
+		t.Run("when its context ends, the program and each process that it started stop, and the result has no output and no failure", func(t *testing.T) {
+			ctx, cancel := context.WithCancel(context.Background())
+			marker := filepath.Join(t.TempDir(), "written")
+			command := newCommand(t, 10*time.Second, "sh", "-c", `printf '{"version":1,"summary":"busy"}'; (sleep 1; touch "$0") & sleep 30`, marker)
 			started := time.Now()
 			time.AfterFunc(100*time.Millisecond, cancel)
 
 			result := command.Run(ctx, worker())
 
-			require.Nil(t, result.Output)
-			require.Less(t, time.Since(started), 3*time.Second)
+			require.Equal(t, [2]any{(*status.Output)(nil), (*status.Failure)(nil)}, [2]any{result.Output, result.Failure})
+			require.Less(t, time.Since(started), time.Second)
+			time.Sleep(1500 * time.Millisecond)
+			require.NoFileExists(t, marker)
 		})
 
 		t.Run("a stdout of 1 MiB gives an output with its summary, and a stdout of 1 byte more gives no output", func(t *testing.T) {

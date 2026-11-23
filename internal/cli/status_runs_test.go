@@ -16,14 +16,14 @@ import (
 
 func touchAfterOneSecond(t *testing.T, marker string) status.Command {
 	t.Helper()
-	command, err := status.NewCommand([]string{"sh", "-c", `touch "$0.started"; sleep 1; touch "$0"`, marker}, 0, 10*time.Second)
+	command, err := status.NewCommand([]string{"sh", "-c", `touch "$0.started"; (sleep 1; touch "$0") & sleep 30`, marker}, 0, 10*time.Second)
 	require.NoError(t, err)
 	return command
 }
 
 func TestStatusRuns(t *testing.T) {
 	t.Run("stop", func(t *testing.T) {
-		t.Run("stops the program of each run that runs, so the program does not write its file", func(t *testing.T) {
+		t.Run("stops the program of each run that runs, and each process that the program started, so no process writes the file", func(t *testing.T) {
 			marker := filepath.Join(t.TempDir(), "written")
 			command := touchAfterOneSecond(t, marker)
 			runs := newStatusRuns(context.Background())

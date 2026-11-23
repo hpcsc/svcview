@@ -56,12 +56,25 @@ describe('the status command', () => {
     await session.waitForText('│ broken ')
   })
 
-  it('a status command that writes a file after 2 s, with a timeout of 10 s, does not write it when svcview quits after the run starts', async () => {
+  it('a status command that runs longer than its timeout shows status timeout in the row, and the command line in the detail pane', async () => {
+    const home = homeWithPlists(['com.example.worker.01'])
+    writeConfig(
+      join(home, '.config', 'svcview'),
+      `groups:\n  - name: Workers\n    match: '^com\\.example\\.worker\\.'\n    status:\n      command: [sleep, '30']\n      timeout: 500ms\n`,
+    )
+
+    const session = await openCli(scratchDir(), [], { HOME: home })
+
+    await session.waitForText('01  status timeout')
+    await session.waitForText('│ sleep 30 ')
+  })
+
+  it('a status command whose child process writes a file after 2 s, with a timeout of 10 s, does not write it when svcview quits after the run starts', async () => {
     const home = homeWithPlists(['com.example.worker.01'])
     const marker = join(scratchDir(), 'written')
     writeConfig(
       join(home, '.config', 'svcview'),
-      `groups:\n  - name: Workers\n    match: '^com\\.example\\.worker\\.'\n    status:\n      command: [sh, -c, 'touch "$0.started"; sleep 2; touch "$0"', '${marker}']\n      timeout: 10s\n`,
+      `groups:\n  - name: Workers\n    match: '^com\\.example\\.worker\\.'\n    status:\n      command: [sh, -c, 'touch "$0.started"; (sleep 2; touch "$0") & sleep 30', '${marker}']\n      timeout: 10s\n`,
     )
 
     const session = await openCli(scratchDir(), [], { HOME: home })
