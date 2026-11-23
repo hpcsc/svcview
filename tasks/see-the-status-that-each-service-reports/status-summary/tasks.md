@@ -290,13 +290,13 @@ the age of the status, for example `Status 1s ago`. The age is the time since `a
 time since the last run ended when it has no `at` or when the run gave no output.
 
 **Acceptance Criteria:**
-- [ ] The detail pane of a service whose output has `at` shows the age of `at`.
-- [ ] The detail pane of a service whose output has no `at`, or whose run gave a failure or no output, shows the age
+- [x] The detail pane of a service whose output has `at` shows the age of `at`.
+- [x] The detail pane of a service whose output has no `at`, or whose run gave a failure or no output, shows the age
       of the last run.
-- [ ] The age has the units of the uptime, for example `1s`, `3m12s` or `3h12m`. An `at` after the current time
+- [x] The age has the units of the uptime, for example `1s`, `3m12s` or `3h12m`. An `at` after the current time
       shows `0s`.
-- [ ] The age grows as the screen draws again, with no new run.
-- [ ] The detail pane of a service with no status command, or before its first run ends, shows no `Status` line.
+- [x] The age grows as the screen draws again, with no new run.
+- [x] The detail pane of a service with no status command, or before its first run ends, shows no `Status` line.
 
 **Affected Files/Modules:**
 - `internal/tui/screen.go` — the line `Status` with the age in the detail pane

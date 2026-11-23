@@ -226,8 +226,24 @@ func workersWithStatus(t *testing.T, otherNameAndMatch ...string) config.Setting
 
 func runsGiving(results map[string]status.Result) func(status.Command, service.Service) status.Result {
 	return func(_ status.Command, svc service.Service) status.Result {
-		return results[svc.Name]
+		result := results[svc.Name]
+		if result.Ended.IsZero() {
+			result.Ended = time.Now()
+		}
+		return result
 	}
+}
+
+func detailPane(screen tea.Model) []string {
+	var detail []string
+	for _, line := range strings.Split(ansi.Strip(screen.View().Content), "\n")[4:] {
+		if strings.HasPrefix(line, "╰") {
+			break
+		}
+		_, text, _ := strings.Cut(line, "││")
+		detail = append(detail, strings.TrimSpace(strings.TrimSuffix(text, "│")))
+	}
+	return detail
 }
 
 func summary(text string, level status.Level) status.Result {
@@ -822,6 +838,104 @@ func TestScreen(t *testing.T) {
 			), 80, 12)
 
 			requireGolden(t, "detail-last-exit", screen)
+		})
+
+		t.Run("shows the age of at under the data from launchd, in the units of the uptime", func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				start := time.Now()
+				read := servicesNamed("com.example.worker.a")
+				run := runsGiving(map[string]status.Result{
+					"com.example.worker.a": {Ended: start, Output: &status.Output{At: new(start.Add(-3 * time.Minute)), Summary: "busy"}},
+				})
+
+				screen := runSized(t, tui.NewScreen("gui/501", read, run, workersWithStatus(t)), 80, 12, 100*time.Millisecond)
+				time.Sleep(time.Until(start.Add(2 * time.Hour)))
+
+				requireGolden(t, "status-detail", screen)
+				require.Equal(t, []string{"○ not loaded  PID -", "up -          last exit 0", "Status 2h3m ago", "", "", ""}, detailPane(screen))
+			})
+		})
+
+		t.Run("shows the age of the last run when the output has no at, when the run gave no output, and when it gave a failure", func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				start := time.Now()
+				read := servicesNamed("com.example.worker.a", "com.example.worker.b", "com.example.worker.c")
+				run := runsGiving(map[string]status.Result{
+					"com.example.worker.a": {Ended: start.Add(-12 * time.Second), Output: &status.Output{Summary: "busy"}},
+					"com.example.worker.b": {Ended: start.Add(-13 * time.Second)},
+					"com.example.worker.c": {Ended: start.Add(-14 * time.Second), Failure: &status.Failure{Text: "the plist has no WORKER_STATUS_FILE"}},
+				})
+
+				screen := runSized(t, tui.NewScreen("gui/501", read, run, workersWithStatus(t)), 80, 12, 100*time.Millisecond)
+				time.Sleep(time.Until(start.Add(3 * time.Minute)))
+
+				var ages []string
+				for _, selected := range []tea.Model{screen, pressKeys(screen, down), pressKeys(screen, down, down)} {
+					ages = append(ages, detailPane(selected)[2])
+				}
+				require.Equal(t, []string{"Status 3m12s ago", "Status 3m13s ago", "Status 3m14s ago"}, ages)
+			})
+		})
+
+		t.Run("shows the age in the units of the uptime, and an at after the current time as 0s", func(t *testing.T) {
+			for at, text := range map[time.Duration]string{
+				-time.Second:                      "Status 1s ago",
+				-(3*time.Minute + 12*time.Second): "Status 3m12s ago",
+				-(3*time.Hour + 12*time.Minute):   "Status 3h12m ago",
+				-(26 * time.Hour):                 "Status 1d2h ago",
+				0:                                 "Status 0s ago",
+				10 * time.Hour:                    "Status 0s ago",
+			} {
+				synctest.Test(t, func(t *testing.T) {
+					start := time.Now()
+					read := servicesNamed("com.example.worker.a")
+					run := runsGiving(map[string]status.Result{
+						"com.example.worker.a": {Ended: start, Output: &status.Output{At: new(start.Add(time.Minute + at))}},
+					})
+
+					screen := runSized(t, tui.NewScreen("gui/501", read, run, workersWithStatus(t)), 80, 12, 100*time.Millisecond)
+					time.Sleep(time.Until(start.Add(time.Minute)))
+
+					require.Equal(t, text, detailPane(screen)[2], at)
+				})
+			}
+		})
+
+		t.Run("the age grows as the screen draws again, with no new run", func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				start := time.Now()
+				read := servicesNamed("com.example.worker.a")
+				var runs atomic.Int32
+				run := func(status.Command, service.Service) status.Result {
+					runs.Add(1)
+					return status.Result{Ended: start}
+				}
+
+				screen := runSized(t, tui.NewScreen("gui/501", read, run, workersWithStatus(t)), 80, 12, 100*time.Millisecond)
+				time.Sleep(time.Until(start.Add(5 * time.Minute)))
+				before := detailPane(screen)[2]
+				time.Sleep(7 * time.Second)
+
+				require.Equal(t, []string{"Status 5m0s ago", "Status 5m7s ago"}, []string{before, detailPane(screen)[2]})
+				require.Equal(t, int32(1), runs.Load())
+			})
+		})
+
+		t.Run("shows no Status line for a service of a group with no status command, and before the first run of the service ends", func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				read := servicesNamed("com.example.worker.a", "homebrew.mxcl.redis")
+				run := func(status.Command, service.Service) status.Result {
+					time.Sleep(30 * time.Second)
+					return status.Result{Ended: time.Now()}
+				}
+
+				screen := runSized(t, tui.NewScreen("gui/501", read, run, workersWithStatus(t, "Databases", "redis")), 80, 14, 100*time.Millisecond)
+
+				require.Equal(t, [][]string{
+					{"○ not loaded  PID -", "up -          last exit 0", ""},
+					{"○ not loaded  PID -", "up -          last exit 0", ""},
+				}, [][]string{detailPane(screen)[:3], detailPane(pressKeys(screen, down))[:3]})
+			})
 		})
 
 		t.Run("with no rows, shows no service", func(t *testing.T) {

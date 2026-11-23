@@ -4,7 +4,7 @@
 ╭ Services ────────────────────╮╭ com.example.worker.bb ───────────────────────╮
 │ Workers                      ││ [90m○[m not loaded  PID -                          │
 │  [90m○[m a   busy                  ││ up -          last exit 0                    │
-│ [34m▌[m[90m○[m[100m bb  [m[100;33midle[m[100m                 [m ││                                              │
+│ [34m▌[m[90m○[m[100m bb  [m[100;33midle[m[100m                 [m ││ Status 1m0s ago                              │
 │                              ││                                              │
 │                              ││                                              │
 │                              ││                                              │

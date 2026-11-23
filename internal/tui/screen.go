@@ -372,28 +372,36 @@ func (s Screen) detailText(svc service.Service) []string {
 		pid = strconv.Itoa(svc.PID)
 	}
 	if svc.Uptime != nil {
-		uptime = s.uptimeText(*svc.Uptime)
+		uptime = s.durationText(*svc.Uptime)
 	}
-	return []string{
+	text := []string{
 		s.detailLine(s.stateGlyph(svc.State)+" "+svc.State.String(), "PID "+pid),
 		s.detailLine("up "+uptime, "last exit "+s.lastExitText(svc.LastExit)),
 	}
+	if result, ok := s.statuses[svc.Name]; ok {
+		text = append(text, "Status "+s.durationText(s.statusAge(result))+" ago")
+	}
+	return text
+}
+
+func (s Screen) statusAge(result status.Result) time.Duration {
+	return max(time.Since(result.Time()), 0)
 }
 
 func (s Screen) detailLine(left, right string) string {
 	return left + strings.Repeat(" ", detailLeftWidth-ansi.StringWidth(left)) + right
 }
 
-func (s Screen) uptimeText(uptime time.Duration) string {
+func (s Screen) durationText(duration time.Duration) string {
 	switch {
-	case uptime < time.Minute:
-		return fmt.Sprintf("%ds", int(uptime.Seconds()))
-	case uptime < time.Hour:
-		return fmt.Sprintf("%dm%ds", int(uptime.Minutes()), int(uptime.Seconds())%60)
-	case uptime < 24*time.Hour:
-		return fmt.Sprintf("%dh%dm", int(uptime.Hours()), int(uptime.Minutes())%60)
+	case duration < time.Minute:
+		return fmt.Sprintf("%ds", int(duration.Seconds()))
+	case duration < time.Hour:
+		return fmt.Sprintf("%dm%ds", int(duration.Minutes()), int(duration.Seconds())%60)
+	case duration < 24*time.Hour:
+		return fmt.Sprintf("%dh%dm", int(duration.Hours()), int(duration.Minutes())%60)
 	default:
-		return fmt.Sprintf("%dd%dh", int(uptime.Hours())/24, int(uptime.Hours())%24)
+		return fmt.Sprintf("%dd%dh", int(duration.Hours())/24, int(duration.Hours())%24)
 	}
 }
 

@@ -80,7 +80,7 @@
     },
     {
       "n": 4,
-      "done": false,
+      "done": true,
       "title": "Show the age of the status in the detail pane",
       "language": "Go",
       "testable": true,
