@@ -5,15 +5,12 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"sync"
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/fatih/color"
 	"github.com/hpcsc/svcview/internal/cli/version"
 	"github.com/hpcsc/svcview/internal/config"
 	"github.com/hpcsc/svcview/internal/launchd"
-	"github.com/hpcsc/svcview/internal/service"
-	"github.com/hpcsc/svcview/internal/status"
 	"github.com/hpcsc/svcview/internal/tui"
 	"github.com/urfave/cli/v3"
 )
@@ -63,18 +60,10 @@ func showScreen(ctx context.Context, input io.Reader, output io.Writer) error {
 		return err
 	}
 	domain := launchd.NewDomain(home, uid)
-	runContext, stopRuns := context.WithCancel(ctx)
-	var runs sync.WaitGroup
-	runStatus := func(command status.Command, svc service.Service) status.Result {
-		runs.Add(1)
-		defer runs.Done()
-		return command.Run(runContext, svc)
-	}
-	screen := tui.NewScreen(domain.String(), domain.Services, runStatus, settings)
+	runs := newStatusRuns(ctx)
+	screen := tui.NewScreen(domain.String(), domain.Services, runs.run, settings)
 	_, err = tea.NewProgram(screen, tea.WithContext(ctx), tea.WithInput(input), tea.WithOutput(output)).Run()
-	stopRuns()
-	// os/exec kills the program of a run in a goroutine of its own, so svcview must wait for each run to end.
-	runs.Wait()
+	runs.stop()
 	return err
 }
 
