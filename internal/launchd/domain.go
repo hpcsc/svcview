@@ -22,7 +22,7 @@ func (d *Domain) Services() ([]service.Service, error) {
 	if err != nil {
 		return nil, err
 	}
-	listed, err := readList()
+	listed, err := readLaunchctlList()
 	if err != nil {
 		return nil, err
 	}
