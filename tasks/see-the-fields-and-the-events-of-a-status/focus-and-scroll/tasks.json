@@ -52,7 +52,7 @@
     },
     {
       "n": 3,
-      "done": false,
+      "done": true,
       "title": "Show a newly selected service from the first line of its detail pane, and keep the scroll inside a text that changes",
       "language": "Go",
       "testable": true,

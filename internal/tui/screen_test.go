@@ -2145,6 +2145,126 @@ func TestScreen(t *testing.T) {
 			})
 		})
 
+		t.Run("after a scroll, tab and ↓ select the next service, whose detail pane shows from its first line, and ↑ then shows the first service from its first line too", func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				read := readGiving(
+					service.Service{Name: "com.example.worker.a", State: service.Running, PID: 4122},
+					service.Service{Name: "com.example.worker.b", State: service.Running, PID: 4123},
+				)
+				run := runsGiving(map[string]status.Result{
+					"com.example.worker.a": {Output: &status.Output{Events: eventsNumbered(10)}},
+					"com.example.worker.b": {Output: &status.Output{Events: eventsNumbered(10)}},
+				})
+				screen := runSized(t, tui.NewScreen("gui/501", read, run, workersWithStatus(t)), 80, 12, 100*time.Millisecond)
+
+				next := pressKeys(screen, tab, down, down, tab, down)
+				first := pressKeys(next, up)
+
+				require.Equal(t, [][]string{{"b", "● running     PID 4123"}, {"a", "● running     PID 4122"}}, [][]string{
+					{selectedName(next), detailPane(next)[0]},
+					{selectedName(first), detailPane(first)[0]},
+				})
+			})
+		})
+
+		t.Run("a read that removes the selected service while its detail pane is scrolled selects the service that takes its place, and shows it from its first line", func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				a := service.Service{Name: "com.example.worker.a", State: service.Running, PID: 4122}
+				b := service.Service{Name: "com.example.worker.b", State: service.Running, PID: 4123}
+				c := service.Service{Name: "com.example.worker.c", State: service.Running, PID: 4124}
+				read := changingAt(100*time.Millisecond, readGiving(a, b, c), readGiving(a, c))
+				run := runsGiving(map[string]status.Result{
+					"com.example.worker.b": {Output: &status.Output{Events: eventsNumbered(10)}},
+					"com.example.worker.c": {Output: &status.Output{Events: eventsNumbered(10)}},
+				})
+
+				screen := runFor(t, tui.NewScreen("gui/501", read, run, workersWithStatus(t)), 2100*time.Millisecond, down, tab, down, down)
+
+				require.Equal(t, []string{"c", "● running     PID 4124"}, []string{selectedName(screen), detailPane(screen)[0]})
+			})
+		})
+
+		t.Run("a run that gives a shorter text that is still longer than the pane shows the last line of the new text at the bottom of the pane", func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				start := time.Now()
+				settings := workersWithStatus(t)
+				settings.Groups[0].Status = statusEvery(t, time.Second)
+				run := func(status.Command, service.Service) status.Result {
+					if time.Since(start) < time.Second {
+						return status.Result{Ended: time.Now(), Output: &status.Output{Events: eventsNumbered(10)}}
+					}
+					return status.Result{Ended: time.Now(), Failure: &status.Failure{Kind: status.FailureKindError, Text: "exit code 3", Lines: []string{
+						"line 1", "line 2", "line 3", "line 4", "line 5", "line 6", "line 7", "line 8",
+					}}}
+				}
+
+				screen := runFor(t, tui.NewScreen("gui/501", servicesNamed("com.example.worker.a"), run, settings), 1500*time.Millisecond, tab, down, down, down, down, down, down, down, down, down)
+
+				require.Equal(t, []string{"line 3", "line 4", "line 5", "line 6", "line 7", "line 8"}, detailPane(screen))
+			})
+		})
+
+		t.Run("a run that gives a text that fits in the pane shows it from its first line", func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				start := time.Now()
+				settings := workersWithStatus(t)
+				settings.Groups[0].Status = statusEvery(t, time.Second)
+				run := func(status.Command, service.Service) status.Result {
+					if time.Since(start) < time.Second {
+						return status.Result{Ended: time.Now(), Output: &status.Output{Events: eventsNumbered(10)}}
+					}
+					return status.Result{Ended: time.Now(), Failure: &status.Failure{Kind: status.FailureKindError, Text: "exit code 3"}}
+				}
+
+				screen := runFor(t, tui.NewScreen("gui/501", servicesNamed("com.example.worker.a"), run, settings), 1500*time.Millisecond, tab, down, down, down, down, down)
+
+				require.Equal(t, []string{"○ not loaded  PID -", "up -          last exit 0", "Status 1m0s ago", "exit code 3", "", ""}, detailPane(screen))
+			})
+		})
+
+		t.Run("a terminal that gets higher shows more lines with no empty line under the last line, and a terminal that gets lower keeps the scroll where it is", func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				run := runsGiving(map[string]status.Result{"com.example.worker.a": {Output: &status.Output{Events: eventsNumbered(10)}}})
+				screen := runSized(t, tui.NewScreen("gui/501", servicesNamed("com.example.worker.a"), run, workersWithStatus(t)), 80, 12, 100*time.Millisecond)
+				screen = pressKeys(screen, tab, down, down, down, down, down, down, down, down, down)
+
+				higher, _ := screen.Update(tea.WindowSizeMsg{Width: 80, Height: 14})
+				lower, _ := higher.Update(tea.WindowSizeMsg{Width: 80, Height: 10})
+
+				require.Equal(t, [][]string{
+					{"09:02 ● event 03", "09:03 ● event 04", "09:04 ● event 05", "09:05 ● event 06", "09:06 ● event 07", "09:07 ● event 08", "09:08 ● event 09", "09:09 ● event 10"},
+					{"09:02 ● event 03", "09:03 ● event 04", "09:04 ● event 05", "09:05 ● event 06"},
+				}, [][]string{detailPane(higher), detailPane(lower)})
+			})
+		})
+
+		t.Run("a refresh, and a run that gives a text of the same length, keep the scroll where it is, and the age in the line Status grows with no change of the scroll", func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				settings := workersWithStatus(t)
+				settings.Groups[0].Status = statusEvery(t, time.Second)
+				run := runsGiving(map[string]status.Result{"com.example.worker.a": {Output: &status.Output{Events: eventsNumbered(10)}}})
+
+				screen := runFor(t, tui.NewScreen("gui/501", servicesNamed("com.example.worker.a"), run, settings), 2500*time.Millisecond, tab, down, down)
+				before := detailPane(screen)
+				time.Sleep(7 * time.Second)
+
+				require.Equal(t, [][]string{
+					{"Status 1m0s ago", "", "Events", "09:00 ● event 01", "09:01 ● event 02", "09:02 ● event 03"},
+					{"Status 1m7s ago", "", "Events", "09:00 ● event 01", "09:01 ● event 02", "09:02 ● event 03"},
+				}, [][]string{before, detailPane(screen)})
+			})
+		})
+
+		t.Run("a terminal with no room for a line of the detail pane does not stop the screen after ↓", func(t *testing.T) {
+			for height := range 8 {
+				screen := open(t, "gui/501", servicesNamed("com.example.worker"), 80, height)
+
+				screen = pressKeys(screen, tab, down, down, down)
+
+				require.NotPanics(t, func() { screen.View() }, "height %d", height)
+			}
+		})
+
 		t.Run("while the help shows, ↑ and ↓ do not scroll the detail pane", func(t *testing.T) {
 			synctest.Test(t, func(t *testing.T) {
 				run := runsGiving(map[string]status.Result{"com.example.worker.a": {Output: &status.Output{Events: eventsNumbered(10)}}})

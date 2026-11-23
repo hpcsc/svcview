@@ -180,16 +180,16 @@ detail pane gets shorter, or the pane gets lower or higher, the scroll moves bac
 is at the bottom of the pane or above it. In each other case, a refresh or a run keeps the scroll where it is.
 
 **Acceptance Criteria:**
-- [ ] After a scroll of the detail pane, `tab` and `↓` select the next service, whose detail pane shows from its
+- [x] After a scroll of the detail pane, `tab` and `↓` select the next service, whose detail pane shows from its
       first line. `↑` then shows the first service from its first line too.
-- [ ] A read that removes the selected service, while its detail pane is scrolled, selects the service that takes its
+- [x] A read that removes the selected service, while its detail pane is scrolled, selects the service that takes its
       place, and shows it from its first line.
-- [ ] A run that gives the selected service a shorter text, for example a failure after an output with many events,
+- [x] A run that gives the selected service a shorter text, for example a failure after an output with many events,
       shows the last line of the new text at the bottom of the pane, with no empty line under it, while the text is
       longer than the pane. A new text that fits in the pane shows from its first line.
-- [ ] A terminal that gets higher shows more lines, with no empty line under the last line while the text is longer
+- [x] A terminal that gets higher shows more lines, with no empty line under the last line while the text is longer
       than the pane. A terminal that gets lower keeps the scroll inside the text.
-- [ ] A refresh, and a run that gives a text of the same length, keep the scroll where it is. The age in the line
+- [x] A refresh, and a run that gives a text of the same length, keep the scroll where it is. The age in the line
       `Status` grows with no change of the scroll.
 
 **Affected Files/Modules:**

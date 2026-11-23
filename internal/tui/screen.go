@@ -104,6 +104,7 @@ func (s Screen) Init() tea.Cmd {
 }
 
 func (s Screen) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	selected := s.selected
 	var cmd tea.Cmd
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
@@ -128,7 +129,7 @@ func (s Screen) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			switch {
 			case s.showHelp:
 			case s.focus == detailPane:
-				s.detailTop = s.detailTopInView(s.detailTop + step)
+				s.detailTop += step
 			default:
 				s.selected = s.selectedAfterMove(step)
 			}
@@ -149,6 +150,10 @@ func (s Screen) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case refresh:
 		return s, s.readServices
 	}
+	if s.selected != selected {
+		s.detailTop = 0
+	}
+	s.detailTop = s.detailTopInView()
 	s.listTop = s.listTopInView()
 	return s, cmd
 }
@@ -248,9 +253,9 @@ func (s Screen) listTopInView() int {
 	return max(min(top, s.lineOf(len(s.rows())-1)+1-shown), 0)
 }
 
-func (s Screen) detailTopInView(top int) int {
+func (s Screen) detailTopInView() int {
 	shown := max(s.paneHeight()-2, 0)
-	return max(min(top, len(s.selectedDetailText())-shown), 0)
+	return max(min(s.detailTop, len(s.selectedDetailText())-shown), 0)
 }
 
 func (s Screen) selectedAt() int {
@@ -305,8 +310,7 @@ func (s Screen) panes() []string {
 	list.text = s.listText(list.textWidth())[s.listTop:]
 	detail := box{width: s.width - list.width, height: list.height, borderStyle: s.borderStyle(detailPane)}
 	if at := s.selectedAt(); at >= 0 {
-		text := s.selectedDetailText()
-		detail.title, detail.text = s.printable(s.rows()[at].service.Name), text[min(s.detailTop, len(text)):]
+		detail.title, detail.text = s.printable(s.rows()[at].service.Name), s.selectedDetailText()[s.detailTop:]
 	}
 	var lines []string
 	detailLines := detail.render()
