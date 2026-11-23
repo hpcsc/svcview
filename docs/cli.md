@@ -49,9 +49,17 @@ terminal, for example in a pipe, it prints the help and opens no screen.
 │ Workers                      ││ ● running     PID 4122                       │
 │ ▌● 01  busy · ENG-692 · 12m  ││ up 3h12m      last exit 0                    │
 │  ● 02  idle                  ││ Status 1s ago                                │
+│                              ││ mode    busy                                 │
+│ Other                        ││ ticket  ENG-692                              │
+│  ○ homebrew.mxcl.postgres    ││ step    review · 12m / 20m                   │
+│                              ││         ▰▰▰▰▰▰▱▱▱▱                           │
+│                              ││ done    14                                   │
+│                              ││ failed  1                                    │
 │                              ││                                              │
-│ Other                        ││                                              │
-│  ○ homebrew.mxcl.postgres    ││                                              │
+│                              ││ Events                                       │
+│                              ││ 09:04 ● step review                          │
+│                              ││ 09:00 ● claimed ENG-692                      │
+│                              ││                                              │
 ╰──────────────────────────────╯╰──────────────────────────────────────────────╯
  ? help
 ```
@@ -63,7 +71,7 @@ This screen has the group `Workers`, with the match `^com\.example\.worker\.` an
 | --- | --- |
 | The header | The domain `gui/<uid>` of the user, and the number of services in each state. |
 | The list | One row for each service that has a plist in `~/Library/LaunchAgents`, in [the groups of the config file](#groups), and then in the group `Other`. Each group starts with a line with its name, and an empty line separates two groups. In each group, the services are sorted by name. Each row starts with the glyph of the state of the service, and a row in a group shows the short name of the service. svcview cuts a name that is too long for the list with `…`. When the list has more lines than the pane, it scrolls to keep the selected row in view. When the selected row is the first row of its group, and the pane has room for more than one line, the line of the group shows too. In a group with a status command, a row shows [the summary of the status](#in-the-list-and-the-detail-pane) after the short name. The list takes 40 percent of the width. |
-| The detail pane | The selected service. Its title is the full name of the service. The pane shows the state, the PID, the uptime, and the last exit, and in a group with a status command, the age of the status and the [failure](#failures) of the last run. |
+| The detail pane | The selected service. Its title is the full name of the service. The pane shows the state, the PID, the uptime, and the last exit. In a group with a status command, it also shows the age of the status, and the [fields and the events](#in-the-list-and-the-detail-pane) of the last output or the [failure](#failures) of the last run. |
 | The help line | `? help` |
 
 The name of a service is the `Label` of its plist. svcview gets the state, the PID, and the last exit of each
@@ -83,6 +91,8 @@ service from `launchctl list`, and the uptime from `ps`.
 | A summary of the level `error` | Red |
 | A template value that the plist does not have, for example `the plist has no WORKER_STATUS_FILE` | Red, in place of the summary |
 | A [failure](#failures) of the status command: `status error`, `status timeout`, or `status invalid` | Red, in place of the summary |
+| The bar of a field with a `progress` | A blue `▰` for each done cell, and a dim `▱` for each other cell. Dim is the faint attribute of the terminal, in its default color. |
+| The `●` of an event of the level `info`, `warn`, or `error` | The default color, yellow, or red, as the summary of the same level |
 
 svcview uses the 16 colors of the ANSI palette, so the theme of the terminal sets the real colors. Each state has a
 glyph of a different shape, so the screen shows the state without color too.
@@ -94,7 +104,8 @@ glyph of a different shape, so the screen shows the state without color too.
 | `PID` | The PID of the process of a `running` service. A service that does not run shows `-`. |
 | `up` | The time since the process of the service started, in its two largest units: for example `up 45s`, `up 3m12s`, `up 3h12m`, or `up 4d9h`. A service that does not run shows `-`. A service whose PID `ps` does not report shows `-` too. |
 | `last exit` | The exit code of the last run, or the name of the signal that ended it, for example `SIGKILL`. |
-| `Status` | The age of the status, for example `Status 1s ago`, in a group with a [status command](#the-status-command). The line shows after the first run of the status command of the service ends. After a [failure](#failures), the lines under `Status` tell why the run failed. |
+| `Status` | The age of the status, for example `Status 1s ago`, in a group with a [status command](#the-status-command). The line shows after the first run of the status command of the service ends. After a valid output, the lines under `Status` show [each field](#in-the-list-and-the-detail-pane) of the output with its name and its value, and a bar of 10 cells under the value of a field with a `progress`. After a [failure](#failures), the lines under `Status` tell why the run failed. |
+| `Events` | The [events](#in-the-list-and-the-detail-pane) of the last output, after the fields: for each event, the hours and minutes of its `at`, a `●` in the color of its `level`, and its `text`. The line `Events` shows only when the output has events. |
 
 ### Refresh
 
@@ -274,8 +285,8 @@ The output of a status command is one JSON object of version 1 on stdout:
 | `at` | Optional | The time of the data, as an RFC 3339 text | The age of `at` in the detail pane |
 | `summary` | Optional | Text | The summary in the row of the service |
 | `level` | Optional | `info`, `warn`, or `error`. The default is `info`. | The color of the summary |
-| `fields` | Optional | A list of objects. Each has the texts `name` and `value`, and can have `progress`, a number from 0 to 1. A `progress` outside 0 to 1 makes the output invalid. | Nothing |
-| `events` | Optional | A list of objects. Each has `at`, an RFC 3339 text, `level`, and the text `text`. | Nothing |
+| `fields` | Optional | A list of objects. Each has the texts `name` and `value`, and can have `progress`, a number from 0 to 1. A `progress` outside 0 to 1 makes the output invalid. | One line for each field under `Status` in the detail pane, with its name and its value, and a bar under the value of a field with `progress` |
+| `events` | Optional | A list of objects. Each has `at`, an RFC 3339 text, `level`, and the text `text`. | One line for each event under `Events` in the detail pane, with the time of `at`, a `●` in the color of `level`, and `text` |
 
 svcview ignores a property that it does not know, so a program can add a property before svcview uses it. The names
 of the properties are case-sensitive, and an object must not have a name two times. A new line after the object is
@@ -297,7 +308,40 @@ The detail pane shows the line `Status` under the data from launchd, with the ag
 `Status 1s ago`. The age is the time since `at` when the output has `at`. In each other case, it is the time since
 the last run ended. The age has the units of `up`, and an `at` after the current time shows `0s`. The age grows
 each time the screen draws, also with no new run. Before the first run of the service ends, the detail pane shows
-no line `Status`. After a failure, the detail pane shows under `Status` the text of the failure, and then its lines.
+no line `Status`. After a failure, the detail pane shows under `Status` the text of the failure, and then its lines,
+and no fields and no events.
+
+Under `Status`, the detail pane shows each field of the last valid output on a line of its own, in the order of the
+output: the `name` of the field, and then its `value`. The values of one output start in one column, two spaces
+after the widest name of that output. svcview shows each field in the same way, whatever its name, so a service can
+add a field with no change to svcview. A field with an empty `value` shows only its name.
+
+Under the value of a field with `progress`, a bar of 10 cells shows how far the job is. The bar is on a line of its
+own, and starts in the column of the values. The number of `▰` is the progress times 10, rounded down, and the other
+cells are `▱`. For example, `0.6` shows 6 `▰` and 4 `▱`, and `0.99` shows 9 `▰` and 1 `▱`. Thus only a progress of 1
+fills the bar.
+
+```
+step    review · 12m / 20m
+        ▰▰▰▰▰▰▱▱▱▱
+```
+
+After the fields, an output with events shows an empty line, the line `Events`, and one line for each event, in the
+order of the output. svcview does not sort, filter, or count the events, and it shows an event that is older than one
+hour too. Each line shows the hours and minutes of `at` in the local time zone, for example `09:04`, then a `●` in
+the color of `level`, and then `text`. The time has no date, so an event of another day shows only its hours and
+minutes. svcview takes the local time zone from `TZ`, or from the system when `TZ` is not set. An output with no
+events shows no line `Events`.
+
+```
+Events
+09:04 ● step review
+09:00 ● claimed ENG-692
+```
+
+Each control character in the name or the value of a field, or in the text of an event, shows as `�`. Thus an output
+cannot send an escape sequence to the terminal. The detail pane does not scroll: it shows the lines that fit in the
+pane, and cuts each line at the width of the pane with `…`.
 
 #### Failures
 

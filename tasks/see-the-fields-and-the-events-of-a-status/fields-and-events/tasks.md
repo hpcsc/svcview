@@ -296,16 +296,16 @@ the machine.
 events. The author of a status command can tell from the docs how each property of the output shows on the screen.
 
 **Acceptance Criteria:**
-- [ ] The table of the output says, for `fields` and for `events`, what the detail pane shows, in place of `Nothing`.
-- [ ] The section "In the list and the detail pane" says that the detail pane shows each field under `Status` in the
+- [x] The table of the output says, for `fields` and for `events`, what the detail pane shows, in place of `Nothing`.
+- [x] The section "In the list and the detail pane" says that the detail pane shows each field under `Status` in the
       order of the output, with the values in one column, and that svcview shows each field in the same way, whatever
       its name, so a service can add a field with no change to svcview.
-- [ ] It says that the bar has 10 cells, that the number of `▰` is the progress times 10 rounded down, and that only a
+- [x] It says that the bar has 10 cells, that the number of `▰` is the progress times 10 rounded down, and that only a
       progress of 1 fills the bar.
-- [ ] It says that each event shows under `Events` in the order of the output, with the hours and minutes of its `at`
+- [x] It says that each event shows under `Events` in the order of the output, with the hours and minutes of its `at`
       in the local time zone and no date, a `●` in the color of its `level`, and its `text`.
-- [ ] It says that each control character in a name, a value or a text shows as `�`.
-- [ ] The table of the detail pane, and the table of the glyphs and colors, have the fields, the bar (`▰` blue, `▱`
+- [x] It says that each control character in a name, a value or a text shows as `�`.
+- [x] The table of the detail pane, and the table of the glyphs and colors, have the fields, the bar (`▰` blue, `▱`
       dim) and the `●` of an event in the color of its level.
 
 **Affected Files/Modules:**

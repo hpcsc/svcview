@@ -97,7 +97,7 @@
     },
     {
       "n": 5,
-      "done": false,
+      "done": true,
       "title": "Describe the fields, the bars and the events in docs/cli.md",
       "language": "Markdown",
       "testable": false,
