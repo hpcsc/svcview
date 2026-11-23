@@ -135,21 +135,21 @@ then the group `Other`. Each group starts with its group line, and in each group
 `↑` and `↓` move through the rows in the order of the list, and a refresh keeps the same service selected.
 
 **Acceptance Criteria:**
-- [ ] The list shows the groups in the order of the config file, and then the group `Other` with each service that
+- [x] The list shows the groups in the order of the config file, and then the group `Other` with each service that
       no group matches. Each group starts with a line with its name, and in each group the services are sorted by
       name.
-- [ ] An empty line separates two groups, as in "The Screen" of the proposal.
-- [ ] A group with no service shows no line. When each service is in a group of the settings, the list shows no
+- [x] An empty line separates two groups, as in "The Screen" of the proposal.
+- [x] A group with no service shows no line. When each service is in a group of the settings, the list shows no
       line `Other`.
-- [ ] With no groups in the settings, the screen is the same as before, and the golden files in
+- [x] With no groups in the settings, the screen is the same as before, and the golden files in
       `internal/tui/testdata/` do not change.
-- [ ] At start, the first row of the first group is selected. `↓` selects the next row in the order of the list,
+- [x] At start, the first row of the first group is selected. `↓` selects the next row in the order of the list,
       also when the next row is in the next group, and `↑` selects the row before it.
-- [ ] A refresh keeps the same name selected. When the selected service is gone, the row that takes its place in
+- [x] A refresh keeps the same name selected. When the selected service is gone, the row that takes its place in
       the order of the list is selected, or the last row when it was the last.
-- [ ] The list scrolls to keep the selected row in view, with a group line for each group and the empty lines
+- [x] The list scrolls to keep the selected row in view, with a group line for each group and the empty lines
       between them. When the selected row is the first row of its group, the group line of its group shows too.
-- [ ] An e2e test writes a `config.yaml` with two groups whose names are not in alphabetical order, and sees the
+- [x] An e2e test writes a `config.yaml` with two groups whose names are not in alphabetical order, and sees the
       groups in the order of the file, then `Other`, with the services of each group sorted by name.
 
 **Affected Files/Modules:**

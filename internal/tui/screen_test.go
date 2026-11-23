@@ -47,12 +47,33 @@ func readGiving(services ...service.Service) func() ([]service.Service, error) {
 
 func open(t *testing.T, domain string, read func() ([]service.Service, error), width, height int) tea.Model {
 	t.Helper()
-	var screen tea.Model = tui.NewScreen(domain, read, refreshEvery2s)
+	return openIn(t, domain, refreshEvery2s, read, width, height)
+}
+
+func openWith(t *testing.T, settings config.Settings, read func() ([]service.Service, error), width, height int) tea.Model {
+	t.Helper()
+	return openIn(t, "gui/501", settings, read, width, height)
+}
+
+func openIn(t *testing.T, domain string, settings config.Settings, read func() ([]service.Service, error), width, height int) tea.Model {
+	t.Helper()
+	var screen tea.Model = tui.NewScreen(domain, read, settings)
 	start := screen.Init()
 	require.NotNil(t, start)
 	screen, _ = screen.Update(tea.WindowSizeMsg{Width: width, Height: height})
 	screen, _ = screen.Update(start())
 	return screen
+}
+
+func groups(t *testing.T, nameAndMatch ...string) config.Settings {
+	t.Helper()
+	settings := config.Settings{Refresh: 2 * time.Second}
+	for i := 0; i < len(nameAndMatch); i += 2 {
+		group, err := config.NewGroup(nameAndMatch[i], nameAndMatch[i+1])
+		require.NoError(t, err)
+		settings.Groups = append(settings.Groups, group)
+	}
+	return settings
 }
 
 func requireGolden(t *testing.T, name string, screen tea.Model) {
@@ -271,6 +292,52 @@ func TestScreen(t *testing.T) {
 			screen := open(t, "gui/501", servicesNamed("homebrew.mxcl.redis", "com.example.worker", "com.apple.a"), 80, 12)
 
 			requireGolden(t, "sorted", screen)
+		})
+
+		t.Run("shows the groups of the settings in their order, then the group Other, each under its group line, with an empty line between two groups, and the services of each group sorted by name", func(t *testing.T) {
+			settings := groups(t, "Workers", "worker", "Databases", "redis|postgres")
+
+			screen := openWith(t, settings, servicesNamed("homebrew.mxcl.redis", "com.example.worker.02", "com.apple.a", "homebrew.mxcl.postgres", "com.example.worker.01"), 80, 16)
+
+			requireGolden(t, "groups", screen)
+			require.Equal(t, []string{
+				"Workers",
+				"▌○ com.example.worker.01",
+				"○ com.example.worker.02",
+				"",
+				"Databases",
+				"○ homebrew.mxcl.postgres",
+				"○ homebrew.mxcl.redis",
+				"",
+				"Other",
+				"○ com.apple.a",
+			}, listRows(screen))
+		})
+
+		t.Run("a group with no service shows no line, and with each service in a group of the settings, shows no line Other", func(t *testing.T) {
+			settings := groups(t, "Workers", "worker", "Empty", "nothing", "Databases", "redis")
+
+			screen := openWith(t, settings, servicesNamed("homebrew.mxcl.redis", "com.example.worker.01"), 80, 14)
+
+			require.Equal(t, []string{
+				"Workers",
+				"▌○ com.example.worker.01",
+				"",
+				"Databases",
+				"○ homebrew.mxcl.redis",
+				"",
+				"",
+				"",
+			}, listRows(screen))
+		})
+
+		t.Run("shows each control character in the name of a group as �", func(t *testing.T) {
+			settings := groups(t, "Work\x1b[2Jers", "worker")
+
+			screen := openWith(t, settings, servicesNamed("com.example.worker.01"), 80, 12)
+
+			require.Equal(t, "Work�[2Jers", listRows(screen)[0])
+			require.NotContains(t, screen.View().Content, "\x1b[2J")
 		})
 
 		t.Run("takes 40 percent of the width, rounded down, and the detail pane beside it takes the rest", func(t *testing.T) {
@@ -615,6 +682,103 @@ func TestScreen(t *testing.T) {
 			screen := open(t, "gui/501", servicesNamed("com.example.b", "com.example.a"), 80, 12)
 
 			require.Equal(t, "com.example.a", selectedName(screen))
+		})
+
+		t.Run("at start, the first row of the first group is selected", func(t *testing.T) {
+			settings := groups(t, "Workers", "worker")
+
+			screen := openWith(t, settings, servicesNamed("com.apple.a", "com.example.worker.01"), 80, 12)
+
+			require.Equal(t, "com.example.worker.01", selectedName(screen))
+		})
+
+		t.Run("↓ selects the next row in the order of the list, also in the next group, and ↑ the row before it", func(t *testing.T) {
+			settings := groups(t, "Workers", "worker")
+			screen := openWith(t, settings, servicesNamed("com.apple.a", "com.example.worker.02", "com.example.worker.01"), 80, 12)
+
+			second := pressKeys(screen, down)
+			third := pressKeys(second, down)
+			back := pressKeys(third, up)
+
+			require.Equal(t, []string{"com.example.worker.02", "com.apple.a", "com.example.worker.02"}, []string{selectedName(second), selectedName(third), selectedName(back)})
+		})
+
+		t.Run("↓ past the last row that the list pane shows scrolls the list over the group lines and the empty lines, so the selected row stays in view", func(t *testing.T) {
+			settings := groups(t, "Workers", "worker")
+			screen := openWith(t, settings, servicesNamed("com.example.worker.1", "com.example.worker.2", "com.example.worker.3", "com.example.worker.4", "com.apple.a", "com.apple.b", "com.apple.c"), 80, 12)
+
+			firstOfOther := pressKeys(screen, down, down, down, down)
+			last := pressKeys(firstOfOther, down, down)
+
+			require.Equal(t, []string{
+				"○ com.example.worker.2",
+				"○ com.example.worker.3",
+				"○ com.example.worker.4",
+				"",
+				"Other",
+				"▌○ com.apple.a",
+			}, listRows(firstOfOther))
+			require.Equal(t, []string{
+				"○ com.example.worker.4",
+				"",
+				"Other",
+				"○ com.apple.a",
+				"○ com.apple.b",
+				"▌○ com.apple.c",
+			}, listRows(last))
+		})
+
+		t.Run("↑ to the first row of a group above the list pane shows the group line of the group too", func(t *testing.T) {
+			settings := groups(t, "Workers", "worker")
+			screen := openWith(t, settings, servicesNamed("com.example.worker.1", "com.apple.a", "com.apple.b", "com.apple.c", "com.apple.d", "com.apple.e", "com.apple.f", "com.apple.g", "com.apple.h"), 80, 12)
+			screen = pressKeys(screen, down, down, down, down, down, down, down, down)
+
+			screen = pressKeys(screen, up, up, up, up, up, up, up)
+
+			require.Equal(t, []string{
+				"Other",
+				"▌○ com.apple.a",
+				"○ com.apple.b",
+				"○ com.apple.c",
+				"○ com.apple.d",
+				"○ com.apple.e",
+			}, listRows(screen))
+		})
+
+		t.Run("a list pane with room for two lines shows the group line above the first row of a group", func(t *testing.T) {
+			settings := groups(t, "Workers", "worker")
+			screen := openWith(t, settings, servicesNamed("com.example.worker.1", "com.apple.a", "com.apple.b"), 80, 8)
+
+			screen = pressKeys(screen, down, down, up)
+
+			require.Equal(t, []string{"Other", "▌○ com.apple.a"}, listRows(screen))
+		})
+
+		t.Run("when the selected service is gone, the row that takes its place in the order of the list is selected, also in the next group", func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				settings := groups(t, "Workers", "worker")
+				read := changingAt(100*time.Millisecond,
+					servicesNamed("com.example.worker.01", "com.example.worker.02", "com.apple.a", "homebrew.mxcl.redis"),
+					servicesNamed("com.example.worker.01", "com.apple.a", "homebrew.mxcl.redis"))
+
+				screen := runFor(t, tui.NewScreen("gui/501", read, settings), 2100*time.Millisecond, down)
+
+				require.Equal(t, "com.apple.a", selectedName(screen))
+			})
+		})
+
+		t.Run("a refresh keeps the same name selected when a row comes before it in another group", func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				settings := groups(t, "Workers", "worker")
+				read := changingAt(100*time.Millisecond,
+					servicesNamed("com.example.worker.01", "com.apple.a", "homebrew.mxcl.redis"),
+					servicesNamed("com.example.worker.01", "com.example.worker.02", "com.apple.a", "homebrew.mxcl.redis"))
+
+				screen := runFor(t, tui.NewScreen("gui/501", read, settings), 2100*time.Millisecond, down)
+
+				require.Contains(t, screen.View().Content, "com.example.worker.02")
+				require.Equal(t, "com.apple.a", selectedName(screen))
+			})
 		})
 
 		t.Run("↓ selects the next row, and ↑ the row before it", func(t *testing.T) {

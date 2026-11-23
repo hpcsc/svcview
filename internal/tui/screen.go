@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"cmp"
 	"fmt"
 	"slices"
 	"strconv"
@@ -24,25 +25,36 @@ const (
 type refresh struct{}
 
 type servicesRead struct {
-	services []service.Service
-	err      error
+	rows []row
+	err  error
+}
+
+type row struct {
+	service    service.Service
+	group      config.Group
+	groupIndex int
+}
+
+func (r row) compare(other row) int {
+	return cmp.Or(cmp.Compare(r.groupIndex, other.groupIndex), strings.Compare(r.service.Name, other.service.Name))
 }
 
 type Screen struct {
-	domain   string
-	read     func() ([]service.Service, error)
-	settings config.Settings
-	lastRead servicesRead
-	hasRead  bool
-	selected string
-	listTop  int
-	showHelp bool
-	width    int
-	height   int
+	domain     string
+	read       func() ([]service.Service, error)
+	settings   config.Settings
+	groupOrder []config.Group
+	lastRead   servicesRead
+	hasRead    bool
+	selected   string
+	listTop    int
+	showHelp   bool
+	width      int
+	height     int
 }
 
 func NewScreen(domain string, read func() ([]service.Service, error), settings config.Settings) Screen {
-	return Screen{domain: domain, read: read, settings: settings}
+	return Screen{domain: domain, read: read, settings: settings, groupOrder: slices.Concat(settings.Groups, []config.Group{config.Other})}
 }
 
 func (s Screen) Init() tea.Cmd {
@@ -72,9 +84,6 @@ func (s Screen) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		}
 	case servicesRead:
-		slices.SortFunc(msg.services, func(a, b service.Service) int {
-			return strings.Compare(a.Name, b.Name)
-		})
 		s.lastRead, s.hasRead = msg, true
 		s.selected = s.selectedAfterRead()
 		cmd = tea.Tick(s.settings.Refresh, func(time.Time) tea.Msg { return refresh{} })
@@ -93,14 +102,24 @@ func (s Screen) View() tea.View {
 
 func (s Screen) readServices() tea.Msg {
 	services, err := s.read()
-	return servicesRead{services: services, err: err}
+	rows := make([]row, 0, len(services))
+	for _, svc := range services {
+		rows = append(rows, s.rowOf(svc))
+	}
+	slices.SortFunc(rows, row.compare)
+	return servicesRead{rows: rows, err: err}
 }
 
-func (s Screen) rows() []service.Service {
+func (s Screen) rowOf(svc service.Service) row {
+	group := s.settings.GroupOf(svc.Name)
+	return row{service: svc, group: group, groupIndex: slices.Index(s.groupOrder, group)}
+}
+
+func (s Screen) rows() []row {
 	if s.lastRead.err != nil {
 		return nil
 	}
-	return s.lastRead.services
+	return s.lastRead.rows
 }
 
 func (s Screen) selectedAfterRead() string {
@@ -108,10 +127,11 @@ func (s Screen) selectedAfterRead() string {
 	if len(rows) == 0 {
 		return s.selected
 	}
-	at, _ := slices.BinarySearchFunc(rows, s.selected, func(svc service.Service, name string) int {
-		return strings.Compare(svc.Name, name)
-	})
-	return rows[min(at, len(rows)-1)].Name
+	if s.selected == "" {
+		return rows[0].service.Name
+	}
+	at, _ := slices.BinarySearchFunc(rows, s.rowOf(service.Service{Name: s.selected}), row.compare)
+	return rows[min(at, len(rows)-1)].service.Name
 }
 
 func (s Screen) selectedAfterMove(step int) string {
@@ -120,22 +140,49 @@ func (s Screen) selectedAfterMove(step int) string {
 		return s.selected
 	}
 	rows := s.rows()
-	return rows[min(max(at+step, 0), len(rows)-1)].Name
+	return rows[min(max(at+step, 0), len(rows)-1)].service.Name
 }
 
 func (s Screen) listTopInView() int {
 	at := s.selectedAt()
-	line := at + 1
+	if at < 0 {
+		return 0
+	}
+	line := s.lineOf(at)
 	shown := max(s.paneHeight()-2, 1)
 	top := min(max(s.listTop, line-shown+1), line)
-	if at == 0 {
-		top = line - shown + 1
+	if s.startsGroup(at) {
+		top = min(top, max(line-1, line-shown+1))
 	}
-	return max(min(top, len(s.rows())+1-shown), 0)
+	return max(min(top, s.lineOf(len(s.rows())-1)+1-shown), 0)
 }
 
 func (s Screen) selectedAt() int {
-	return slices.IndexFunc(s.rows(), func(svc service.Service) bool { return svc.Name == s.selected })
+	return slices.IndexFunc(s.rows(), func(r row) bool { return r.service.Name == s.selected })
+}
+
+func (s Screen) startsGroup(at int) bool {
+	rows := s.rows()
+	return at == 0 || rows[at].groupIndex != rows[at-1].groupIndex
+}
+
+func (s Screen) linesAbove(at int) []string {
+	if !s.startsGroup(at) {
+		return nil
+	}
+	groupLine := s.printable(s.rows()[at].group.Name)
+	if at == 0 {
+		return []string{groupLine}
+	}
+	return []string{"", groupLine}
+}
+
+func (s Screen) lineOf(at int) int {
+	line := at
+	for i := range at + 1 {
+		line += len(s.linesAbove(i))
+	}
+	return line
 }
 
 func (s Screen) content() string {
@@ -162,7 +209,7 @@ func (s Screen) panes() []string {
 	list.text = s.listText(list.textWidth())[s.listTop:]
 	detail := box{width: s.width - list.width, height: list.height}
 	if at := s.selectedAt(); at >= 0 {
-		svc := s.rows()[at]
+		svc := s.rows()[at].service
 		detail.title, detail.text = s.printable(svc.Name), s.detailText(svc)
 	}
 	var lines []string
@@ -187,8 +234,8 @@ func (s Screen) headerText() []string {
 		return nil
 	}
 	counts := map[service.State]int{}
-	for _, svc := range s.lastRead.services {
-		counts[svc.State]++
+	for _, r := range s.lastRead.rows {
+		counts[r.service.State]++
 	}
 	var text []string
 	for _, state := range []service.State{service.Running, service.Loaded, service.NotLoaded} {
@@ -205,16 +252,14 @@ func (s Screen) listText(width int) []string {
 		}
 		return text
 	}
-	if len(s.lastRead.services) == 0 {
-		return nil
-	}
-	text := []string{"Other"}
-	for _, svc := range s.lastRead.services {
-		if svc.Name == s.selected {
-			text = append(text, s.selectedRow(svc, width))
+	var text []string
+	for at, r := range s.rows() {
+		text = append(text, s.linesAbove(at)...)
+		if r.service.Name == s.selected {
+			text = append(text, s.selectedRow(r.service, width))
 			continue
 		}
-		text = append(text, " "+s.rowGlyph(svc)+" "+s.printable(svc.Name))
+		text = append(text, " "+s.rowGlyph(r.service)+" "+s.printable(r.service.Name))
 	}
 	return text
 }

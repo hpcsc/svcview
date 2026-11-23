@@ -2,6 +2,16 @@ import { join } from 'node:path'
 import { describe, expect, it, onTestFinished, vi } from 'vitest'
 import { addPlist, buildTag, homeWithPlists, openCli, runCli, scratchDir, writeConfig } from '../testUtils'
 
+function listLines(screen: string): string[] {
+  const lines = screen.split('\n')
+  const list: string[] = []
+  for (const line of lines.slice(lines.findIndex((line) => line.includes('╭ Services')) + 1)) {
+    if (line.startsWith('╰')) break
+    list.push(line.split('│')[1].trim())
+  }
+  return list
+}
+
 describe('the config file', () => {
   it('an unknown setting in $XDG_CONFIG_HOME/svcview/config.yaml stops svcview with the exit code 1 and an error that names the file, before the screen opens', async () => {
     const home = homeWithPlists(['com.example.worker'])
@@ -54,6 +64,36 @@ describe('the config file', () => {
     const session = await openCli(scratchDir(), [], { HOME: home })
 
     await session.waitForText('com.example.worker')
+  })
+
+  it('the list shows the groups of config.yaml in the order of the file, then the group Other, with the services of each group sorted by name', async () => {
+    const home = homeWithPlists([
+      'homebrew.mxcl.redis',
+      'com.example.worker.02',
+      'com.apple.a',
+      'homebrew.mxcl.postgres',
+      'com.example.worker.01',
+    ])
+    writeConfig(
+      join(home, '.config', 'svcview'),
+      'groups:\n  - name: Workers\n    match: worker\n  - name: Databases\n    match: redis|postgres\n',
+    )
+
+    const session = await openCli(scratchDir(), [], { HOME: home })
+
+    await session.waitForText('com.apple.a')
+    expect(listLines(await session.text()).slice(0, 10)).toEqual([
+      'Workers',
+      '▌○ com.example.worker.01',
+      '○ com.example.worker.02',
+      '',
+      'Databases',
+      '○ homebrew.mxcl.postgres',
+      '○ homebrew.mxcl.redis',
+      '',
+      'Other',
+      '○ com.apple.a',
+    ])
   })
 
   it('with refresh: 1m, a plist that is added while the screen is open does not show within 4 s', async () => {

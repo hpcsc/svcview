@@ -24,7 +24,7 @@
     },
     {
       "n": 2,
-      "done": false,
+      "done": true,
       "title": "Show the services in the groups of the config file",
       "language": "Go",
       "testable": true,
