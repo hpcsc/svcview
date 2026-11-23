@@ -9,6 +9,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -31,6 +32,12 @@ func servicesNamed(names ...string) func() ([]service.Service, error) {
 			services = append(services, service.Service{Name: name})
 		}
 		return services, nil
+	}
+}
+
+func servicesRead(services ...service.Service) func() ([]service.Service, error) {
+	return func() ([]service.Service, error) {
+		return slices.Clone(services), nil
 	}
 }
 
@@ -69,7 +76,7 @@ func runWithInput(t *testing.T, screen tui.Screen, input string) error {
 		tea.WithContext(ctx),
 		tea.WithInput(strings.NewReader(input)),
 		tea.WithOutput(io.Discard),
-		tea.WithWindowSize(60, 12))
+		tea.WithWindowSize(80, 12))
 	_, err := program.Run()
 	return err
 }
@@ -91,7 +98,7 @@ func runFor(t *testing.T, screen tui.Screen, duration time.Duration) tea.Model {
 		tea.WithInput(nil),
 		tea.WithOutput(io.Discard),
 		tea.WithoutSignalHandler(),
-		tea.WithWindowSize(60, 12))
+		tea.WithWindowSize(80, 12))
 	go func() {
 		time.Sleep(duration)
 		program.Quit()
@@ -106,13 +113,13 @@ func runFor(t *testing.T, screen tui.Screen, duration time.Duration) tea.Model {
 func TestScreen(t *testing.T) {
 	t.Run("start", func(t *testing.T) {
 		t.Run("reads the services with no key press and shows them", func(t *testing.T) {
-			screen := open(t, "gui/501", servicesNamed("com.example.worker"), 60, 12)
+			screen := open(t, "gui/501", servicesNamed("com.example.worker"), 80, 12)
 
 			require.Contains(t, screen.View().Content, "com.example.worker")
 		})
 
 		t.Run("takes the whole terminal, so the shell gets its screen back at the end", func(t *testing.T) {
-			screen := open(t, "gui/501", servicesNamed("com.example.worker"), 60, 12)
+			screen := open(t, "gui/501", servicesNamed("com.example.worker"), 80, 12)
 
 			require.True(t, screen.View().AltScreen)
 		})
@@ -137,7 +144,7 @@ func TestScreen(t *testing.T) {
 
 	t.Run("header", func(t *testing.T) {
 		t.Run("shows svcview and the domain", func(t *testing.T) {
-			screen := open(t, "gui/502", servicesNamed(), 60, 12)
+			screen := open(t, "gui/502", servicesNamed(), 80, 12)
 
 			header, _, _ := strings.Cut(screen.View().Content, "\n")
 			require.Contains(t, header, "svcview")
@@ -147,7 +154,7 @@ func TestScreen(t *testing.T) {
 
 	t.Run("list", func(t *testing.T) {
 		t.Run("shows the group Other with one row for each service, sorted by name", func(t *testing.T) {
-			screen := open(t, "gui/501", servicesNamed("homebrew.mxcl.redis", "com.example.worker", "com.apple.a"), 60, 12)
+			screen := open(t, "gui/501", servicesNamed("homebrew.mxcl.redis", "com.example.worker", "com.apple.a"), 80, 12)
 
 			requireGolden(t, "sorted", screen)
 		})
@@ -176,17 +183,27 @@ func TestScreen(t *testing.T) {
 			screen := open(t, "gui/501", servicesNamed("com.example.\x1b[2Jworker\nnext"), 100, 12)
 
 			require.Contains(t, screen.View().Content, "com.example.�[2Jworker�next")
-			require.NotContains(t, screen.View().Content, "\x1b")
+			require.NotContains(t, screen.View().Content, "\x1b[2J")
 		})
 
-		t.Run("cuts a name that is longer than the list pane and ends it with …, and leaves a name that fits", func(t *testing.T) {
-			screen := open(t, "gui/501", servicesNamed("com.example.a-name-that-is-too-long", "com.example.exactly", "com.example.fits"), 60, 12)
+		t.Run("starts each row with the glyph of its state: a green ● for running, a yellow ◐ for loaded, and a gray ○ for not loaded", func(t *testing.T) {
+			screen := open(t, "gui/501", servicesRead(
+				service.Service{Name: "com.example.a-running", State: service.Running},
+				service.Service{Name: "com.example.b-loaded", State: service.Loaded},
+				service.Service{Name: "com.example.c-not-loaded", State: service.NotLoaded},
+			), 80, 12)
+
+			requireGolden(t, "each-state", screen)
+		})
+
+		t.Run("cuts a name that is longer than the list pane and ends it with …, and leaves a name that fits with its glyph", func(t *testing.T) {
+			screen := open(t, "gui/501", servicesNamed("com.example.a-name-that-is-too-long", "com.example.exact", "com.example.fits"), 60, 12)
 
 			requireGolden(t, "long-name", screen)
 		})
 
 		t.Run("with no services, shows no rows", func(t *testing.T) {
-			screen := open(t, "gui/501", servicesNamed(), 60, 12)
+			screen := open(t, "gui/501", servicesNamed(), 80, 12)
 
 			requireGolden(t, "no-services", screen)
 		})
@@ -196,7 +213,7 @@ func TestScreen(t *testing.T) {
 				return []service.Service{{Name: "com.example.worker"}}, errors.New("open /Users/someone/Library/LaunchAgents: permission denied")
 			}
 
-			screen := open(t, "gui/501", failing, 60, 12)
+			screen := open(t, "gui/501", failing, 80, 12)
 
 			requireGolden(t, "read-error", screen)
 		})
@@ -247,6 +264,18 @@ func TestScreen(t *testing.T) {
 			})
 		})
 
+		t.Run("shows the glyph of the new state of a service at the next read", func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				read := changingAt(100*time.Millisecond,
+					servicesRead(service.Service{Name: "com.example.worker", State: service.Loaded}),
+					servicesRead(service.Service{Name: "com.example.worker", State: service.Running}))
+
+				screen := runFor(t, tui.NewScreen("gui/501", read), 2100*time.Millisecond)
+
+				require.Contains(t, ansi.Strip(screen.View().Content), "● com.example.worker")
+			})
+		})
+
 		t.Run("after a read that gives an error, the next read that succeeds shows the rows again", func(t *testing.T) {
 			synctest.Test(t, func(t *testing.T) {
 				failing := func() ([]service.Service, error) {
@@ -293,7 +322,7 @@ func TestScreen(t *testing.T) {
 		})
 
 		t.Run("another key does not end the screen", func(t *testing.T) {
-			screen := open(t, "gui/501", servicesNamed("com.example.worker"), 60, 12)
+			screen := open(t, "gui/501", servicesNamed("com.example.worker"), 80, 12)
 
 			require.Nil(t, press(screen, tea.KeyPressMsg{Code: 'x', Text: "x"}))
 		})

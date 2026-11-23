@@ -65,6 +65,24 @@ describe('the screen', () => {
     await session.waitForText('com.example.added', { timeout: 5000 })
   })
 
+  it('starts each row with the glyph of its state, and shows the glyph of a new state at the next refresh, with no key press', async () => {
+    const home = homeWithPlists(['com.example.running', 'com.example.loaded', 'com.example.not-loaded'])
+    setLaunchctlList(home, [{ name: 'com.example.running', pid: 4122 }, { name: 'com.example.loaded' }])
+    const session = await openCli(scratchDir(), [], { HOME: home })
+
+    await session.waitForText('● com.example.running')
+    const screen = await session.text()
+    expect(screen).toContain('◐ com.example.loaded')
+    expect(screen).toContain('○ com.example.not-loaded')
+
+    setLaunchctlList(home, [
+      { name: 'com.example.running', pid: 4122 },
+      { name: 'com.example.loaded', pid: 4123 },
+    ])
+
+    await session.waitForText('● com.example.loaded', { timeout: 5000 })
+  })
+
   it('when the header line of launchctl list is not PID, Status, Label, shows the error and no rows, until the output is valid again', async () => {
     const home = homeWithPlists(['com.example.worker'])
     setLaunchctlOutput(home, 'PID\tStatus\tName\n-\t0\tcom.example.worker\n')

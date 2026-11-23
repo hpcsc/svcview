@@ -94,9 +94,20 @@ func (s Screen) listText(width int) []string {
 	}
 	text := []string{"Other"}
 	for _, svc := range s.lastRead.services {
-		text = append(text, " "+s.printable(svc.Name))
+		text = append(text, " "+s.glyph(svc.State)+" "+s.printable(svc.Name))
 	}
 	return text
+}
+
+func (s Screen) glyph(state service.State) string {
+	shape, color := "○", ansi.BrightBlack
+	switch state {
+	case service.Running:
+		shape, color = "●", ansi.Green
+	case service.Loaded:
+		shape, color = "◐", ansi.Yellow
+	}
+	return ansi.NewStyle().ForegroundColor(color).Styled(shape)
 }
 
 func (s Screen) printable(text string) string {

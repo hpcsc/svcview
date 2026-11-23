@@ -54,7 +54,7 @@
     },
     {
       "n": 3,
-      "done": false,
+      "done": true,
       "title": "Start each row with the glyph of its state",
       "language": "Go",
       "testable": true,

@@ -156,12 +156,12 @@ yellow `◐` for `loaded`, and a gray `○` for `not loaded`. When the state of 
 new glyph at the next refresh.
 
 **Acceptance Criteria:**
-- [ ] A `running` service has a green `●` before its name, a `loaded` service a yellow `◐`, and a `not loaded`
+- [x] A `running` service has a green `●` before its name, a `loaded` service a yellow `◐`, and a `not loaded`
       service a gray `○`.
-- [ ] Green, yellow and gray are colors of the 16 colors of the ANSI palette.
-- [ ] A name that is cut with `…` fits the list pane with its glyph.
-- [ ] The golden files show each glyph with its color.
-- [ ] An e2e test sees the glyph of each state from the fixture of the fake `launchctl`. When the test changes the
+- [x] Green, yellow and gray are colors of the 16 colors of the ANSI palette.
+- [x] A name that is cut with `…` fits the list pane with its glyph.
+- [x] The golden files show each glyph with its color.
+- [x] An e2e test sees the glyph of each state from the fixture of the fake `launchctl`. When the test changes the
       fixture so that a service has a PID, its row shows `●` with no key press.
 
 **Affected Files/Modules:**
