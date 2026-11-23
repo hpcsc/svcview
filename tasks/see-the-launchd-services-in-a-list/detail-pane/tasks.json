@@ -18,9 +18,11 @@
       "depends_on": [],
       "affected_files": [
         "internal/service/service.go",
-        "internal/launchd/uptime.go",
+        "internal/launchd/launchctl_list.go",
+        "internal/launchd/uptimes.go",
         "internal/launchd/domain.go",
-        "internal/launchd/domain_test.go"
+        "internal/launchd/domain_test.go",
+        "internal/launchd/testdata/"
       ]
     },
     {
@@ -37,7 +39,6 @@
       "depends_on": [],
       "affected_files": [
         "internal/tui/screen.go",
-        "internal/tui/view.go",
         "internal/tui/screen_test.go",
         "internal/tui/testdata/",
         "e2e/tests/screen.test.ts"
@@ -58,7 +59,8 @@
       ],
       "depends_on": [1, 2],
       "affected_files": [
-        "internal/tui/view.go",
+        "internal/tui/screen.go",
+        "internal/tui/box.go",
         "internal/tui/screen_test.go",
         "internal/tui/testdata/",
         "e2e/fakes/ps",
@@ -80,9 +82,7 @@
       ],
       "depends_on": [2],
       "affected_files": [
-        "internal/tui/keys.go",
         "internal/tui/screen.go",
-        "internal/tui/view.go",
         "internal/tui/screen_test.go",
         "internal/tui/testdata/",
         "e2e/tests/screen.test.ts"

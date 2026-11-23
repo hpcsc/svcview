@@ -58,6 +58,14 @@ The story criteria that this change satisfies:
   colors of the ANSI palette. "The Screen" shows the detail pane: `● running     PID 4122` on the first line, and
   `up 3h12m      last exit 0` on the second.
 - `docs/cli.md` describes each command in a section of its own (`docs/cli.md:35-56`).
+- `internal/tui` has no `view.go`. `Screen` keeps all its view methods in `screen.go`, and the private type `box` in
+  `box.go` draws each rounded box with its title and cuts each line with `…`. The colors are SGR styles of
+  `github.com/charmbracelet/x/ansi` (`Screen.stateLook`, `stateGlyph`, `rowGlyph`), and `go.mod` has no Lip Gloss.
+  `Screen.hasRead` is false until the first read ends, and a pane that shows data of the read must check it.
+- `internal/launchd/launchctl_list.go` declares the private type `launchctlList`, which reads the output of
+  `launchctl list`. `launchctl` runs with a deadline of 5 s and a `WaitDelay` of 1 s.
+- `openCli` in `e2e/testUtils.ts` puts `e2e/fakes` first on `PATH`, and `e2e/fakes/launchctl` prints
+  `$HOME/launchctl-list.txt`.
 - Words: "selected" is the row that `↑` and `↓` move. A later feature gives a pane the "focus", so no code here
   uses "focus" for the selected row. "uptime" is the time since the process of the service started.
 
@@ -77,12 +85,16 @@ for its PID as its uptime.
 - [ ] A PID that `ps` does not report gives its service no uptime, and the other services keep theirs.
 - [ ] When `ps` cannot start or fails, no service has an uptime, and the read still gives the services with their
       state and last exit.
+- [ ] A row of `launchctl list` whose PID is not `-` or a positive number gives an error that names the row, and no
+      services.
 
 **Affected Files/Modules:**
 - `internal/service/service.go` — the PID and the uptime of a `Service`
-- `internal/launchd/uptime.go` — new: the run of `ps`, and the read of its lines
-- `internal/launchd/domain.go` — the PID and the uptime of each running service
+- `internal/launchd/launchctl_list.go` — the PID of each running service
+- `internal/launchd/uptimes.go` — new: the private type `uptimes`, the run of `ps`, and the read of its lines
+- `internal/launchd/domain.go` — the uptime of each running service
 - `internal/launchd/domain_test.go` — the tests of the PID and the uptime
+- `internal/launchd/testdata/` — the fixture outputs of `launchctl list` and `ps`
 
 **Patterns to Follow:**
 - `internal/cli/release/updater.go:101-114`
@@ -115,8 +127,8 @@ row starts with a `▌` in the accent color and has a background color. A refres
 - [ ] An e2e test presses `↓`, and sees the `▌` on the second row.
 
 **Affected Files/Modules:**
-- `internal/tui/screen.go` — the selected service, and the keys `↑` and `↓`
-- `internal/tui/view.go` — the `▌` and the background of the selected row
+- `internal/tui/screen.go` — the selected service, the keys `↑` and `↓`, and the `▌` and the background of the
+  selected row
 - `internal/tui/screen_test.go` — the tests of the selection
 - `internal/tui/testdata/` — the golden files
 - `e2e/tests/screen.test.ts` — the selection
@@ -158,7 +170,8 @@ uptime, and the last exit. A signal that ended the last run shows as its name. A
 - [ ] `docs/e2e-tests.md` describes the fake `ps`.
 
 **Affected Files/Modules:**
-- `internal/tui/view.go` — the detail pane, and the two panes side by side
+- `internal/tui/screen.go` — the detail pane, and the two panes side by side
+- `internal/tui/box.go` — a title that is longer than the box ends with `…`, and a box with no title
 - `internal/tui/screen_test.go` — the tests of the detail pane
 - `internal/tui/testdata/` — the golden files
 - `e2e/fakes/ps` — new: the fake `ps`, executable
@@ -195,9 +208,7 @@ at the bottom of the screen shows `? help`.
 - [ ] An e2e test presses `?`, sees the keys, presses `q`, and sees `EXIT:0`.
 
 **Affected Files/Modules:**
-- `internal/tui/keys.go` — new: the keys of the screen and the action of each
-- `internal/tui/screen.go` — `?` and `esc`
-- `internal/tui/view.go` — the list of keys, and the help line
+- `internal/tui/screen.go` — `?` and `esc`, the list of keys with the action of each, and the help line
 - `internal/tui/screen_test.go` — the tests of `?`
 - `internal/tui/testdata/` — the golden files
 - `e2e/tests/screen.test.ts` — the keys

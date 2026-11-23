@@ -17,6 +17,33 @@ types:
       - a failure of ps leaves every uptime empty, and the read still gives the services
     fields: []
     methods: [Services, String]
+  - name: launchctlList
+    package: internal/launchd
+    change: changed
+    does: one output of launchctl list - the service that it shows for each name
+    owns:
+      - a running service has the PID of its row, and a PID other than - must be a positive number
+    fields: []
+    methods: [service]
+  - name: uptimes
+    package: internal/launchd
+    change: new
+    does: one output of ps - the uptime that it reports for each PID
+    owns:
+      - each line is a PID and an elapsed time in the form [[dd-]hh:]mm:ss
+      - a line in another form gives no uptime, and the other lines keep theirs
+      - a ps that cannot start, fails, or does not end within its deadline gives no uptimes
+    fields: []
+    methods: []
+  - name: box
+    package: internal/tui
+    change: changed
+    does: one rounded box of the screen, with a title in its top border
+    owns:
+      - a title that is longer than the top border ends with …
+      - a box with no title has a plain top border
+    fields: [title, right, width, height, text]
+    methods: [render]
   - name: Screen
     package: internal/tui
     change: changed
