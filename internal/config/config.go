@@ -23,13 +23,6 @@ type Settings struct {
 	Refresh time.Duration
 }
 
-func Folder(home, xdgConfigHome string) string {
-	if filepath.IsAbs(xdgConfigHome) {
-		return filepath.Join(xdgConfigHome, "svcview")
-	}
-	return filepath.Join(home, ".config", "svcview")
-}
-
 func Read(folder string, uid int) (Settings, error) {
 	settings := Settings{Refresh: 2 * time.Second}
 	path := filepath.Join(folder, fileName)
@@ -97,8 +90,15 @@ func (s *Settings) set(name, value *yaml.Node) error {
 	}
 	refresh, err := time.ParseDuration(value.Value)
 	if err != nil || refresh <= 0 {
-		return fmt.Errorf("line %d: refresh must be a duration more than 0, such as 5s or 1m30s", value.Line)
+		return fmt.Errorf("line %d: the setting %q must be a duration more than 0, such as 5s or 1m30s", value.Line, name.Value)
 	}
 	s.Refresh = refresh
 	return nil
+}
+
+func Folder(home, xdgConfigHome string) string {
+	if filepath.IsAbs(xdgConfigHome) {
+		return filepath.Join(xdgConfigHome, "svcview")
+	}
+	return filepath.Join(home, ".config", "svcview")
 }

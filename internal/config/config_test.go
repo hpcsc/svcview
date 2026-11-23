@@ -87,7 +87,7 @@ func TestSettings(t *testing.T) {
 				settings, err := config.Read(folder, os.Getuid())
 
 				require.ErrorContains(t, err, path, content)
-				require.ErrorContains(t, err, "refresh", content)
+				require.ErrorContains(t, err, `"refresh"`, content)
 				require.Equal(t, config.Settings{}, settings, content)
 			}
 		})
@@ -99,19 +99,24 @@ func TestSettings(t *testing.T) {
 				settings, err := config.Read(folder, os.Getuid())
 
 				require.ErrorContains(t, err, path, content)
-				require.ErrorContains(t, err, "refresh", content)
+				require.ErrorContains(t, err, `"refresh"`, content)
 				require.Equal(t, config.Settings{}, settings, content)
 			}
 		})
 
-		t.Run("a setting that svcview does not know gives an error that names the file and the setting, and no settings", func(t *testing.T) {
-			folder, path := folderWith(t, "refresh: 5s\ncolour: blue\n")
+		t.Run("a setting that svcview does not know gives an error that names the file and the setting, and no settings, also when its value is a duration", func(t *testing.T) {
+			for content, setting := range map[string]string{
+				"refresh: 5s\ncolour: blue\n": `"colour"`,
+				"interval: 5s\n":              `"interval"`,
+			} {
+				folder, path := folderWith(t, content)
 
-			settings, err := config.Read(folder, os.Getuid())
+				settings, err := config.Read(folder, os.Getuid())
 
-			require.ErrorContains(t, err, path)
-			require.ErrorContains(t, err, `"colour"`)
-			require.Equal(t, config.Settings{}, settings)
+				require.ErrorContains(t, err, path, content)
+				require.ErrorContains(t, err, setting, content)
+				require.Equal(t, config.Settings{}, settings, content)
+			}
 		})
 
 		t.Run("a setting that svcview does not know in a second YAML document gives an error that names the file and the setting", func(t *testing.T) {
