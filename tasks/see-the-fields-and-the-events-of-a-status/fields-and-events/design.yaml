@@ -1,0 +1,48 @@
+design: planned
+types:
+  - name: Output
+    package: internal/status
+    change: changed
+    does: the JSON object of version 1 that a status command prints
+    owns:
+      - the progress of each field is from 0 to 1, or missing
+      - a progress outside 0 to 1 makes the run a status invalid, with a parse error that names the first such field by its JSON pointer and gives its progress
+      - fields and events keep their order and the shape of version 1
+    fields: [At, Summary, Level, Fields, Events]
+    methods: []
+  - name: Screen
+    package: internal/tui
+    change: changed
+    does: the Bubble Tea model of the screen of svcview
+    owns:
+      - under the line Status, the detail pane shows one line for each field of the last output, in the order of the output, with its name and then its value
+      - the values of one output start in one column, two spaces after the widest name of that output
+      - each field shows in the same way, whatever its name
+      - under the value of a field with a progress, a bar of 10 cells starts in the column of the values, with the progress times 10 rounded down as accent ▰ and the rest as dim ▱
+      - after the fields, an output with events shows an empty line, the line Events, and one line for each event in the order of the output, with the hours and minutes of its at in the local time zone, a ● in the color of its level, and its text
+      - each control character of a name, a value or a text of an event shows as the replacement character
+    fields: []
+    methods: [Init, Update, View]
+words:
+  - concept: a name and a value that an output gives for the detail pane, with an optional progress
+    word: field
+    not: [property, attribute, metric, entry]
+  - concept: a number from 0 to 1 that a field gives, how far its job is
+    word: progress
+    not: [percent, ratio, completion]
+  - concept: the 10 cells under the value of a field that show its progress
+    word: bar
+    not: [gauge, meter, progress indicator]
+  - concept: one of the 10 places of a bar, done or not done
+    word: cell
+    not: [block, segment, tick]
+  - concept: one line that an output gives for the detail pane, with its at, its level and its text
+    word: event
+    not: [log line, entry, history item]
+  - concept: the hours and minutes of the at of an event, in the local time zone
+    word: time
+    not: [timestamp, clock, stamp]
+  - concept: text drawn with the SGR attribute faint, which terminals call dim
+    word: dim
+    not: [faint, muted, gray]
+dependencies: []

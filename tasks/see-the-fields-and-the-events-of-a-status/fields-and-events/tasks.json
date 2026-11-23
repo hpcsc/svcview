@@ -1,0 +1,112 @@
+{
+  "story": "The detail pane shows the fields and the events of a status",
+  "story_id": "launchd-tui/US-004",
+  "tasks_file": "tasks/see-the-fields-and-the-events-of-a-status/fields-and-events/tasks.md",
+  "tasks": [
+    {
+      "n": 1,
+      "done": false,
+      "title": "Refuse a progress outside 0 to 1 as a status invalid",
+      "language": "Go",
+      "testable": true,
+      "certainty": "high",
+      "blast_radius": "low",
+      "patterns_to_follow": [
+        "internal/status/output.go:101-106",
+        "internal/status/output.go:116-124",
+        "internal/status/command_test.go:338-391",
+        "e2e/tests/status.test.ts:72-81"
+      ],
+      "depends_on": [],
+      "affected_files": [
+        "internal/status/output.go",
+        "internal/status/command_test.go",
+        "docs/cli.md",
+        "e2e/tests/status.test.ts"
+      ]
+    },
+    {
+      "n": 2,
+      "done": false,
+      "title": "Show the fields of a status under Status, each with its name and its value",
+      "language": "Go",
+      "testable": true,
+      "certainty": "high",
+      "blast_radius": "low",
+      "patterns_to_follow": [
+        "internal/tui/screen.go:335-350",
+        "internal/tui/screen.go:405-427",
+        "internal/tui/screen.go:485-492",
+        "internal/tui/screen_test.go:1127-1143",
+        "e2e/tests/status.test.ts:11-21"
+      ],
+      "depends_on": [],
+      "affected_files": [
+        "internal/tui/screen.go",
+        "internal/tui/screen_test.go",
+        "internal/tui/testdata/",
+        "e2e/tests/status.test.ts"
+      ]
+    },
+    {
+      "n": 3,
+      "done": false,
+      "title": "Show a bar of 10 cells under the value of a field with a progress",
+      "language": "Go",
+      "testable": true,
+      "certainty": "medium",
+      "blast_radius": "low",
+      "patterns_to_follow": [
+        "internal/tui/screen.go:396-403",
+        "internal/tui/screen.go:461-472",
+        "task:2"
+      ],
+      "depends_on": [1, 2],
+      "affected_files": [
+        "internal/tui/screen.go",
+        "internal/tui/screen_test.go",
+        "internal/tui/testdata/",
+        "e2e/tests/status.test.ts"
+      ]
+    },
+    {
+      "n": 4,
+      "done": false,
+      "title": "Show the events of a status under Events",
+      "language": "Go",
+      "testable": true,
+      "certainty": "medium",
+      "blast_radius": "low",
+      "patterns_to_follow": [
+        "internal/tui/screen.go:375-383",
+        "internal/tui/screen.go:461-464",
+        "task:2"
+      ],
+      "depends_on": [2],
+      "affected_files": [
+        "internal/tui/screen.go",
+        "internal/tui/screen_test.go",
+        "internal/tui/testdata/",
+        "e2e/tests/status.test.ts"
+      ]
+    },
+    {
+      "n": 5,
+      "done": false,
+      "title": "Describe the fields, the bars and the events in docs/cli.md",
+      "language": "Markdown",
+      "testable": false,
+      "certainty": "high",
+      "blast_radius": "low",
+      "patterns_to_follow": [
+        "docs/cli.md:72-97",
+        "docs/cli.md:271-300"
+      ],
+      "depends_on": [3, 4],
+      "affected_files": [
+        "docs/cli.md"
+      ]
+    }
+  ],
+  "design_file": "tasks/see-the-fields-and-the-events-of-a-status/fields-and-events/design.yaml"
+}

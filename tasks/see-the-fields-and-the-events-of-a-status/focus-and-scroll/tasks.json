@@ -1,0 +1,89 @@
+{
+  "story": "The detail pane scrolls with ↑ ↓ when tab gives it the focus",
+  "story_id": "launchd-tui/US-004",
+  "tasks_file": "tasks/see-the-fields-and-the-events-of-a-status/focus-and-scroll/tasks.md",
+  "tasks": [
+    {
+      "n": 1,
+      "done": false,
+      "title": "Move the focus between the list and the detail pane with tab",
+      "language": "Go",
+      "testable": true,
+      "certainty": "medium",
+      "blast_radius": "low",
+      "patterns_to_follow": [
+        "internal/tui/box.go:21-44",
+        "internal/tui/screen.go:98-101",
+        "internal/tui/screen.go:385-394",
+        "internal/tui/screen.go:289-296"
+      ],
+      "depends_on": [],
+      "affected_files": [
+        "internal/tui/screen.go",
+        "internal/tui/box.go",
+        "internal/tui/screen_test.go",
+        "internal/tui/testdata/"
+      ]
+    },
+    {
+      "n": 2,
+      "done": false,
+      "title": "Scroll the detail pane with ↑ and ↓ when it has the focus",
+      "language": "Go",
+      "testable": true,
+      "certainty": "medium",
+      "blast_radius": "low",
+      "patterns_to_follow": [
+        "internal/tui/screen.go:212-224",
+        "internal/tui/screen.go:273-287",
+        "internal/tui/screen_test.go",
+        "e2e/tests/screen.test.ts:86-94",
+        "task:1"
+      ],
+      "depends_on": [1],
+      "affected_files": [
+        "internal/tui/screen.go",
+        "internal/tui/screen_test.go",
+        "internal/tui/testdata/",
+        "e2e/tests/screen.test.ts"
+      ]
+    },
+    {
+      "n": 3,
+      "done": false,
+      "title": "Show a newly selected service from the first line of its detail pane, and keep the scroll inside a text that changes",
+      "language": "Go",
+      "testable": true,
+      "certainty": "medium",
+      "blast_radius": "low",
+      "patterns_to_follow": [
+        "internal/tui/screen.go:127",
+        "internal/tui/screen.go:212-224",
+        "internal/tui/screen_test.go",
+        "task:2"
+      ],
+      "depends_on": [2],
+      "affected_files": [
+        "internal/tui/screen.go",
+        "internal/tui/screen_test.go"
+      ]
+    },
+    {
+      "n": 4,
+      "done": false,
+      "title": "Describe the focus and the scroll in docs/cli.md",
+      "language": "Markdown",
+      "testable": false,
+      "certainty": "high",
+      "blast_radius": "low",
+      "patterns_to_follow": [
+        "docs/cli.md:62-116"
+      ],
+      "depends_on": [3],
+      "affected_files": [
+        "docs/cli.md"
+      ]
+    }
+  ],
+  "design_file": "tasks/see-the-fields-and-the-events-of-a-status/focus-and-scroll/design.yaml"
+}

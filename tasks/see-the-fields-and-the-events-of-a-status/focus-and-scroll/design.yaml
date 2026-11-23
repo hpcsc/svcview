@@ -1,0 +1,45 @@
+design: planned
+types:
+  - name: Screen
+    package: internal/tui
+    change: changed
+    does: the Bubble Tea model of the screen of svcview
+    owns:
+      - the list has the focus at start, and tab moves the focus to the other pane
+      - the lines and the corners of the border of the pane with the focus are in the accent color, and those of the other pane are dim
+      - when the list has the focus, ↑ and ↓ select a service, and when the detail pane has the focus, they scroll it one line
+      - the scroll of the detail pane never goes above its first line, and never past the line that puts its last line at the bottom of the pane
+      - a service that becomes selected shows its detail pane from the first line
+      - when the text of the detail pane gets shorter, or the pane changes its height, the scroll moves back so that the last line is at the bottom of the pane or above it
+      - while the help shows, tab, ↑ and ↓ change nothing
+    fields: [focus, detailTop]
+    methods: [Init, Update, View]
+  - name: pane
+    package: internal/tui
+    change: new
+    does: one of the two panes side by side, the list or the detail pane, which the focus names
+    owns: []
+    fields: []
+    methods: []
+  - name: box
+    package: internal/tui
+    change: changed
+    does: one rounded box of the screen, with its title and its lines
+    owns:
+      - the lines and the corners of its border take the style of its border, and its title and its text keep their own look
+    fields: [title, right, width, height, text, border]
+    methods: [render]
+words:
+  - concept: the pane that ↑ and ↓ act on, which tab moves
+    word: focus
+    not: [active pane, current pane, selection, cursor]
+  - concept: the first line of its text that the detail pane shows
+    word: detailTop
+    not: [offset, viewport, page, cursor]
+  - concept: moving the text of the detail pane up or down one line
+    word: scroll
+    not: [page, pan, move]
+  - concept: the list or the detail pane
+    word: pane
+    not: [panel, view, window, section]
+dependencies: []
