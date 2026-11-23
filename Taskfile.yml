@@ -1,0 +1,16 @@
+version: '3'
+
+includes:
+  test: Taskfile.test.yml
+  cli:
+    taskfile: Taskfile.cli.yml
+    flatten: true
+
+tasks:
+  hook:setup:
+    cmds:
+      - git config core.hooksPath ./hooks
+
+  hook:validate-go-changes:
+    cmds:
+      - task: test:unit

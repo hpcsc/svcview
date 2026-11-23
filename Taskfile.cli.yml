@@ -1,0 +1,34 @@
+version: '3'
+
+vars:
+  E2E_TAG: v0.1.0
+
+tasks:
+  build:
+    cmds:
+      - mkdir -p ./bin
+      - go build -o ./bin/svcview ./cmd/svcview
+    env:
+      CGO_ENABLED: '0'
+
+  cli:
+    cmds:
+      - go run ./cmd/svcview {{.CLI_ARGS}}
+
+  release:local:
+    cmds:
+      - goreleaser release --snapshot --clean
+
+  test:e2e:
+    desc: Run the end-to-end tests in Docker against a fresh binary, as CI does
+    cmds:
+      - docker build -f e2e/Dockerfile --build-arg BUILD_TAG={{.E2E_TAG}} -t svcview-e2e .
+      - docker container run --rm svcview-e2e
+
+  test:e2e:local:
+    desc: Run the end-to-end tests on this machine without Docker (needs node)
+    dir: e2e
+    cmds:
+      - CGO_ENABLED=0 go build -ldflags "-X github.com/hpcsc/svcview/internal/cli/version.releaseTag={{.E2E_TAG}}" -o ../bin/svcview-e2e ../cmd/svcview
+      - npm install --no-audit --no-fund
+      - EXECUTABLE=../bin/svcview-e2e BUILD_TAG={{.E2E_TAG}} npx vitest run
