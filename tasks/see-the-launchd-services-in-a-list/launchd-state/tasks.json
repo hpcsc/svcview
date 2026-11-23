@@ -97,7 +97,7 @@
     },
     {
       "n": 5,
-      "done": false,
+      "done": true,
       "title": "Draw the glyph red when the last exit is other than 0",
       "language": "Go",
       "testable": true,

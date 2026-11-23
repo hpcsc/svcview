@@ -19,7 +19,17 @@ func (s State) String() string {
 	}
 }
 
+type LastExit struct {
+	Code   int
+	Signal string
+}
+
+func (e LastExit) Failed() bool {
+	return e.Code != 0 || e.Signal != ""
+}
+
 type Service struct {
-	Name  string
-	State State
+	Name     string
+	State    State
+	LastExit LastExit
 }

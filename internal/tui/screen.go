@@ -93,7 +93,7 @@ func (s Screen) headerText() []string {
 	}
 	var text []string
 	for _, state := range []service.State{service.Running, service.Loaded, service.NotLoaded} {
-		text = append(text, fmt.Sprintf("%s %d %s", s.glyph(state), counts[state], state))
+		text = append(text, fmt.Sprintf("%s %d %s", s.stateGlyph(state), counts[state], state))
 	}
 	return []string{" " + strings.Join(text, "   ")}
 }
@@ -111,20 +111,33 @@ func (s Screen) listText(width int) []string {
 	}
 	text := []string{"Other"}
 	for _, svc := range s.lastRead.services {
-		text = append(text, " "+s.glyph(svc.State)+" "+s.printable(svc.Name))
+		text = append(text, " "+s.rowGlyph(svc)+" "+s.printable(svc.Name))
 	}
 	return text
 }
 
-func (s Screen) glyph(state service.State) string {
-	shape, color := "○", ansi.BrightBlack
-	switch state {
-	case service.Running:
-		shape, color = "●", ansi.Green
-	case service.Loaded:
-		shape, color = "◐", ansi.Yellow
+func (s Screen) stateGlyph(state service.State) string {
+	shape, color := s.stateLook(state)
+	return ansi.NewStyle().ForegroundColor(color).Styled(shape)
+}
+
+func (s Screen) rowGlyph(svc service.Service) string {
+	shape, color := s.stateLook(svc.State)
+	if svc.LastExit.Failed() {
+		color = ansi.Red
 	}
 	return ansi.NewStyle().ForegroundColor(color).Styled(shape)
+}
+
+func (s Screen) stateLook(state service.State) (shape string, color ansi.BasicColor) {
+	switch state {
+	case service.Running:
+		return "●", ansi.Green
+	case service.Loaded:
+		return "◐", ansi.Yellow
+	default:
+		return "○", ansi.BrightBlack
+	}
 }
 
 func (s Screen) printable(text string) string {

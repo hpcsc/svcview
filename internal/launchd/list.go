@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os/exec"
+	"strconv"
 	"strings"
 	"time"
 
@@ -51,12 +52,16 @@ func parseList(output string) (list, error) {
 		if len(columns) != 3 {
 			return list{}, fmt.Errorf("launchctl list printed the row %q, which does not have the 3 columns PID, Status and Label", row)
 		}
-		pid, name := columns[0], columns[2]
+		pid, status, name := columns[0], columns[1], columns[2]
 		state := service.Running
 		if pid == "-" {
 			state = service.Loaded
 		}
-		l.services[name] = service.Service{Name: name, State: state}
+		code, err := strconv.ParseInt(status, 10, 32)
+		if err != nil {
+			return list{}, fmt.Errorf("launchctl list printed the row %q, whose Status is not an exit code or the negative number of a signal", row)
+		}
+		l.services[name] = service.Service{Name: name, State: state, LastExit: lastExit(int(code))}
 	}
 	return l, nil
 }
@@ -66,4 +71,23 @@ func (l list) service(name string) service.Service {
 		return svc
 	}
 	return service.Service{Name: name, State: service.NotLoaded}
+}
+
+var macOSSignals = [...]string{
+	1: "SIGHUP", 2: "SIGINT", 3: "SIGQUIT", 4: "SIGILL", 5: "SIGTRAP", 6: "SIGABRT", 7: "SIGEMT", 8: "SIGFPE",
+	9: "SIGKILL", 10: "SIGBUS", 11: "SIGSEGV", 12: "SIGSYS", 13: "SIGPIPE", 14: "SIGALRM", 15: "SIGTERM",
+	16: "SIGURG", 17: "SIGSTOP", 18: "SIGTSTP", 19: "SIGCONT", 20: "SIGCHLD", 21: "SIGTTIN", 22: "SIGTTOU",
+	23: "SIGIO", 24: "SIGXCPU", 25: "SIGXFSZ", 26: "SIGVTALRM", 27: "SIGPROF", 28: "SIGWINCH", 29: "SIGINFO",
+	30: "SIGUSR1", 31: "SIGUSR2",
+}
+
+func lastExit(status int) service.LastExit {
+	if status >= 0 {
+		return service.LastExit{Code: status}
+	}
+	signal := -status
+	if signal < len(macOSSignals) {
+		return service.LastExit{Signal: macOSSignals[signal]}
+	}
+	return service.LastExit{Signal: fmt.Sprintf("signal %d", signal)}
 }

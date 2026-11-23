@@ -322,6 +322,68 @@ func TestDomain(t *testing.T) {
 
 	})
 
+	t.Run("last exit", func(t *testing.T) {
+		t.Run("a Status of 0 is a last exit of 0, a positive Status is that exit code, and a negative Status is the signal of that number as macOS numbers signals", func(t *testing.T) {
+			home := homeWithServices(t,
+				"com.example.exit-0",
+				"com.example.exit-78",
+				"com.example.hangup",
+				"com.example.killed",
+				"com.example.bus-error",
+				"com.example.terminated",
+				"com.example.user-2",
+				"com.example.signal-32",
+				"com.example.smallest-status",
+			)
+			launchctlListing(t, "list-last-exits.txt")
+
+			services, err := launchd.NewDomain(home, 501).Services()
+
+			require.NoError(t, err)
+			require.ElementsMatch(t, []service.Service{
+				{Name: "com.example.exit-0", State: service.Loaded},
+				{Name: "com.example.exit-78", State: service.Loaded, LastExit: service.LastExit{Code: 78}},
+				{Name: "com.example.hangup", State: service.Loaded, LastExit: service.LastExit{Signal: "SIGHUP"}},
+				{Name: "com.example.killed", State: service.Running, LastExit: service.LastExit{Signal: "SIGKILL"}},
+				{Name: "com.example.bus-error", State: service.Loaded, LastExit: service.LastExit{Signal: "SIGBUS"}},
+				{Name: "com.example.terminated", State: service.Loaded, LastExit: service.LastExit{Signal: "SIGTERM"}},
+				{Name: "com.example.user-2", State: service.Loaded, LastExit: service.LastExit{Signal: "SIGUSR2"}},
+				{Name: "com.example.signal-32", State: service.Loaded, LastExit: service.LastExit{Signal: "signal 32"}},
+				{Name: "com.example.smallest-status", State: service.Loaded, LastExit: service.LastExit{Signal: "signal 2147483648"}},
+			}, services)
+		})
+
+		t.Run("a service that launchctl list does not show has a last exit of 0", func(t *testing.T) {
+			home := homeWithServices(t, "com.example.not-listed")
+			launchctlListing(t, "list-last-exits.txt")
+
+			services, err := launchd.NewDomain(home, 501).Services()
+
+			require.NoError(t, err)
+			require.Equal(t, []service.Service{{Name: "com.example.not-listed", State: service.NotLoaded}}, services)
+		})
+
+		t.Run("a Status that is smaller than the smallest 32-bit int gives an error that names the row, and no services", func(t *testing.T) {
+			home := homeWithServices(t, "com.example.loaded")
+			launchctlListing(t, "list-status-out-of-range.txt")
+
+			services, err := launchd.NewDomain(home, 501).Services()
+
+			require.ErrorContains(t, err, `"-\t-2147483649\tcom.example.loaded"`)
+			require.Empty(t, services)
+		})
+
+		t.Run("a Status that is not a number gives an error that names the row, and no services", func(t *testing.T) {
+			home := homeWithServices(t, "com.example.loaded")
+			launchctlListing(t, "list-status-not-a-number.txt")
+
+			services, err := launchd.NewDomain(home, 501).Services()
+
+			require.ErrorContains(t, err, `"-\texited\tcom.example.loaded"`)
+			require.Empty(t, services)
+		})
+	})
+
 	t.Run("launchctl list", func(t *testing.T) {
 		t.Run("with no launchctl on PATH, gives the error that launchctl is not found, and no services", func(t *testing.T) {
 			home := homeWithServices(t, "com.example.running")

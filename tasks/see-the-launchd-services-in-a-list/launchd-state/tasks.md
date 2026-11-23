@@ -223,14 +223,14 @@ service: an exit code, or, for a negative number, the name of the signal that en
 service whose last exit is other than 0 is red, whatever its state.
 
 **Acceptance Criteria:**
-- [ ] A Status of 0 is a last exit of 0, and a positive Status is that exit code.
-- [ ] A negative Status is the signal of that number, named as macOS numbers signals, also in a build for Linux.
+- [x] A Status of 0 is a last exit of 0, and a positive Status is that exit code.
+- [x] A negative Status is the signal of that number, named as macOS numbers signals, also in a build for Linux.
       For example, `-9` is `SIGKILL` and `-15` is `SIGTERM`.
-- [ ] A service that `launchctl list` does not show has a last exit of 0.
-- [ ] A last exit other than 0 is an exit code other than 0, or any signal.
-- [ ] The glyph of a service with a last exit other than 0 is red, also when the service is `running`. The glyph of
+- [x] A service that `launchctl list` does not show has a last exit of 0.
+- [x] A last exit other than 0 is an exit code other than 0, or any signal.
+- [x] The glyph of a service with a last exit other than 0 is red, also when the service is `running`. The glyph of
       a service with a last exit of 0 keeps the color of its state.
-- [ ] The golden files show a red glyph.
+- [x] The golden files show a red glyph.
 
 **Affected Files/Modules:**
 - `internal/service/service.go` — the type `LastExit`, and the last exit of a `Service`

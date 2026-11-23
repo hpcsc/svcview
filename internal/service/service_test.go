@@ -18,3 +18,19 @@ func TestState(t *testing.T) {
 		})
 	})
 }
+
+func TestLastExit(t *testing.T) {
+	t.Run("failed", func(t *testing.T) {
+		t.Run("an exit code other than 0 is failed", func(t *testing.T) {
+			require.True(t, service.LastExit{Code: 78}.Failed())
+		})
+
+		t.Run("any signal is failed", func(t *testing.T) {
+			require.True(t, service.LastExit{Signal: "SIGTERM"}.Failed())
+		})
+
+		t.Run("an exit code of 0 with no signal is not failed", func(t *testing.T) {
+			require.False(t, service.LastExit{}.Failed())
+		})
+	})
+}

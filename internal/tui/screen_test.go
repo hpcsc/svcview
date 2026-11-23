@@ -225,6 +225,18 @@ func TestScreen(t *testing.T) {
 			requireGolden(t, "each-state", screen)
 		})
 
+		t.Run("draws the glyph red when the last exit is other than 0, whatever the state, and keeps the color of the state in the header", func(t *testing.T) {
+			screen := open(t, "gui/501", servicesRead(
+				service.Service{Name: "com.example.a-killed", State: service.Running, LastExit: service.LastExit{Signal: "SIGKILL"}},
+				service.Service{Name: "com.example.b-exit-78", State: service.Loaded, LastExit: service.LastExit{Code: 78}},
+				service.Service{Name: "com.example.c-exit-1", State: service.NotLoaded, LastExit: service.LastExit{Code: 1}},
+				service.Service{Name: "com.example.d-running", State: service.Running},
+				service.Service{Name: "com.example.e-loaded", State: service.Loaded},
+			), 80, 12)
+
+			requireGolden(t, "last-exit", screen)
+		})
+
 		t.Run("cuts a name that is longer than the list pane and ends it with …, and leaves a name that fits with its glyph", func(t *testing.T) {
 			screen := open(t, "gui/501", servicesNamed("com.example.a-name-that-is-too-long", "com.example.exact", "com.example.fits"), 60, 12)
 

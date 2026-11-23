@@ -1,0 +1,10 @@
+PID	Status	Label
+-	0	com.example.exit-0
+-	78	com.example.exit-78
+-	-1	com.example.hangup
+4122	-9	com.example.killed
+-	-10	com.example.bus-error
+-	-15	com.example.terminated
+-	-31	com.example.user-2
+-	-32	com.example.signal-32
+-	-2147483648	com.example.smallest-status
