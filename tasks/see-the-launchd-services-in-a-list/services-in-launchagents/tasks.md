@@ -241,9 +241,9 @@ file changes.
 svcview and the job of each, as in "Code Layout" of the proposal.
 
 **Acceptance Criteria:**
-- [ ] The folder `internal/greeting` does not exist, `go build ./...` succeeds, and `task test:unit` passes.
-- [ ] `README.md` has no text about `internal/greeting`.
-- [ ] The layout table of `README.md` names `internal/service`, `internal/launchd`, `internal/tui` and
+- [x] The folder `internal/greeting` does not exist, `go build ./...` succeeds, and `task test:unit` passes.
+- [x] `README.md` has no text about `internal/greeting`.
+- [x] The layout table of `README.md` names `internal/service`, `internal/launchd`, `internal/tui` and
       `internal/cli`, with the job of each.
 
 **Affected Files/Modules:**

@@ -104,7 +104,7 @@
     },
     {
       "n": 5,
-      "done": false,
+      "done": true,
       "title": "Replace the example package with the svcview packages in the layout",
       "language": "Go",
       "testable": false,
