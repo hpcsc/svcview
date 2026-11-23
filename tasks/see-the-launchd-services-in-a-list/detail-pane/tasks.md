@@ -200,12 +200,12 @@ uptime, and the last exit. A signal that ended the last run shows as its name. A
 at the bottom of the screen shows `? help`.
 
 **Acceptance Criteria:**
-- [ ] `?` shows each key of the screen with its action: `↑` and `↓` select a service, `?` shows all keys, and `q`
+- [x] `?` shows each key of the screen with its action: `↑` and `↓` select a service, `?` shows all keys, and `q`
       quits.
-- [ ] `?` or `esc` hides the keys, and the screen shows the same service selected as before.
-- [ ] `q` quits also while the keys show.
-- [ ] The help line at the bottom of the screen shows `? help`.
-- [ ] An e2e test presses `?`, sees the keys, presses `q`, and sees `EXIT:0`.
+- [x] `?` or `esc` hides the keys, and the screen shows the same service selected as before.
+- [x] `q` quits also while the keys show.
+- [x] The help line at the bottom of the screen shows `? help`.
+- [x] An e2e test presses `?`, sees the keys, presses `q`, and sees `EXIT:0`.
 
 **Affected Files/Modules:**
 - `internal/tui/screen.go` — `?` and `esc`, the list of keys with the action of each, and the help line

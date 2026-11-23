@@ -69,8 +69,10 @@ func press(screen tea.Model, key tea.KeyPressMsg) tea.Cmd {
 }
 
 var (
-	up   = tea.KeyPressMsg{Code: tea.KeyUp}
-	down = tea.KeyPressMsg{Code: tea.KeyDown}
+	up       = tea.KeyPressMsg{Code: tea.KeyUp}
+	down     = tea.KeyPressMsg{Code: tea.KeyDown}
+	question = tea.KeyPressMsg{Code: '?', Text: "?"}
+	escape   = tea.KeyPressMsg{Code: tea.KeyEscape}
 )
 
 func pressKeys(screen tea.Model, keys ...tea.KeyPressMsg) tea.Model {
@@ -270,10 +272,10 @@ func TestScreen(t *testing.T) {
 			lines := strings.Split(open(t, "gui/501", servicesNamed("com.example.worker"), 30, 7).View().Content, "\n")
 
 			var widths []int
-			for _, line := range lines[3:] {
+			for _, line := range lines[3 : len(lines)-1] {
 				widths = append(widths, ansi.StringWidth(line))
 			}
-			require.Equal(t, []int{30, 30, 30, 30}, widths)
+			require.Equal(t, []int{30, 30, 30}, widths)
 		})
 
 		t.Run("shows each control character in a name as �, so the name cannot add a line or send a sequence to the terminal", func(t *testing.T) {
@@ -702,6 +704,64 @@ func TestScreen(t *testing.T) {
 
 		t.Run("ctrl+c ends the screen", func(t *testing.T) {
 			require.NoError(t, runWithInput(t, tui.NewScreen("gui/501", servicesNamed("com.example.worker")), "\x03"))
+		})
+
+		t.Run("? shows each key of the screen with its action, in place of the panes", func(t *testing.T) {
+			screen := open(t, "gui/501", servicesNamed("com.example.worker"), 80, 12)
+
+			screen = pressKeys(screen, question)
+
+			requireGolden(t, "keys", screen)
+		})
+
+		t.Run("? again hides the help, and the screen shows the same service selected as before", func(t *testing.T) {
+			screen := open(t, "gui/501", servicesNamed("com.example.a", "com.example.b", "com.example.c"), 80, 12)
+			screen = pressKeys(screen, down)
+			before := screen.View().Content
+
+			screen = pressKeys(screen, question, question)
+
+			require.Equal(t, before, screen.View().Content)
+		})
+
+		t.Run("esc hides the help, and the screen shows the same service selected as before", func(t *testing.T) {
+			screen := open(t, "gui/501", servicesNamed("com.example.a", "com.example.b", "com.example.c"), 80, 12)
+			screen = pressKeys(screen, down)
+			before := screen.View().Content
+
+			screen = pressKeys(screen, question, escape)
+
+			require.Equal(t, before, screen.View().Content)
+		})
+
+		t.Run("esc while the panes show changes nothing", func(t *testing.T) {
+			screen := open(t, "gui/501", servicesNamed("com.example.a", "com.example.b"), 80, 12)
+			before := screen.View().Content
+
+			screen = pressKeys(screen, escape)
+
+			require.Equal(t, before, screen.View().Content)
+		})
+
+		t.Run("↑ and ↓ do not change the selected service while the help shows", func(t *testing.T) {
+			screen := open(t, "gui/501", servicesNamed("com.example.a", "com.example.b", "com.example.c"), 80, 12)
+
+			screen = pressKeys(screen, down, question, down, up, up, escape)
+
+			require.Equal(t, "com.example.b", selectedName(screen))
+		})
+
+		t.Run("q ends the screen while the help shows", func(t *testing.T) {
+			require.NoError(t, runWithInput(t, tui.NewScreen("gui/501", servicesNamed("com.example.worker")), "?q"))
+		})
+
+		t.Run("the help line at the bottom of the screen shows ? help, under the panes and under the help", func(t *testing.T) {
+			screen := open(t, "gui/501", servicesNamed("com.example.worker"), 80, 12)
+			panes := strings.Split(ansi.Strip(screen.View().Content), "\n")
+			help := strings.Split(ansi.Strip(pressKeys(screen, question).View().Content), "\n")
+
+			require.Equal(t, []string{"╰" + strings.Repeat("─", 30) + "╯╰" + strings.Repeat("─", 46) + "╯", " ? help"}, panes[10:])
+			require.Equal(t, []string{"╰" + strings.Repeat("─", 78) + "╯", " ? help"}, help[10:])
 		})
 
 		t.Run("another key does not end the screen", func(t *testing.T) {

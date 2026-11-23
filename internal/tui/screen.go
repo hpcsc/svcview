@@ -14,10 +14,11 @@ import (
 )
 
 const (
-	headerHeight = 3
-	refreshEvery = 2 * time.Second
-	accent       = ansi.Blue
-	detailColumn = 14
+	headerHeight    = 3
+	helpLine        = " ? help"
+	refreshEvery    = 2 * time.Second
+	accent          = ansi.Blue
+	detailLeftWidth = 14
 )
 
 type refresh struct{}
@@ -33,6 +34,7 @@ type Screen struct {
 	lastRead servicesRead
 	hasRead  bool
 	selected string
+	showHelp bool
 	width    int
 	height   int
 }
@@ -53,10 +55,18 @@ func (s Screen) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		switch msg.String() {
 		case "q", "ctrl+c":
 			return s, tea.Quit
+		case "?":
+			s.showHelp = !s.showHelp
+		case "esc":
+			s.showHelp = false
 		case "up":
-			s.selected = s.selectedAfterMove(-1)
+			if !s.showHelp {
+				s.selected = s.selectedAfterMove(-1)
+			}
 		case "down":
-			s.selected = s.selectedAfterMove(1)
+			if !s.showHelp {
+				s.selected = s.selectedAfterMove(1)
+			}
 		}
 	case servicesRead:
 		slices.SortFunc(msg.services, func(a, b service.Service) int {
@@ -118,19 +128,43 @@ func (s Screen) content() string {
 		return ""
 	}
 	header := box{title: "svcview", right: s.domain, width: s.width, height: headerHeight, text: s.headerText()}
-	list := box{title: "Services", width: s.width * 40 / 100, height: s.height - headerHeight}
+	lines := header.render()
+	if s.showHelp {
+		help := box{title: "Help", width: s.width, height: s.paneHeight(), text: s.helpText()}
+		lines = append(lines, help.render()...)
+	} else {
+		lines = append(lines, s.panes()...)
+	}
+	return strings.Join(append(lines, ansi.Truncate(helpLine, s.width, "")), "\n")
+}
+
+func (s Screen) paneHeight() int {
+	return s.height - headerHeight - 1
+}
+
+func (s Screen) panes() []string {
+	list := box{title: "Services", width: s.width * 40 / 100, height: s.paneHeight()}
 	list.text = s.listText(list.textWidth())
 	detail := box{width: s.width - list.width, height: list.height}
 	if at := s.selectedAt(); at >= 0 {
 		svc := s.rows()[at]
 		detail.title, detail.text = s.printable(svc.Name), s.detailText(svc)
 	}
-	lines := header.render()
+	var lines []string
 	detailLines := detail.render()
 	for i, line := range list.render() {
 		lines = append(lines, line+detailLines[i])
 	}
-	return strings.Join(lines, "\n")
+	return lines
+}
+
+func (s Screen) helpText() []string {
+	return []string{
+		"↑ ↓       select a service",
+		"?         show or hide this help",
+		"esc       hide this help",
+		"q ctrl+c  quit",
+	}
 }
 
 func (s Screen) headerText() []string {
@@ -188,13 +222,13 @@ func (s Screen) detailText(svc service.Service) []string {
 		uptime = s.uptimeText(*svc.Uptime)
 	}
 	return []string{
-		s.detailColumns(s.stateGlyph(svc.State)+" "+svc.State.String(), "PID "+pid),
-		s.detailColumns("up "+uptime, "last exit "+s.lastExitText(svc.LastExit)),
+		s.detailLine(s.stateGlyph(svc.State)+" "+svc.State.String(), "PID "+pid),
+		s.detailLine("up "+uptime, "last exit "+s.lastExitText(svc.LastExit)),
 	}
 }
 
-func (s Screen) detailColumns(left, right string) string {
-	return left + strings.Repeat(" ", max(detailColumn-ansi.StringWidth(left), 1)) + right
+func (s Screen) detailLine(left, right string) string {
+	return left + strings.Repeat(" ", detailLeftWidth-ansi.StringWidth(left)) + right
 }
 
 func (s Screen) uptimeText(uptime time.Duration) string {

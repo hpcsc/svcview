@@ -115,6 +115,21 @@ describe('the screen', () => {
     expect(after).toContain('last exit SIGKILL')
   })
 
+  it('? shows all keys, and q ends svcview while the help shows', async () => {
+    const session = await openCli(scratchDir(), [], { HOME: homeWithPlists(['com.example.worker']) })
+    await session.waitForText('com.example.worker')
+    expect(await session.text()).toContain('? help')
+
+    await session.type('?')
+
+    await session.waitForText('select a service')
+    expect(await session.text()).toContain('quit')
+
+    await session.press('q')
+
+    await session.waitForText('EXIT:0')
+  })
+
   it('counts the services in each state in the header', async () => {
     const home = homeWithPlists([
       'com.example.a-running',
