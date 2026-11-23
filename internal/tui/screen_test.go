@@ -10,7 +10,9 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync/atomic"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	tea "charm.land/bubbletea/v2"
@@ -70,6 +72,35 @@ func runWithInput(t *testing.T, screen tui.Screen, input string) error {
 		tea.WithWindowSize(60, 12))
 	_, err := program.Run()
 	return err
+}
+
+func changingAt(at time.Duration, before, after func() ([]service.Service, error)) func() ([]service.Service, error) {
+	start := time.Now()
+	return func() ([]service.Service, error) {
+		if time.Since(start) < at {
+			return before()
+		}
+		return after()
+	}
+}
+
+// runFor must run in a synctest bubble: it waits a minute on the clock of the bubble.
+func runFor(t *testing.T, screen tui.Screen, duration time.Duration) tea.Model {
+	t.Helper()
+	program := tea.NewProgram(screen,
+		tea.WithInput(nil),
+		tea.WithOutput(io.Discard),
+		tea.WithoutSignalHandler(),
+		tea.WithWindowSize(60, 12))
+	go func() {
+		time.Sleep(duration)
+		program.Quit()
+	}()
+	final, err := program.Run()
+	require.NoError(t, err)
+	time.Sleep(time.Minute)
+	synctest.Wait()
+	return final
 }
 
 func TestScreen(t *testing.T) {
@@ -161,6 +192,75 @@ func TestScreen(t *testing.T) {
 			screen := open(t, "gui/501", failing, 60, 12)
 
 			requireGolden(t, "read-error", screen)
+		})
+	})
+
+	t.Run("refresh", func(t *testing.T) {
+		t.Run("shows a service that is added, no later than 2 s after the change, with no key press", func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				read := changingAt(100*time.Millisecond, servicesNamed("com.example.worker"), servicesNamed("com.example.worker", "com.example.added"))
+
+				screen := runFor(t, tui.NewScreen("gui/501", read), 2100*time.Millisecond)
+
+				require.Contains(t, screen.View().Content, "com.example.added")
+			})
+		})
+
+		t.Run("does not read again before 2 s have passed", func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				read := changingAt(100*time.Millisecond, servicesNamed("com.example.worker"), servicesNamed("com.example.worker", "com.example.added"))
+
+				screen := runFor(t, tui.NewScreen("gui/501", read), 1900*time.Millisecond)
+
+				require.Contains(t, screen.View().Content, "com.example.worker")
+				require.NotContains(t, screen.View().Content, "com.example.added")
+			})
+		})
+
+		t.Run("removes the row of a service that is removed", func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				read := changingAt(100*time.Millisecond, servicesNamed("com.example.worker", "com.example.removed"), servicesNamed("com.example.worker"))
+
+				screen := runFor(t, tui.NewScreen("gui/501", read), 2100*time.Millisecond)
+
+				require.Contains(t, screen.View().Content, "com.example.worker")
+				require.NotContains(t, screen.View().Content, "com.example.removed")
+			})
+		})
+
+		t.Run("after a read that gives an error, the next read that succeeds shows the rows again", func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				failing := func() ([]service.Service, error) {
+					return nil, errors.New("open /Users/someone/Library/LaunchAgents: permission denied")
+				}
+				read := changingAt(100*time.Millisecond, failing, servicesNamed("com.example.worker"))
+
+				screen := runFor(t, tui.NewScreen("gui/501", read), 2100*time.Millisecond)
+
+				require.Contains(t, screen.View().Content, "com.example.worker")
+				require.NotContains(t, screen.View().Content, "permission denied")
+			})
+		})
+
+		t.Run("does not start a read while the previous read runs", func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				var running, mostAtOnce, reads atomic.Int32
+				slow := func() ([]service.Service, error) {
+					reads.Add(1)
+					now := running.Add(1)
+					if now > mostAtOnce.Load() {
+						mostAtOnce.Store(now)
+					}
+					time.Sleep(3 * time.Second)
+					running.Add(-1)
+					return []service.Service{{Name: "com.example.worker"}}, nil
+				}
+
+				runFor(t, tui.NewScreen("gui/501", slow), 20*time.Second)
+
+				require.Equal(t, int32(1), mostAtOnce.Load())
+				require.GreaterOrEqual(t, reads.Load(), int32(3))
+			})
 		})
 	})
 

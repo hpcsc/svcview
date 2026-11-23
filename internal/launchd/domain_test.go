@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/hpcsc/svcview/internal/launchd"
 	"github.com/hpcsc/svcview/internal/service"
@@ -23,6 +24,14 @@ func homeWith(t *testing.T, fixtureByFileName map[string]string) string {
 		require.NoError(t, os.WriteFile(filepath.Join(folder, name), data, 0o644))
 	}
 	return home
+}
+
+func writeFixture(t *testing.T, path, fixture string, modTime time.Time) {
+	t.Helper()
+	data, err := os.ReadFile(filepath.Join("testdata", fixture))
+	require.NoError(t, err)
+	require.NoError(t, os.WriteFile(path, data, 0o644))
+	require.NoError(t, os.Chtimes(path, modTime, modTime))
 }
 
 func TestDomain(t *testing.T) {
@@ -85,6 +94,16 @@ func TestDomain(t *testing.T) {
 			require.Equal(t, []service.Service{{Name: "com.example.xml"}}, services)
 		})
 
+		t.Run("a symbolic link to a file that does not exist gives no service, and the other files still give theirs", func(t *testing.T) {
+			home := homeWith(t, map[string]string{"com.example.binary.plist": "binary.plist"})
+			require.NoError(t, os.Symlink(filepath.Join(home, "missing.plist"), filepath.Join(home, "Library", "LaunchAgents", "a-link.plist")))
+
+			services, err := launchd.NewDomain(home, 501).Services()
+
+			require.NoError(t, err)
+			require.Equal(t, []service.Service{{Name: "com.example.binary"}}, services)
+		})
+
 		t.Run("two plists with the same Label give one service", func(t *testing.T) {
 			home := homeWith(t, map[string]string{
 				"com.example.xml.plist":    "xml.plist",
@@ -114,6 +133,101 @@ func TestDomain(t *testing.T) {
 			_, err := launchd.NewDomain(home, 501).Services()
 
 			require.ErrorContains(t, err, folder)
+		})
+	})
+
+	t.Run("list again", func(t *testing.T) {
+		modTime := time.Date(2026, 11, 23, 9, 0, 0, 0, time.UTC)
+
+		t.Run("a plist that is added after a read gives its service at the next read", func(t *testing.T) {
+			home := homeWith(t, map[string]string{"com.example.xml.plist": "xml.plist"})
+			domain := launchd.NewDomain(home, 501)
+			_, err := domain.Services()
+			require.NoError(t, err)
+			writeFixture(t, filepath.Join(home, "Library", "LaunchAgents", "com.example.binary.plist"), "binary.plist", modTime)
+
+			services, err := domain.Services()
+
+			require.NoError(t, err)
+			require.ElementsMatch(t, []service.Service{{Name: "com.example.xml"}, {Name: "com.example.binary"}}, services)
+		})
+
+		t.Run("a plist that is removed after a read gives no service at the next read", func(t *testing.T) {
+			home := homeWith(t, map[string]string{"com.example.xml.plist": "xml.plist", "com.example.binary.plist": "binary.plist"})
+			domain := launchd.NewDomain(home, 501)
+			_, err := domain.Services()
+			require.NoError(t, err)
+			require.NoError(t, os.Remove(filepath.Join(home, "Library", "LaunchAgents", "com.example.xml.plist")))
+
+			services, err := domain.Services()
+
+			require.NoError(t, err)
+			require.Equal(t, []service.Service{{Name: "com.example.binary"}}, services)
+		})
+
+		t.Run("a plist whose Label changes with its modification time gives the new name at the next read", func(t *testing.T) {
+			home := homeWith(t, nil)
+			path := filepath.Join(home, "Library", "LaunchAgents", "com.example.plist")
+			writeFixture(t, path, "xml.plist", modTime)
+			domain := launchd.NewDomain(home, 501)
+			_, err := domain.Services()
+			require.NoError(t, err)
+			writeFixture(t, path, "binary.plist", modTime.Add(time.Second))
+
+			services, err := domain.Services()
+
+			require.NoError(t, err)
+			require.Equal(t, []service.Service{{Name: "com.example.binary"}}, services)
+		})
+
+		t.Run("a plist whose modification time did not change is not read again, so a new Label with the same modification time keeps the old name", func(t *testing.T) {
+			home := homeWith(t, nil)
+			path := filepath.Join(home, "Library", "LaunchAgents", "com.example.plist")
+			writeFixture(t, path, "xml.plist", modTime)
+			domain := launchd.NewDomain(home, 501)
+			_, err := domain.Services()
+			require.NoError(t, err)
+			writeFixture(t, path, "binary.plist", modTime)
+
+			services, err := domain.Services()
+
+			require.NoError(t, err)
+			require.Equal(t, []service.Service{{Name: "com.example.xml"}}, services)
+		})
+
+		t.Run("a file that is not a plist is not read again while its modification time does not change", func(t *testing.T) {
+			home := homeWith(t, nil)
+			path := filepath.Join(home, "Library", "LaunchAgents", "com.example.plist")
+			writeFixture(t, path, "not-a-plist.txt", modTime)
+			domain := launchd.NewDomain(home, 501)
+			_, err := domain.Services()
+			require.NoError(t, err)
+			writeFixture(t, path, "xml.plist", modTime)
+
+			services, err := domain.Services()
+
+			require.NoError(t, err)
+			require.Empty(t, services)
+		})
+
+		t.Run("a plist that could not be read gives its service once it can be read, with the same modification time", func(t *testing.T) {
+			if os.Geteuid() == 0 {
+				t.Skip("root reads a file with no read permission")
+			}
+			home := homeWith(t, nil)
+			path := filepath.Join(home, "Library", "LaunchAgents", "com.example.plist")
+			writeFixture(t, path, "xml.plist", modTime)
+			require.NoError(t, os.Chmod(path, 0o000))
+			domain := launchd.NewDomain(home, 501)
+			unreadable, err := domain.Services()
+			require.NoError(t, err)
+			require.NoError(t, os.Chmod(path, 0o644))
+
+			services, err := domain.Services()
+
+			require.NoError(t, err)
+			require.Empty(t, unreadable)
+			require.Equal(t, []service.Service{{Name: "com.example.xml"}}, services)
 		})
 	})
 

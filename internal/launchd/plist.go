@@ -2,16 +2,18 @@ package launchd
 
 import (
 	"os"
+	"time"
 
 	"github.com/hpcsc/svcview/internal/service"
 	plistformat "howett.net/plist"
 )
 
 type plist struct {
-	name string
+	modTime time.Time
+	name    string
 }
 
-func readPlist(path string) plist {
+func readPlist(path string, modTime time.Time) plist {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return plist{}
@@ -20,9 +22,16 @@ func readPlist(path string) plist {
 		Label string `plist:"Label"`
 	}
 	if _, err := plistformat.Unmarshal(data, &properties); err != nil {
-		return plist{}
+		return plist{modTime: modTime}
 	}
-	return plist{name: properties.Label}
+	return plist{modTime: modTime, name: properties.Label}
+}
+
+func (p plist) readIfChanged(path string, modTime time.Time) plist {
+	if p.modTime.Equal(modTime) {
+		return p
+	}
+	return readPlist(path, modTime)
 }
 
 func (p plist) service() (service.Service, bool) {

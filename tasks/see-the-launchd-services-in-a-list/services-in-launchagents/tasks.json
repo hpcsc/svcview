@@ -80,7 +80,7 @@
     },
     {
       "n": 4,
-      "done": false,
+      "done": true,
       "title": "Refresh the list every 2 seconds",
       "language": "Go",
       "testable": true,

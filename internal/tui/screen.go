@@ -3,13 +3,19 @@ package tui
 import (
 	"slices"
 	"strings"
+	"time"
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
 	"github.com/hpcsc/svcview/internal/service"
 )
 
-const headerHeight = 2
+const (
+	headerHeight = 2
+	refreshEvery = 2 * time.Second
+)
+
+type refresh struct{}
 
 type servicesRead struct {
 	services []service.Service
@@ -46,6 +52,9 @@ func (s Screen) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return strings.Compare(a.Name, b.Name)
 		})
 		s.lastRead = msg
+		return s, tea.Tick(refreshEvery, func(time.Time) tea.Msg { return refresh{} })
+	case refresh:
+		return s, s.readServices
 	}
 	return s, nil
 }

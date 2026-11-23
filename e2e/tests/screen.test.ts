@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { homeWithPlists, openCli, scratchDir } from '../testUtils'
+import { addPlist, homeWithPlists, openCli, scratchDir } from '../testUtils'
 
 describe('the screen', () => {
   it('in a terminal, with no command, shows the domain and the services in LaunchAgents, sorted by name', async () => {
@@ -53,5 +53,15 @@ describe('the screen', () => {
     await session.waitForText('EXIT:1')
 
     expect(await session.text()).toContain('$HOME is not defined')
+  })
+
+  it('shows a plist that is added while the screen is open, with no key press', async () => {
+    const home = homeWithPlists(['com.example.worker'])
+    const session = await openCli(scratchDir(), [], { HOME: home })
+    await session.waitForText('com.example.worker')
+
+    addPlist(home, 'com.example.added')
+
+    await session.waitForText('com.example.added', { timeout: 5000 })
   })
 })

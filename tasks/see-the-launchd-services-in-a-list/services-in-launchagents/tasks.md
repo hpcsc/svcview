@@ -203,14 +203,14 @@ or changes shows at the next refresh. `launchd.Domain` reads a plist again only 
 file changes.
 
 **Acceptance Criteria:**
-- [ ] A plist that is added to `Library/LaunchAgents` gives a row no later than 2 s after the change, with no key
+- [x] A plist that is added to `Library/LaunchAgents` gives a row no later than 2 s after the change, with no key
       press. The row of a plist that is removed goes away in the same time.
-- [ ] A plist whose `Label` changes shows the new name at the next refresh.
-- [ ] A plist whose modification time did not change is not read again: a change to its content that keeps the
+- [x] A plist whose `Label` changes shows the new name at the next refresh.
+- [x] A plist whose modification time did not change is not read again: a change to its content that keeps the
       modification time does not change its service.
-- [ ] A refresh does not start a read while the previous read runs.
-- [ ] After a read that gives an error, the next read that succeeds shows the rows again.
-- [ ] An e2e test adds a plist to the scratch home folder while the screen is open, and sees its row with no key
+- [x] A refresh does not start a read while the previous read runs.
+- [x] After a read that gives an error, the next read that succeeds shows the rows again.
+- [x] An e2e test adds a plist to the scratch home folder while the screen is open, and sees its row with no key
       press.
 
 **Affected Files/Modules:**
