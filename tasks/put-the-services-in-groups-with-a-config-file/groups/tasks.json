@@ -48,7 +48,7 @@
     },
     {
       "n": 3,
-      "done": false,
+      "done": true,
       "title": "Show the short name of each service in a group",
       "language": "Go",
       "testable": true,

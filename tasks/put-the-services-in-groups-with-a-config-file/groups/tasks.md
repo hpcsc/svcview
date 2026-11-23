@@ -185,16 +185,16 @@ adds lines.
 row shows the full name. The title of the detail pane always shows the full name.
 
 **Acceptance Criteria:**
-- [ ] `^com\.example\.worker\.` gives the short name `01` for `com.example.worker.01`.
-- [ ] When the match does not start at the first character, for example `worker` for `com.example.worker.01`, the
+- [x] `^com\.example\.worker\.` gives the short name `01` for `com.example.worker.01`.
+- [x] When the match does not start at the first character, for example `worker` for `com.example.worker.01`, the
       row shows the full name.
-- [ ] When the match is the whole name, the row shows the full name, so no row is empty.
-- [ ] A row in the group `Other` shows the full name.
-- [ ] The title of the detail pane shows the full name of the selected service, also when its row shows the short
+- [x] When the match is the whole name, the row shows the full name, so no row is empty.
+- [x] A row in the group `Other` shows the full name.
+- [x] The title of the detail pane shows the full name of the selected service, also when its row shows the short
       name.
-- [ ] A short name that is too long for the list ends with `…`, and each control character in it shows as `�`, as
+- [x] A short name that is too long for the list ends with `…`, and each control character in it shows as `�`, as
       in a full name.
-- [ ] An e2e test sees `01` in a row of a group, and `com.example.worker.01` in the title of the detail pane when
+- [x] An e2e test sees `01` in a row of a group, and `com.example.worker.01` in the title of the detail pane when
       that row is selected.
 
 **Affected Files/Modules:**

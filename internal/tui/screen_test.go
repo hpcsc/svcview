@@ -340,6 +340,31 @@ func TestScreen(t *testing.T) {
 			require.NotContains(t, screen.View().Content, "\x1b[2J")
 		})
 
+		t.Run("a row in a group shows the short name of its service, and a row in Other shows the full name", func(t *testing.T) {
+			settings := groups(t, "Workers", `^com\.example\.worker\.`)
+
+			screen := openWith(t, settings, servicesNamed("com.example.worker.02", "com.apple.a", "com.example.worker.01"), 80, 12)
+
+			requireGolden(t, "short-names", screen)
+			require.Equal(t, []string{
+				"Workers",
+				"▌○ 01",
+				"○ 02",
+				"",
+				"Other",
+				"○ com.apple.a",
+			}, listRows(screen))
+		})
+
+		t.Run("cuts a short name that is longer than the list pane and ends it with …, and shows each control character in a short name as �", func(t *testing.T) {
+			settings := groups(t, "Examples", `^com\.example\.`)
+
+			screen := openWith(t, settings, servicesNamed("com.example.a-very-long-name-for-the-list", "com.example.b\x1b[2Jworker"), 60, 12)
+
+			require.Equal(t, []string{"Examples", "▌○ a-very-long-name…", "○ b�[2Jworker"}, listRows(screen)[:3])
+			require.NotContains(t, screen.View().Content, "\x1b[2J")
+		})
+
 		t.Run("takes 40 percent of the width, rounded down, and the detail pane beside it takes the rest", func(t *testing.T) {
 			widths := map[int][2]int{}
 			for _, width := range []int{100, 99} {
@@ -576,6 +601,17 @@ func TestScreen(t *testing.T) {
 
 			require.Contains(t, lines[3], "╭ com.example.a-name-that-is-too-long-for-the-list ─")
 			require.Contains(t, lines[5], "▌○ com.example.a-name-that-is-too-l… │")
+		})
+
+		t.Run("the title is the full name of the selected service, also when its row shows the short name", func(t *testing.T) {
+			settings := groups(t, "Workers", `^com\.example\.worker\.`)
+
+			screen := openWith(t, settings, servicesNamed("com.example.worker.01", "com.example.worker.02"), 80, 12)
+			screen = pressKeys(screen, down)
+
+			lines := strings.Split(ansi.Strip(screen.View().Content), "\n")
+			require.Contains(t, lines[3], "╭ com.example.worker.02 ─")
+			require.Equal(t, "▌○ 02", listRows(screen)[2])
 		})
 
 		t.Run("cuts a title that is longer than the pane and ends it with …", func(t *testing.T) {

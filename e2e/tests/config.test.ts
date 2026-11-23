@@ -96,6 +96,18 @@ describe('the config file', () => {
     ])
   })
 
+  it('a row in a group shows the short name of its service, and the title of the detail pane shows its full name', async () => {
+    const home = homeWithPlists(['com.example.worker.02', 'com.apple.a', 'com.example.worker.01'])
+    writeConfig(join(home, '.config', 'svcview'), 'groups:\n  - name: Workers\n    match: ^com\\.example\\.worker\\.\n')
+
+    const session = await openCli(scratchDir(), [], { HOME: home })
+
+    await session.waitForText('com.apple.a')
+    const screen = await session.text()
+    expect(listLines(screen).slice(0, 6)).toEqual(['Workers', '▌○ 01', '○ 02', '', 'Other', '○ com.apple.a'])
+    expect(screen).toContain('╭ com.example.worker.01 ─')
+  })
+
   it('with refresh: 1m, a plist that is added while the screen is open does not show within 4 s', async () => {
     const home = homeWithPlists(['com.example.worker'])
     writeConfig(join(home, '.config', 'svcview'), 'refresh: 1m\n')

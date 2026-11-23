@@ -39,6 +39,10 @@ func (r row) compare(other row) int {
 	return cmp.Or(cmp.Compare(r.groupIndex, other.groupIndex), strings.Compare(r.service.Name, other.service.Name))
 }
 
+func (r row) shortName() string {
+	return r.group.ShortName(r.service.Name)
+}
+
 type Screen struct {
 	domain     string
 	read       func() ([]service.Service, error)
@@ -256,19 +260,19 @@ func (s Screen) listText(width int) []string {
 	for at, r := range s.rows() {
 		text = append(text, s.linesAbove(at)...)
 		if r.service.Name == s.selected {
-			text = append(text, s.selectedRow(r.service, width))
+			text = append(text, s.selectedRow(r, width))
 			continue
 		}
-		text = append(text, " "+s.rowGlyph(r.service)+" "+s.printable(r.service.Name))
+		text = append(text, " "+s.rowGlyph(r.service)+" "+s.printable(r.shortName()))
 	}
 	return text
 }
 
-func (s Screen) selectedRow(svc service.Service, width int) string {
-	name := " " + s.printable(svc.Name)
+func (s Screen) selectedRow(r row, width int) string {
+	name := " " + s.printable(r.shortName())
 	name += strings.Repeat(" ", max(width-2-ansi.StringWidth(name), 0))
 	return ansi.NewStyle().ForegroundColor(accent).Styled("▌") +
-		s.rowGlyph(svc) +
+		s.rowGlyph(r.service) +
 		ansi.NewStyle().BackgroundColor(ansi.BrightBlack).Styled(name)
 }
 

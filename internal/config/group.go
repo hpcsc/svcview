@@ -69,6 +69,17 @@ func (g Group) matches(serviceName string) bool {
 	return g.match != nil && g.match.MatchString(serviceName)
 }
 
+func (g Group) ShortName(serviceName string) string {
+	if g.match == nil {
+		return serviceName
+	}
+	at := g.match.FindStringIndex(serviceName)
+	if at == nil || at[0] != 0 || at[1] == len(serviceName) {
+		return serviceName
+	}
+	return serviceName[at[1]:]
+}
+
 func text(node *yaml.Node) string {
 	if node == nil || node.Kind != yaml.ScalarNode || node.Tag == "!!null" {
 		return ""
