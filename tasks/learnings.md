@@ -62,13 +62,6 @@
 - Learning: Screen.lastRead is the zero servicesRead until the first read ends, and Screen.hasRead says whether one ended. A pane or a line that shows what a read gave must check hasRead, or it shows zeros or empty values as if a read happened (the header counts did until an audit found it).
 - Apply when: A task in internal/tui adds a pane or a line that shows data from the read, for example the detail pane.
 
-## The selection of the list assumes one list sorted by name
-- Type: constraint
-- Recorded: 2026-11-23
-- Observed: task 2 — see-the-launchd-services-in-a-list-detail-pane
-- Learning: Screen keeps the selected name, not a row number: selectedAfterRead finds the place of a gone name with slices.BinarySearchFunc over rows sorted by name, and listTopInView keeps the selected row in view with line = at + 1 for the one group line Other. A list with groups in the order of the config breaks both, so the task that adds groups must change them and their tests in internal/tui/screen_test.go (select group).
-- Apply when: A task in internal/tui adds groups to the list, changes the order of the rows, adds a line to the list pane, or adds another list that up and down move.
-
 ## A value that can be 0 and can be missing is a pointer
 - Type: convention
 - Recorded: 2026-11-23
@@ -131,3 +124,31 @@
 - Observed: put-the-services-in-groups-with-a-config-file-config-file
 - Learning: Bare clerk land reads only the integrate setting of the repo (integrate_source default), not the --integrate of the request, so it archives the breakdown and does not integrate. The run is then at the learn step, and clerk land refuses again; the branch then needs git merge --ff-only in the main checkout.
 - Apply when: A run whose request says --integrate, or land it on main, reaches the land step.
+
+## The list draws and counts its lines through linesAbove and row.compare
+- Type: convention
+- Recorded: 2026-11-23
+- Observed: task 2,3 — put-the-services-in-groups-with-a-config-file-groups
+- Learning: Screen sorts the rows of a read with row.compare: the index of the group in groupOrder, then the name. selectedAfterRead finds the place of a gone name with the same compare, and lineOf counts the lines that linesAbove gives above each row, as listText draws them, so the scroll and the list cannot disagree.
+- Apply when: A task in internal/tui adds a line to the list, a filter of the list, a fold of a group, or changes the order of the rows or what a row shows.
+
+## Search the learnings for the run procedure too
+- Type: pattern
+- Recorded: 2026-11-23
+- Observed: put-the-services-in-groups-with-a-config-file-groups
+- Learning: The entries about the procedure of a run (clerk mutants under mise exec, clerk land --integrate, clerk fixup) name no package of a story, so clerk learn index --match with only the nouns of the story misses them, and the groups run repeated both problems. Add the terms clerk mise mutants land integrate fixup to the --match of the ground step.
+- Apply when: The ground step of any run reads clerk learn index --match.
+
+## Record the design note of an export for tests in the task that adds it
+- Type: constraint
+- Recorded: 2026-11-23
+- Observed: task 1,4 — put-the-services-in-groups-with-a-config-file-groups
+- Learning: clerk finish counts only callers outside test files when it checks an exported name, and it checks only at the last task, so config.NewGroup, which only the tui tests call, refused the docs task at the end. Record clerk design note for such an export in the task that adds it, or plan the constructor in design.yaml.
+- Apply when: A task exports a constructor or a function that only the tests of another package call, for example to build config.Settings with groups in the tui tests.
+
+## Run gofmt before clerk finish
+- Type: constraint
+- Recorded: 2026-11-23
+- Observed: task 1,2 — put-the-services-in-groups-with-a-config-file-groups
+- Learning: clerk finish lints the staged files but does not run gofmt, and CI has no format check, so a field rename by a script committed a struct with unaligned fields in two tasks. Run gofmt -l internal before clerk finish and before clerk fixup mark.
+- Apply when: A task edits Go files with a script, or renames or adds a field of a struct whose fields are aligned.
