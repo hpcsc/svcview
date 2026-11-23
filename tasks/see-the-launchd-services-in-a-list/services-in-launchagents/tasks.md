@@ -83,14 +83,14 @@ home folder, named by the `Label` property of the plist. The domain reads as `gu
 made with.
 
 **Acceptance Criteria:**
-- [ ] Each file with the extension `.plist` in `Library/LaunchAgents` that has a `Label` property gives one service
+- [x] Each file with the extension `.plist` in `Library/LaunchAgents` that has a `Label` property gives one service
       with that name. An XML plist and a binary plist both give their service.
-- [ ] A file that is not a plist, a plist with no `Label`, and a file without the extension `.plist` give no
+- [x] A file that is not a plist, a plist with no `Label`, and a file without the extension `.plist` give no
       service, and do not stop the read of the other files.
-- [ ] Two plists with the same `Label` give one service.
-- [ ] A home folder with no `Library/LaunchAgents` folder gives no services and no error.
-- [ ] A `Library/LaunchAgents` folder that cannot be read gives an error that names the folder.
-- [ ] The domain reads as `gui/` and the uid, for example `gui/501`.
+- [x] Two plists with the same `Label` give one service.
+- [x] A home folder with no `Library/LaunchAgents` folder gives no services and no error.
+- [x] A `Library/LaunchAgents` folder that cannot be read gives an error that names the folder.
+- [x] The domain reads as `gui/` and the uid, for example `gui/501`.
 
 **Affected Files/Modules:**
 - `internal/service/service.go` — new: the type `Service` with its name

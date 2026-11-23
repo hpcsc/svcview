@@ -7,6 +7,7 @@ require (
 	github.com/mattn/go-isatty v0.0.24
 	github.com/stretchr/testify v1.12.1
 	github.com/urfave/cli/v3 v3.14.0
+	howett.net/plist v1.0.1
 )
 
 require (

@@ -1,0 +1,5 @@
+{
+  "mutants_env": {
+    "GOFLAGS": "-tags=unit"
+  }
+}

@@ -5,7 +5,7 @@
   "tasks": [
     {
       "n": 1,
-      "done": false,
+      "done": true,
       "title": "Read the services that have a plist in the LaunchAgents folder",
       "language": "Go",
       "testable": true,
@@ -40,7 +40,9 @@
         "internal/cli/release/updater_test.go:26-84",
         "docs/proposal-launchd-tui.md:70-103"
       ],
-      "depends_on": [1],
+      "depends_on": [
+        1
+      ],
       "affected_files": [
         "internal/tui/screen.go",
         "internal/tui/view.go",
@@ -66,7 +68,9 @@
         "e2e/tests/cli.test.ts:4-12",
         "docs/e2e-tests.md:54-76"
       ],
-      "depends_on": [2],
+      "depends_on": [
+        2
+      ],
       "affected_files": [
         "internal/cli/root.go",
         "e2e/testUtils.ts",
@@ -87,7 +91,9 @@
         "task:2",
         "task:3"
       ],
-      "depends_on": [3],
+      "depends_on": [
+        3
+      ],
       "affected_files": [
         "internal/launchd/plist.go",
         "internal/launchd/domain_test.go",
@@ -108,7 +114,9 @@
         "README.md:35-42",
         "docs/proposal-launchd-tui.md:350-364"
       ],
-      "depends_on": [3],
+      "depends_on": [
+        3
+      ],
       "affected_files": [
         "internal/greeting/",
         "README.md"
