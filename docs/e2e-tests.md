@@ -85,8 +85,9 @@ The screen tests start svcview with no command in the pseudo-terminal of `openCl
 
 | Helper | Job |
 | --- | --- |
-| `homeWithPlists(names)` | Makes a scratch home folder. For each name, it writes `<name>.plist` to `Library/LaunchAgents`, with the name as its `Label`. |
+| `homeWithPlists(names)` | Makes a scratch home folder. For each name, it writes `<name>.plist` to `Library/LaunchAgents`, with the name as its `Label`. It also writes an output of `launchctl list` that shows no names, so each service is `not loaded`. |
 | `addPlist(home, name)` | Writes one more plist to a home folder, for example while the screen is open. |
+| `setLaunchctlList(home, services)` | Writes the output of `launchctl list` that the fake `launchctl` prints for this home folder. A service with a `pid` is `running`, and a service with no `pid` is `loaded`. A test can call it again while the screen is open. |
 
 ```ts
 const session = await openCli(scratchDir(), [], { HOME: homeWithPlists(['com.example.worker']) })
@@ -97,6 +98,35 @@ await session.waitForText('EXIT:0')
 
 The header shows the domain `gui/<uid>` of the user that runs the tests. In Docker the tests run as root, so the
 domain is `gui/0`. The tests compare it with `process.getuid()`.
+
+### The fake launchctl
+
+svcview runs `launchctl list` at each refresh to get the state of each service. The Docker image has no `launchctl`,
+and a test on a Mac must not read the real services. So `openCli` puts `e2e/fakes` first on `PATH`, and svcview runs
+the fake `launchctl` in that folder:
+
+```mermaid
+sequenceDiagram
+    participant Test
+    participant File as $HOME/launchctl-list.txt
+    participant CLI as svcview
+    participant Fake as e2e/fakes/launchctl
+    Test->>File: setLaunchctlList(home, services)
+    Test->>CLI: openCli, with HOME set to the scratch home folder
+    loop each refresh
+        CLI->>Fake: launchctl list
+        Fake->>File: cat
+        Fake-->>CLI: PID, Status, Label, and one row for each service
+    end
+```
+
+- For `list`, the fake prints the file `launchctl-list.txt` in the home folder. svcview gives the fake its own `HOME`.
+- For any other arguments, the fake writes an error to stderr and exits with 64.
+- `setLaunchctlList` writes the file to a new name and renames it over the old file. So the fake never prints half
+  of the file while the screen is open.
+- The fake must stay executable in git (mode `100755`): the Docker image copies the mode with the file.
+
+A test that passes its own `PATH` to `openCli` replaces the `PATH` with the fake. Keep `e2e/fakes` first in it.
 
 ## Where the tests run
 

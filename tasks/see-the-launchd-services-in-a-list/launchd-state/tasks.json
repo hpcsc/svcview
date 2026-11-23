@@ -5,7 +5,7 @@
   "tasks": [
     {
       "n": 1,
-      "done": false,
+      "done": true,
       "title": "Read the state of each service from launchctl list",
       "language": "Go",
       "testable": true,
@@ -42,7 +42,9 @@
         "task:1",
         "internal/cli/release/updater.go:101-114"
       ],
-      "depends_on": [1],
+      "depends_on": [
+        1
+      ],
       "affected_files": [
         "internal/launchd/list.go",
         "internal/launchd/domain_test.go",
@@ -62,7 +64,9 @@
         "internal/cli/progress/line_test.go:13-60",
         "docs/proposal-launchd-tui.md:110-126"
       ],
-      "depends_on": [1],
+      "depends_on": [
+        1
+      ],
       "affected_files": [
         "internal/tui/screen.go",
         "internal/tui/screen_test.go",
@@ -81,7 +85,9 @@
       "patterns_to_follow": [
         "task:3"
       ],
-      "depends_on": [3],
+      "depends_on": [
+        3
+      ],
       "affected_files": [
         "internal/tui/screen.go",
         "internal/tui/screen_test.go",
@@ -101,7 +107,9 @@
         "task:1",
         "task:3"
       ],
-      "depends_on": [3],
+      "depends_on": [
+        3
+      ],
       "affected_files": [
         "internal/service/service.go",
         "internal/launchd/list.go",

@@ -76,17 +76,17 @@ PID, and `not loaded` when the list does not show its name. The e2e tests start 
 first on `PATH`.
 
 **Acceptance Criteria:**
-- [ ] A service whose name `launchctl list` shows with a PID is `running`.
-- [ ] A service whose name `launchctl list` shows with `-` as the PID is `loaded`.
-- [ ] A service with a plist whose name `launchctl list` does not show is `not loaded`.
-- [ ] A name that `launchctl list` shows, but that no plist has, gives no service.
-- [ ] svcview finds `launchctl` on `PATH`.
-- [ ] The states read as `running`, `loaded` and `not loaded`.
-- [ ] The e2e tests have a fake `launchctl`, an executable file in the repository, that prints the content of a
+- [x] A service whose name `launchctl list` shows with a PID is `running`.
+- [x] A service whose name `launchctl list` shows with `-` as the PID is `loaded`.
+- [x] A service with a plist whose name `launchctl list` does not show is `not loaded`.
+- [x] A name that `launchctl list` shows, but that no plist has, gives no service.
+- [x] svcview finds `launchctl` on `PATH`.
+- [x] The states read as `running`, `loaded` and `not loaded`.
+- [x] The e2e tests have a fake `launchctl`, an executable file in the repository, that prints the content of a
       fixture file for `list`. A test writes the fixture file, and can change it while the screen is open. Each
       screen test starts svcview with the fake first on `PATH`, so no e2e test runs the real `launchctl`.
-- [ ] The screen tests that exist pass with the fake.
-- [ ] `docs/e2e-tests.md` describes the fake `launchctl` and its fixture file.
+- [x] The screen tests that exist pass with the fake.
+- [x] `docs/e2e-tests.md` describes the fake `launchctl` and its fixture file.
 
 **Affected Files/Modules:**
 - `internal/service/service.go` — the type `State`, and the state of a `Service`

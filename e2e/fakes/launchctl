@@ -1,0 +1,6 @@
+#!/bin/sh
+if [ "$*" != list ]; then
+  echo "the fake launchctl answers only list, not: $*" >&2
+  exit 64
+fi
+exec cat "$HOME/launchctl-list.txt"

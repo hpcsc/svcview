@@ -1,9 +1,12 @@
 import { spawn } from 'node:child_process'
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, renameSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { launchTerminal, type Session } from 'tuistory'
 import { onTestFinished } from 'vitest'
+
+const fakes = fileURLToPath(new URL('fakes', import.meta.url))
 
 export function getExecutablePath(): string {
   const executablePath = process.env.EXECUTABLE
@@ -44,10 +47,24 @@ export function addPlist(home: string, name: string): void {
   )
 }
 
+export interface ListedService {
+  name: string
+  pid?: number
+}
+
+export function setLaunchctlList(home: string, services: ListedService[]): void {
+  const rows = services.map((service) => `${service.pid ?? '-'}\t0\t${service.name}\n`)
+  const path = join(home, 'launchctl-list.txt')
+  writeFileSync(`${path}.new`, `PID\tStatus\tLabel\n${rows.join('')}`)
+  // one rename, so the fake never prints half of the file while the screen is open
+  renameSync(`${path}.new`, path)
+}
+
 export function homeWithPlists(names: string[]): string {
   const home = scratchDir()
   mkdirSync(join(home, 'Library', 'LaunchAgents'), { recursive: true })
   for (const name of names) addPlist(home, name)
+  setLaunchctlList(home, [])
   return home
 }
 
@@ -82,7 +99,7 @@ export function runCli(
 // openCli starts the CLI in a pseudo-terminal. When the CLI stops, the shell
 // writes its exit status on the screen, so a test can wait for EXIT:0.
 export async function openCli(cwd: string, args: string[] = [], env: Record<string, string> = {}): Promise<Session> {
-  const assignments = Object.entries(env)
+  const assignments = Object.entries({ PATH: `${fakes}:${process.env.PATH}`, ...env })
     .map(([name, value]) => `${name}='${value.replaceAll("'", `'\\''`)}'`)
     .join(' ')
   const session = await launchTerminal({
