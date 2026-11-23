@@ -40,6 +40,9 @@ Two helpers start the CLI:
 `runCli` does not block. The update tests run a fake server in the test process, and that server must
 answer while the CLI waits for it.
 
+svcview with no command opens the screen only when stdin and stdout are both terminals. `runCli` uses pipes,
+so svcview prints the help there. `openCli` gives it a pseudo-terminal, so it opens the screen.
+
 ## New line mode
 
 The emulator in tuistory starts in new line mode. In that mode, a line feed moves the cursor to the next
@@ -74,6 +77,26 @@ sequenceDiagram
 
 Each update test runs a copy of the CLI in its own folder. The update replaces that copy, so the other
 tests keep the original binary.
+
+## The screen tests
+
+The screen tests start svcview with no command in the pseudo-terminal of `openCli`. svcview lists the plists in
+`$HOME/Library/LaunchAgents`, so each test gives it a scratch home folder through `HOME`:
+
+| Helper | Job |
+| --- | --- |
+| `homeWithPlists(names)` | Makes a scratch home folder. For each name, it writes `<name>.plist` to `Library/LaunchAgents`, with the name as its `Label`. |
+| `addPlist(home, name)` | Writes one more plist to a home folder, for example while the screen is open. |
+
+```ts
+const session = await openCli(scratchDir(), [], { HOME: homeWithPlists(['com.example.worker']) })
+await session.waitForText('com.example.worker')
+await session.press('q')
+await session.waitForText('EXIT:0')
+```
+
+The header shows the domain `gui/<uid>` of the user that runs the tests. In Docker the tests run as root, so the
+domain is `gui/0`. The tests compare it with `process.getuid()`.
 
 ## Where the tests run
 

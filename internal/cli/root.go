@@ -3,10 +3,14 @@ package cli
 import (
 	"context"
 	"fmt"
+	"io"
 	"os"
 
+	tea "charm.land/bubbletea/v2"
 	"github.com/fatih/color"
 	"github.com/hpcsc/svcview/internal/cli/version"
+	"github.com/hpcsc/svcview/internal/launchd"
+	"github.com/hpcsc/svcview/internal/tui"
 	"github.com/urfave/cli/v3"
 )
 
@@ -30,7 +34,29 @@ func newCommand() *cli.Command {
 			newVersionCommand(),
 			newUpdateCommand(),
 		},
+		Action: showScreenOrHelp,
 	}
+}
+
+func showScreenOrHelp(ctx context.Context, cmd *cli.Command) error {
+	if cmd.Args().Present() {
+		return cli.ShowCommandHelp(ctx, cmd, cmd.Args().First())
+	}
+	if !isTerminal(cmd.Root().Reader) || !isTerminal(cmd.Root().Writer) {
+		return cli.ShowRootCommandHelp(cmd)
+	}
+	return showScreen(ctx, cmd.Root().Reader, cmd.Root().Writer)
+}
+
+func showScreen(ctx context.Context, input io.Reader, output io.Writer) error {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return err
+	}
+	domain := launchd.NewDomain(home, os.Getuid())
+	screen := tui.NewScreen(domain.String(), domain.Services)
+	_, err = tea.NewProgram(screen, tea.WithContext(ctx), tea.WithInput(input), tea.WithOutput(output)).Run()
+	return err
 }
 
 func newVersionCommand() *cli.Command {

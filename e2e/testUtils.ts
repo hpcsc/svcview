@@ -1,5 +1,5 @@
 import { spawn } from 'node:child_process'
-import { mkdtempSync, rmSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { launchTerminal, type Session } from 'tuistory'
@@ -25,6 +25,30 @@ export function scratchDir(): string {
   const dir = mkdtempSync(join(tmpdir(), 'svcview-e2e-'))
   onTestFinished(() => rmSync(dir, { recursive: true, force: true }))
   return dir
+}
+
+export function addPlist(home: string, name: string): void {
+  const folder = join(home, 'Library', 'LaunchAgents')
+  mkdirSync(folder, { recursive: true })
+  writeFileSync(
+    join(folder, `${name}.plist`),
+    `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>Label</key>
+	<string>${name}</string>
+</dict>
+</plist>
+`,
+  )
+}
+
+export function homeWithPlists(names: string[]): string {
+  const home = scratchDir()
+  mkdirSync(join(home, 'Library', 'LaunchAgents'), { recursive: true })
+  for (const name of names) addPlist(home, name)
+  return home
 }
 
 export interface Result {

@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -87,7 +86,7 @@ func update(ctx context.Context, cmd *cli.Command) error {
 	return err
 }
 
-func isTerminal(w io.Writer) bool {
-	f, ok := w.(*os.File)
+func isTerminal(stream any) bool {
+	f, ok := stream.(*os.File)
 	return ok && isatty.IsTerminal(f.Fd())
 }

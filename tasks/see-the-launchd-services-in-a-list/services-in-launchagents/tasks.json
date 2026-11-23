@@ -54,7 +54,7 @@
     },
     {
       "n": 3,
-      "done": false,
+      "done": true,
       "title": "Open the screen from the root command in a terminal",
       "language": "Go",
       "testable": true,

@@ -162,15 +162,15 @@ with 0, as it does now. The e2e tests can start svcview with a scratch home fold
 test names.
 
 **Acceptance Criteria:**
-- [ ] In a terminal, `svcview` with no command opens the screen, with one row for each plist in
+- [x] In a terminal, `svcview` with no command opens the screen, with one row for each plist in
       `$HOME/Library/LaunchAgents`, sorted by name.
-- [ ] `q` ends svcview with the exit code 0.
-- [ ] When stdin or stdout is not a terminal, `svcview` prints the help, reads no input, and exits with 0. The e2e
+- [x] `q` ends svcview with the exit code 0.
+- [x] When stdin or stdout is not a terminal, `svcview` prints the help, reads no input, and exits with 0. The e2e
       test "with no command, prints its commands and reads no input" passes with no change.
-- [ ] `svcview version`, `svcview update`, `--help` and `--version` work as before.
-- [ ] An e2e helper makes a scratch home folder with the plists that a test names in `Library/LaunchAgents`, and
+- [x] `svcview version`, `svcview update`, `--help` and `--version` work as before.
+- [x] An e2e helper makes a scratch home folder with the plists that a test names in `Library/LaunchAgents`, and
       the screen tests start svcview with `HOME` set to it.
-- [ ] `docs/e2e-tests.md` describes the scratch home folder and the screen tests.
+- [x] `docs/e2e-tests.md` describes the scratch home folder and the screen tests.
 
 **Affected Files/Modules:**
 - `internal/cli/root.go` — the root command opens the screen in a terminal, and prints the help in all other cases
