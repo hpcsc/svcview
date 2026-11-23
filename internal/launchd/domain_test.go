@@ -52,14 +52,18 @@ func writeFixture(t *testing.T, path, fixture string, modTime time.Time) {
 	require.NoError(t, os.Chtimes(path, modTime, modTime))
 }
 
-func launchctlListing(t *testing.T, fixture string) string {
+func fakeLaunchctl(t *testing.T, script string) {
 	t.Helper()
 	folder := t.TempDir()
-	list := filepath.Join(folder, "list.txt")
-	copyFixture(t, list, fixture)
-	script := "#!/bin/sh\n[ \"$*\" = list ] || exit 64\nexec cat '" + list + "'\n"
-	require.NoError(t, os.WriteFile(filepath.Join(folder, "launchctl"), []byte(script), 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(folder, "launchctl"), []byte("#!/bin/sh\n"+script), 0o755))
 	t.Setenv("PATH", folder+string(os.PathListSeparator)+os.Getenv("PATH"))
+}
+
+func launchctlListing(t *testing.T, fixture string) string {
+	t.Helper()
+	list := filepath.Join(t.TempDir(), "list.txt")
+	copyFixture(t, list, fixture)
+	fakeLaunchctl(t, "[ \"$*\" = list ] || exit 64\nexec cat '"+list+"'\n")
 	return list
 }
 
@@ -337,6 +341,54 @@ func TestDomain(t *testing.T) {
 
 			require.NoError(t, err)
 			require.Equal(t, []service.Service{{Name: "com.example.with\ttab", State: service.Running}}, services)
+		})
+
+		t.Run("an output whose header line is not PID, Status, Label gives an error that names the header line, and no services", func(t *testing.T) {
+			home := homeWithServices(t, "com.example.loaded")
+			launchctlListing(t, "list-unknown-header.txt")
+
+			services, err := launchd.NewDomain(home, 501).Services()
+
+			require.ErrorContains(t, err, `"PID\tStatus\tName"`)
+			require.Empty(t, services)
+		})
+
+		t.Run("after an output with an unknown header line, the next read whose output is valid gives the services again", func(t *testing.T) {
+			home := homeWithServices(t, "com.example.loaded")
+			list := launchctlListing(t, "list-unknown-header.txt")
+			domain := launchd.NewDomain(home, 501)
+			_, err := domain.Services()
+			require.Error(t, err)
+			copyFixture(t, list, "list-each-state.txt")
+
+			services, err := domain.Services()
+
+			require.NoError(t, err)
+			require.Equal(t, []service.Service{{Name: "com.example.loaded", State: service.Loaded}}, services)
+		})
+
+		t.Run("a launchctl that exits with a code other than 0 gives an error with the exit code and what launchctl printed, and no services", func(t *testing.T) {
+			home := homeWithServices(t, "com.example.loaded")
+			fakeLaunchctl(t, "echo 'Bootstrap failed: 5: Input/output error' >&2\necho 'printed on stdout'\nexit 3\n")
+
+			services, err := launchd.NewDomain(home, 501).Services()
+
+			require.ErrorContains(t, err, "exit status 3")
+			require.ErrorContains(t, err, "Bootstrap failed: 5: Input/output error")
+			require.ErrorContains(t, err, "printed on stdout")
+			require.Empty(t, services)
+		})
+
+		t.Run("a launchctl list that does not end within its deadline gives an error that says so, and no services, also when a child of launchctl keeps the output open", func(t *testing.T) {
+			home := homeWithServices(t, "com.example.loaded")
+			fakeLaunchctl(t, "sleep 60\n")
+			started := time.Now()
+
+			services, err := launchd.NewDomain(home, 501).Services()
+
+			require.ErrorContains(t, err, "launchctl list did not end within")
+			require.Empty(t, services)
+			require.Less(t, time.Since(started), 10*time.Second)
 		})
 
 		t.Run("a row that does not have three columns gives an error that names the row, and no services", func(t *testing.T) {

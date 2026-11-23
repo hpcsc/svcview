@@ -83,7 +83,11 @@ func (s Screen) content() string {
 
 func (s Screen) listText(width int) []string {
 	if s.lastRead.err != nil {
-		return strings.Split(ansi.Wrap(s.printable(s.lastRead.err.Error()), width, ""), "\n")
+		var text []string
+		for line := range strings.SplitSeq(s.lastRead.err.Error(), "\n") {
+			text = append(text, strings.Split(ansi.Wrap(s.printable(line), width, ""), "\n")...)
+		}
+		return text
 	}
 	if len(s.lastRead.services) == 0 {
 		return nil

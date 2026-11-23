@@ -88,6 +88,7 @@ The screen tests start svcview with no command in the pseudo-terminal of `openCl
 | `homeWithPlists(names)` | Makes a scratch home folder. For each name, it writes `<name>.plist` to `Library/LaunchAgents`, with the name as its `Label`. It also writes an output of `launchctl list` that shows no names, so each service is `not loaded`. |
 | `addPlist(home, name)` | Writes one more plist to a home folder, for example while the screen is open. |
 | `setLaunchctlList(home, services)` | Writes the output of `launchctl list` that the fake `launchctl` prints for this home folder. A service with a `pid` is `running`, and a service with no `pid` is `loaded`. A test can call it again while the screen is open. |
+| `setLaunchctlOutput(home, output)` | Writes any text as the output of `launchctl list`, for example a header line that svcview does not know. |
 
 ```ts
 const session = await openCli(scratchDir(), [], { HOME: homeWithPlists(['com.example.worker']) })

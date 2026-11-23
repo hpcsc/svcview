@@ -122,12 +122,12 @@ first on `PATH`.
 The screen shows the error and no rows. The next read that succeeds shows the rows again.
 
 **Acceptance Criteria:**
-- [ ] When the header line of `launchctl list` is not `PID`, `Status`, `Label`, the screen shows an error that names
+- [x] When the header line of `launchctl list` is not `PID`, `Status`, `Label`, the screen shows an error that names
       the header line that it got, and no rows.
-- [ ] When `launchctl` exits with a code other than 0, the screen shows the output of `launchctl` and no rows.
-- [ ] When `launchctl` cannot start, the screen shows that error and no rows.
-- [ ] After an error, the first refresh whose output is valid shows the rows again.
-- [ ] An e2e test with a fixture whose header line is not `PID`, `Status`, `Label` sees the error and no rows.
+- [x] When `launchctl` exits with a code other than 0, the screen shows the output of `launchctl` and no rows.
+- [x] When `launchctl` cannot start, the screen shows that error and no rows.
+- [x] After an error, the first refresh whose output is valid shows the rows again.
+- [x] An e2e test with a fixture whose header line is not `PID`, `Status`, `Label` sees the error and no rows.
 
 **Affected Files/Modules:**
 - `internal/launchd/list.go` — the check of the header line, and the errors of `launchctl`

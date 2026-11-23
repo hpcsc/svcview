@@ -32,7 +32,7 @@
     },
     {
       "n": 2,
-      "done": false,
+      "done": true,
       "title": "Show the error of launchctl list in place of the rows",
       "language": "Go",
       "testable": true,

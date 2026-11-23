@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { addPlist, homeWithPlists, openCli, scratchDir } from '../testUtils'
+import { addPlist, homeWithPlists, openCli, scratchDir, setLaunchctlList, setLaunchctlOutput } from '../testUtils'
 
 describe('the screen', () => {
   it('in a terminal, with no command, shows the domain and the services in LaunchAgents, sorted by name', async () => {
@@ -63,5 +63,19 @@ describe('the screen', () => {
     addPlist(home, 'com.example.added')
 
     await session.waitForText('com.example.added', { timeout: 5000 })
+  })
+
+  it('when the header line of launchctl list is not PID, Status, Label, shows the error and no rows, until the output is valid again', async () => {
+    const home = homeWithPlists(['com.example.worker'])
+    setLaunchctlOutput(home, 'PID\tStatus\tName\n-\t0\tcom.example.worker\n')
+    const session = await openCli(scratchDir(), [], { HOME: home })
+
+    await session.waitForText('printed the header line')
+    expect(await session.text()).not.toContain('com.example.worker')
+
+    setLaunchctlList(home, [{ name: 'com.example.worker' }])
+
+    await session.waitForText('com.example.worker', { timeout: 5000 })
+    expect(await session.text()).not.toContain('printed the header line')
   })
 })

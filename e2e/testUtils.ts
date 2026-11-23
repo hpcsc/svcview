@@ -54,8 +54,12 @@ export interface ListedService {
 
 export function setLaunchctlList(home: string, services: ListedService[]): void {
   const rows = services.map((service) => `${service.pid ?? '-'}\t0\t${service.name}\n`)
+  setLaunchctlOutput(home, `PID\tStatus\tLabel\n${rows.join('')}`)
+}
+
+export function setLaunchctlOutput(home: string, output: string): void {
   const path = join(home, 'launchctl-list.txt')
-  writeFileSync(`${path}.new`, `PID\tStatus\tLabel\n${rows.join('')}`)
+  writeFileSync(`${path}.new`, output)
   // one rename, so the fake never prints half of the file while the screen is open
   renameSync(`${path}.new`, path)
 }

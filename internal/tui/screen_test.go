@@ -200,6 +200,18 @@ func TestScreen(t *testing.T) {
 
 			requireGolden(t, "read-error", screen)
 		})
+
+		t.Run("shows each line of an error on a row of its own, and each control character in a line as �", func(t *testing.T) {
+			failing := func() ([]service.Service, error) {
+				return nil, errors.New("launchctl list: exit status 3: Bootstrap failed\nprinted \x1b[2J on stdout")
+			}
+
+			screen := open(t, "gui/501", failing, 200, 12)
+
+			lines := strings.Split(screen.View().Content, "\n")
+			require.Contains(t, lines[4], "│ launchctl list: exit status 3: Bootstrap failed ")
+			require.Contains(t, lines[5], "│ printed �[2J on stdout ")
+		})
 	})
 
 	t.Run("refresh", func(t *testing.T) {
