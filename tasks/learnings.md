@@ -45,10 +45,9 @@
 ## Fake a program that svcview runs with a script first on PATH
 - Type: pattern
 - Recorded: 2026-11-23
-- Observed: task 1 — see-the-launchd-services-in-a-list-launchd-state
-- Learning: Go unit tests write a shell script with the name of the program and put its folder first on PATH with t.Setenv (fakeLaunchctl and fakeLaunchctlList in internal/launchd/domain_test.go), so a test runs the real exec, exit code, stderr and deadline. e2e tests keep the fake in e2e/fakes, which openCli puts first on PATH, and the fake prints a fixture file in $HOME (launchctl-list.txt). Put a command after a long one in a fake (sleep 60; echo never), because dash runs the last command in place of the shell.
-- Apply when: A task runs another program from internal/launchd, for example ps for the uptime, or fakes one in a unit or e2e test.
-
+- Observed: task 1 — see-the-launchd-services-in-a-list-detail-pane
+- Learning: macOS checks each new executable file at its first run, which costs about 0.3 s, so internal/launchd/domain_test.go writes one fake launchctl and one fake ps in TestMain and each test gives them its output file through FAKE_LAUNCHCTL_LIST, FAKE_PS_OUTPUT and FAKE_PS_CALLS (fakeLaunchctlList, fakePs); only a test that needs another script writes its own with fakeProgram. A fake script for each test made the package tests 27 s in place of 15 s, and clerk mutants then stopped at its limit of 10 minutes. e2e tests keep the fakes in e2e/fakes, which openCli puts first on PATH: launchctl prints $HOME/launchctl-list.txt, and ps prints 03:12:07 for each PID. Put a command after a long one in a fake (sleep 60; echo never), because dash runs the last command in place of the shell.
+- Apply when: A task runs another program from internal/launchd, for example launchctl kickstart or bootout for an action, or fakes one in a unit or e2e test.
 ## Run each outside program with a deadline
 - Type: constraint
 - Recorded: 2026-11-23
@@ -62,3 +61,31 @@
 - Observed: task 4 — see-the-launchd-services-in-a-list-launchd-state
 - Learning: Screen.lastRead is the zero servicesRead until the first read ends, and Screen.hasRead says whether one ended. A pane or a line that shows what a read gave must check hasRead, or it shows zeros or empty values as if a read happened (the header counts did until an audit found it).
 - Apply when: A task in internal/tui adds a pane or a line that shows data from the read, for example the detail pane.
+
+## The selection of the list assumes one list sorted by name
+- Type: constraint
+- Recorded: 2026-11-23
+- Observed: task 2 — see-the-launchd-services-in-a-list-detail-pane
+- Learning: Screen keeps the selected name, not a row number: selectedAfterRead finds the place of a gone name with slices.BinarySearchFunc over rows sorted by name, and listTopInView keeps the selected row in view with line = at + 1 for the one group line Other. A list with groups in the order of the config breaks both, so the task that adds groups must change them and their tests in internal/tui/screen_test.go (select group).
+- Apply when: A task in internal/tui adds groups to the list, changes the order of the rows, adds a line to the list pane, or adds another list that up and down move.
+
+## A value that can be 0 and can be missing is a pointer
+- Type: convention
+- Recorded: 2026-11-23
+- Observed: task 1 — see-the-launchd-services-in-a-list-detail-pane
+- Learning: service.Service.Uptime is *time.Duration: nil is no uptime, and a pointer to 0 is a process that ps reports at 00:00, which the detail pane shows as up 0s. An audit found an uptime of 0 shown as no uptime, and a service that launchd starts again after each crash often has that uptime. PID stays an int, because launchctl never shows a PID of 0 for a service.
+- Apply when: A task adds a field to service.Service or to a result type that can be missing and whose zero is a real value, for example the age of a status or the time of an event.
+
+## Each key of the screen goes into the help and docs/cli.md
+- Type: convention
+- Recorded: 2026-11-23
+- Observed: task 4 — see-the-launchd-services-in-a-list-detail-pane
+- Learning: The story says that ? shows all keys, so Screen.helpText must list every key that Screen.Update handles, ctrl+c too, and the Keys table of docs/cli.md must match it. The match-request step found ctrl+c missing from the help after the audit; the golden file keys.golden shows the help.
+- Apply when: A task adds or changes a key of the screen, for example s, x, r or l for an action, or plans the criteria of a story that says that ? shows all keys.
+
+## Plan the layout change of the screen as the first task
+- Type: constraint
+- Recorded: 2026-11-23
+- Observed: task 2,3,4 — see-the-launchd-services-in-a-list-detail-pane
+- Learning: Each change to the layout of the screen (a pane, a line, a height) rewrites every golden file in internal/tui/testdata and the same lines of screen.go and screen_test.go, so an audit fix to the code of an earlier task cannot fold into its commit: clerk fixup mark needs --onto, and the fix of a task before the layout change becomes a commit of its own. In detail-pane, the selection (task 2) came before the detail pane and the help line (tasks 3 and 4), and two fixes of the selection became their own commits.
+- Apply when: Planning a deliverable with more than one task in internal/tui, where one task adds a pane, a line or a view to the screen.
