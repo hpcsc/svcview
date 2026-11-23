@@ -8,6 +8,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"strconv"
 	"syscall"
 	"time"
 
@@ -103,9 +104,9 @@ func (s *Settings) set(name, value *yaml.Node) error {
 }
 
 func (s *Settings) setRefresh(name, value *yaml.Node) error {
-	refresh, err := time.ParseDuration(value.Value)
-	if err != nil || refresh <= 0 {
-		return fmt.Errorf("line %d: the setting %q must be a duration more than 0, such as 5s or 1m30s", value.Line, name.Value)
+	refresh, err := readDuration(value, strconv.Quote(name.Value))
+	if err != nil {
+		return err
 	}
 	s.Refresh = refresh
 	return nil
@@ -147,4 +148,12 @@ func Folder(home, xdgConfigHome string) string {
 		return filepath.Join(xdgConfigHome, "svcview")
 	}
 	return filepath.Join(home, ".config", "svcview")
+}
+
+func readDuration(value *yaml.Node, setting string) (time.Duration, error) {
+	duration, err := time.ParseDuration(value.Value)
+	if err != nil || duration <= 0 {
+		return 0, fmt.Errorf("line %d: the setting %s must be a duration more than 0, such as 5s or 1m30s", value.Line, setting)
+	}
+	return duration, nil
 }

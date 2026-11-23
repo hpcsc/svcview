@@ -262,17 +262,17 @@ than 0, `2s` by default, and `timeout` is a Go duration more than 0, `1s` by def
 svcview at start, and the error names the file and the group. svcview runs no command.
 
 **Acceptance Criteria:**
-- [ ] A group with `status` gives a status command with its program and arguments, its `every` and its `timeout`.
+- [x] A group with `status` gives a status command with its program and arguments, its `every` and its `timeout`.
       Without `every` or `timeout`, the default applies.
-- [ ] A group with no `status` has no status command.
-- [ ] Each text of `command` can use the five template values, and text with no template value is valid too.
-- [ ] Each of these gives an error that names the file and the group, and no settings: a text of `command` that is
+- [x] A group with no `status` has no status command.
+- [x] Each text of `command` can use the five template values, and text with no template value is valid too.
+- [x] Each of these gives an error that names the file and the group, and no settings: a text of `command` that is
       not a Go template; a text that uses a value other than the five, for example `{{.Label}}`, or `{{.Env}}`
       with no name after it; a `command` that is not a list of texts, or that is empty, or whose program is empty;
       a `status` with no `command`; an `every` or a `timeout` that is not a Go duration more than 0; a `status` that
       is not a set of settings; a setting in `status` that svcview does not know, for example `stale_after`; a
       setting that `status` sets two times.
-- [ ] e2e test: a `config.yaml` whose group has a `status.command` with an invalid template stops svcview with
+- [x] e2e test: a `config.yaml` whose group has a `status.command` with an invalid template stops svcview with
       `EXIT:1` and an error that names the file and the group, before the screen opens.
 
 **Affected Files/Modules:**

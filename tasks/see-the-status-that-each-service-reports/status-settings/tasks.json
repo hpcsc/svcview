@@ -52,7 +52,7 @@
     },
     {
       "n": 3,
-      "done": false,
+      "done": true,
       "title": "Read the status command of a group",
       "language": "Go",
       "testable": true,

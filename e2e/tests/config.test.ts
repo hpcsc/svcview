@@ -80,6 +80,23 @@ describe('the config file', () => {
     },
   )
 
+  it('a status command with an invalid template stops svcview with the exit code 1 and an error that names the file and the group, before the screen opens', async () => {
+    const home = homeWithPlists(['com.example.worker'])
+    const path = writeConfig(
+      join(home, '.config', 'svcview'),
+      "groups:\n  - name: Workers\n    match: worker\n    status:\n      command: [cat, '{{.Env.WORKER_STATUS_FILE}']\n",
+    )
+
+    const session = await openCli(scratchDir(), [], { HOME: home })
+
+    await session.waitForText('EXIT:1')
+    const printed = (await session.text()).replaceAll('\n', '')
+    expect(printed).toContain(path)
+    expect(printed).toContain('group "Workers"')
+    expect(printed).toContain('{{.Env.WORKER_STATUS_FILE}')
+    expect(printed).not.toContain('com.example.worker')
+  })
+
   it('a valid config.yaml opens the screen', async () => {
     const home = homeWithPlists(['com.example.worker'])
     writeConfig(join(home, '.config', 'svcview'), 'refresh: 5s\n')
