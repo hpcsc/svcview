@@ -37,10 +37,9 @@
 ## Run clerk mutants and clerk audit run under mise exec
 - Type: constraint
 - Recorded: 2026-11-23
-- Observed: see-the-launchd-services-in-a-list-launchd-state
-- Learning: The shell GOROOT points at Go 1.27.1 and go.mod asks for 1.27.4, so clerk mutants from the bare shell fails with 'compile: version go1.27.1 does not match go tool version go1.27.4'. Run mise exec -- clerk mutants and mise exec -- clerk audit run, as go_tool_prefix says for Go commands.
+- Observed: see-the-status-that-each-service-reports-status-failures
+- Learning: The shell GOROOT points at Go 1.27.1 and go.mod asks for 1.27.4, so clerk mutants from the bare shell fails with 'compile: version go1.27.1 does not match go tool version go1.27.4'. Run mise exec -- clerk mutants and mise exec -- clerk audit run, as go_tool_prefix says for Go commands. An audit round started from the bare shell gets agents that cannot build Go: round 1 of status-failures lost its mutants lens and each runtime check.
 - Apply when: Running clerk mutants, clerk audit run, gopls or another Go tool in this repo.
-
 ## Fake a program that svcview runs with a script first on PATH
 - Type: pattern
 - Recorded: 2026-11-23
@@ -206,3 +205,38 @@
 - Observed: task 2 — see-the-status-that-each-service-reports-status-summary
 - Learning: In package status a bare constant reads with the package name: status.Error read as the failure 'status error' of the story, so the levels are LevelInfo, LevelWarn and LevelError. Name each constant of a new enum in internal/status with its type as the prefix.
 - Apply when: A task adds an enum or exported constants to internal/status, for example FailureKind of status-failures.
+
+## Stop the process group of a program with context.AfterFunc, not with the Cancel of exec.CommandContext
+- Type: pattern
+- Recorded: 2026-11-23
+- Observed: task 2 — see-the-status-that-each-service-reports-status-failures
+- Learning: os/exec calls Cancel only while Wait waits for the process. After the program exits, a child that keeps stdout open keeps Wait alive until WaitDelay, past the timeout, and nothing stops the child. status.Command.runProgram starts the program with Setpgid, stops its process group in a context.AfterFunc of the context of the run, and stops the group again after Wait.
+- Apply when: A task runs a program with a timeout or must stop a program and each process that it starts, for example an action of US-008 that runs a command, or a change to status.Command.Run.
+
+## A program in a process group of its own gets no SIGHUP from the terminal
+- Type: constraint
+- Recorded: 2026-11-23
+- Observed: task 2 — see-the-status-that-each-service-reports-status-failures
+- Learning: The terminal sends SIGHUP only to its foreground process group, and Go ends svcview at a SIGHUP that it does not catch. So cmd/svcview/main.go catches SIGHUP and SIGTERM with signal.NotifyContext, and the end of the context stops the screen and the status runs.
+- Apply when: A task starts a program with Setpgid or Setsid, or changes the signals that cmd/svcview/main.go catches.
+
+## Stage a new file before clerk fixup mark to fold it into a commit
+- Type: pattern
+- Recorded: 2026-11-23
+- Observed: see-the-status-that-each-service-reports-status-failures
+- Learning: clerk fixup mark refuses a file that no commit of the branch touches, also with --onto. A new file that an audit fix splits out of a file of the branch goes into the fixup when it is staged before clerk fixup mark of the touched files, as signal_name.go went into the commit that added service.SignalName.
+- Apply when: An audit fix moves code to a new file, or clerk fixup mark refuses a path with the reason untouched.
+
+## An e2e test gets the PID of svcview as the PPID of a status command
+- Type: pattern
+- Recorded: 2026-11-23
+- Observed: task 2 — see-the-status-that-each-service-reports-status-failures
+- Learning: svcview starts a status command with no shell, so $PPID of sh -c in the command is the PID of svcview. e2e/tests/status.test.ts writes it to a file, reads it, and sends SIGHUP or SIGTERM to svcview with process.kill.
+- Apply when: An e2e test must send a signal to svcview, or must find the PID of svcview while the screen is open.
+
+## A boundary that turns off a check must name the code that has the check today
+- Type: convention
+- Recorded: 2026-11-23
+- Observed: see-the-status-that-each-service-reports-status-failures
+- Learning: The boundary of status-failures said that a progress outside 0 to 1 does not make the output invalid, but parseOutput of status-summary refused it. The run had to remove that check with no criterion for it, and the proposal and US-004 still ask for it. Plan the removal as a criterion of a task, and tell the story that owns the rule.
+- Apply when: Planning a deliverable whose boundaries say that a rule, a check or a validation does not apply, in a package that an earlier deliverable changed.
