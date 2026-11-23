@@ -86,10 +86,9 @@
 ## A check that another user can write a file must read the macOS ACL
 - Type: constraint
 - Recorded: 2026-11-23
-- Observed: task 2 — put-the-services-in-groups-with-a-config-file-config-file
-- Learning: The mode bits and the owner do not show a macOS ACL: chmod +a "everyone allow write" leaves the mode 0644, and internal/config.Read still reads the file. On Linux the mode check covers a POSIX ACL, because a write entry for another user sets the group write bit through the ACL mask. x/sys/unix has no Getattrlist on darwin, so the check needs a raw getattrlist call or a parse of ls -le, and only a Mac can test it.
-- Apply when: Planning US-003 or any task that refuses a config file, or any other file, that another user can write, before a setting of the config can hold a command.
-
+- Observed: task 1,2 — see-the-status-that-each-service-reports-status-settings
+- Learning: The mode bits and the owner do not show a macOS ACL: chmod +a "everyone allow write" leaves the mode 0644. config.ACLEntries(file) counts the ACL entries of an open file (fgetattrlist through unix.Syscall6 on darwin, 0 on other systems, where a write entry of a POSIX ACL shows in the group bits of the mode), and config.Read refuses a count of 1 or more after the check of the mode and the owner. A check of another file calls config.ACLEntries on the open file and does not write a new read of the ACL.
+- Apply when: A task refuses a file that another user can write, for example a file of conf.d or a status file, or changes the check of config.yaml.
 ## A word of the subtest name is in every t.TempDir path
 - Type: recurring-finding
 - Recorded: 2026-11-23
@@ -152,3 +151,38 @@
 - Observed: task 1,2 — put-the-services-in-groups-with-a-config-file-groups
 - Learning: clerk finish lints the staged files but does not run gofmt, and CI has no format check, so a field rename by a script committed a struct with unaligned fields in two tasks. Run gofmt -l internal before clerk finish and before clerk fixup mark.
 - Apply when: A task edits Go files with a script, or renames or adds a field of a struct whose fields are aligned.
+
+## A change to the template values changes the check of status.NewCommand
+- Type: constraint
+- Recorded: 2026-11-23
+- Observed: task 3 — see-the-status-that-each-service-reports-status-settings
+- Learning: status.NewCommand checks each text of a status command with a walk of its parse tree, because an execution visits only the branches that it takes. The walk knows where . is the service: it refuses a field without $ in a with, a range (each value is text), define and template, a field of a declared variable, and a new value for $. Two audit rounds found texts that passed an earlier walk and failed at run time. A new template value, or a value that is not text, changes valuesWithoutKey, otherFields and the struct that Run executes against in one task, with a test that runs the text.
+- Apply when: A task adds or changes a template value of a status command, adds a function to its templates, or adds the struct that status.Command.Run executes the templates against.
+
+## Check by hand a mutant that only the tests of another package kill
+- Type: pattern
+- Recorded: 2026-11-23
+- Observed: task 3 — see-the-status-that-each-service-reports-status-settings
+- Learning: clerk mutants and clerk mutants --id run only the tests of the package of a mutant, so a mutant in internal/status that only a test of internal/config kills (the drop of the templates of status.Command) stays LIVED. Apply the mutant to the file by hand with a copy in the scratchpad, run the test of the other package, put the file back with /bin/cp -f, and accept the row with the name of that test and its failure text.
+- Apply when: A mutant lives in a package whose result only the tests of another package can see, for example a private field of status.Command that only config tests compare.
+
+## An ACL test removes the ACL before the cleanup of its folder
+- Type: pattern
+- Recorded: 2026-11-23
+- Observed: task 1 — see-the-status-that-each-service-reports-status-settings
+- Learning: An ACL entry that denies delete, such as /bin/chmod +a "everyone deny delete", stops the cleanup of t.TempDir, so the test fails after its assertions pass and the folder stays in TMPDIR. The chmod helper of internal/config/acl_test.go registers /bin/chmod -h -N on the path in t.Cleanup before it adds the entry. A leftover folder needs /bin/chmod -h -N on each file before rm.
+- Apply when: A Go or e2e test adds an ACL entry with /bin/chmod +a, or removes the folder of a file with an ACL.
+
+## task test:e2e:local leaves e2e/package-lock.json in the tree
+- Type: constraint
+- Recorded: 2026-11-23
+- Observed: task 2 — see-the-status-that-each-service-reports-status-settings
+- Learning: task test:e2e:local runs npm install in e2e/, which writes e2e/package-lock.json, and the repo does not track that file, although docs/e2e-tests.md tells to commit it. The file makes the tree dirty, so clerk refuses the next step and a commit can take it by mistake. Remove it after each local e2e run until the repo decides to commit it.
+- Apply when: A run uses task test:e2e:local, or git status shows e2e/package-lock.json as untracked.
+
+## A macOS system call that the planner probed is not low certainty
+- Type: convention
+- Recorded: 2026-11-23
+- Observed: task 1 — see-the-status-that-each-service-reports-status-settings
+- Learning: The ACL read of status-settings (fgetattrlist through unix.Syscall6, the first raw system call and the first file with a build constraint of the repo) was planned low and went green on the first try, because the planning probe gave the layout of the answer. The work was in the tests: real ACLs with /bin/chmod, their cleanup, and a parse function tested with bytes in a _darwin_test.go file. Plan such a task medium when Codebase Context has a probe of the call.
+- Apply when: Planning or assessing a task that calls the kernel through golang.org/x/sys/unix or adds a file with a build constraint, with a probe of the call in Codebase Context.
