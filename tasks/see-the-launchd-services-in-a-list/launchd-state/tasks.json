@@ -1,0 +1,117 @@
+{
+  "story": "The screen shows the launchd state of each service",
+  "story_id": "launchd-tui/US-001",
+  "tasks_file": "tasks/see-the-launchd-services-in-a-list/launchd-state/tasks.md",
+  "tasks": [
+    {
+      "n": 1,
+      "done": false,
+      "title": "Read the state of each service from launchctl list",
+      "language": "Go",
+      "testable": true,
+      "certainty": "medium",
+      "blast_radius": "low",
+      "patterns_to_follow": [
+        "internal/cli/release/updater.go:101-114",
+        "internal/cli/release/updater.go:24-28",
+        "internal/cli/release/updater_test.go:26-84",
+        "e2e/tests/update.test.ts:20-78",
+        "docs/e2e-tests.md:54-76"
+      ],
+      "depends_on": [],
+      "affected_files": [
+        "internal/service/service.go",
+        "internal/launchd/list.go",
+        "internal/launchd/domain.go",
+        "internal/launchd/domain_test.go",
+        "internal/launchd/testdata/",
+        "e2e/fakes/launchctl",
+        "e2e/testUtils.ts",
+        "docs/e2e-tests.md"
+      ]
+    },
+    {
+      "n": 2,
+      "done": false,
+      "title": "Show the error of launchctl list in place of the rows",
+      "language": "Go",
+      "testable": true,
+      "certainty": "medium",
+      "blast_radius": "low",
+      "patterns_to_follow": [
+        "task:1",
+        "internal/cli/release/updater.go:101-114"
+      ],
+      "depends_on": [1],
+      "affected_files": [
+        "internal/launchd/list.go",
+        "internal/launchd/domain_test.go",
+        "internal/launchd/testdata/",
+        "e2e/tests/screen.test.ts"
+      ]
+    },
+    {
+      "n": 3,
+      "done": false,
+      "title": "Start each row with the glyph of its state",
+      "language": "Go",
+      "testable": true,
+      "certainty": "medium",
+      "blast_radius": "low",
+      "patterns_to_follow": [
+        "internal/cli/progress/line_test.go:13-60",
+        "docs/proposal-launchd-tui.md:110-126"
+      ],
+      "depends_on": [1],
+      "affected_files": [
+        "internal/tui/view.go",
+        "internal/tui/screen_test.go",
+        "internal/tui/testdata/",
+        "e2e/tests/screen.test.ts"
+      ]
+    },
+    {
+      "n": 4,
+      "done": false,
+      "title": "Count the services in each state in the header",
+      "language": "Go",
+      "testable": true,
+      "certainty": "high",
+      "blast_radius": "low",
+      "patterns_to_follow": [
+        "task:3"
+      ],
+      "depends_on": [3],
+      "affected_files": [
+        "internal/tui/view.go",
+        "internal/tui/screen_test.go",
+        "internal/tui/testdata/",
+        "e2e/tests/screen.test.ts"
+      ]
+    },
+    {
+      "n": 5,
+      "done": false,
+      "title": "Draw the glyph red when the last exit is other than 0",
+      "language": "Go",
+      "testable": true,
+      "certainty": "medium",
+      "blast_radius": "low",
+      "patterns_to_follow": [
+        "task:1",
+        "task:3"
+      ],
+      "depends_on": [3],
+      "affected_files": [
+        "internal/service/service.go",
+        "internal/launchd/list.go",
+        "internal/launchd/domain_test.go",
+        "internal/launchd/testdata/",
+        "internal/tui/view.go",
+        "internal/tui/screen_test.go",
+        "internal/tui/testdata/"
+      ]
+    }
+  ],
+  "design_file": "tasks/see-the-launchd-services-in-a-list/launchd-state/design.yaml"
+}

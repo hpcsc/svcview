@@ -1,0 +1,58 @@
+design: planned
+types:
+  - name: State
+    package: internal/service
+    change: new
+    does: what launchd says about a service - running, loaded or not loaded
+    owns: []
+    fields: []
+    methods: [String]
+  - name: LastExit
+    package: internal/service
+    change: new
+    does: how the last run of a service ended - an exit code, or the name of the signal that ended it
+    owns:
+      - a last exit is an exit code or a signal, never both
+      - an exit code other than 0, or any signal, is a last exit other than 0
+    fields: [Code, Signal]
+    methods: [Failed]
+  - name: Service
+    package: internal/service
+    change: changed
+    does: one launchd job of the user, as the packages outside internal/launchd see it
+    owns: []
+    fields: [Name, State, LastExit]
+  - name: Domain
+    package: internal/launchd
+    change: changed
+    does: reads the services of the gui domain of the user from the plists in Library/LaunchAgents and from launchctl list
+    owns:
+      - running when launchctl list shows the name with a PID, loaded when it shows the name with no PID, not loaded when only a plist has the name
+      - a name that launchctl list shows but no plist has gives no service
+      - an output of launchctl list whose header line is not PID, Status, Label is an error, and its rows are not read
+      - a negative Status is the signal of that number, named as macOS numbers signals
+    fields: []
+    methods: [Services, String]
+  - name: Screen
+    package: internal/tui
+    change: changed
+    does: the Bubble Tea model of the screen of svcview
+    owns:
+      - each row starts with the glyph of its state - a green ● for running, a yellow ◐ for loaded, a gray ○ for not loaded
+      - the glyph is red when the last exit is other than 0
+      - the header counts the services in each state, and shows no counts when the read gives an error
+    fields: []
+    methods: [Init, Update, View]
+words:
+  - concept: what launchd says about a service - running, loaded or not loaded
+    word: state
+    not: [status, condition]
+  - concept: the exit code of the last run of a service, or the signal that ended it
+    word: last exit
+    not: [status, exit status, result]
+  - concept: the symbol before a name that shows its state
+    word: glyph
+    not: [icon, marker, dot]
+dependencies:
+  - internal/launchd -> internal/service
+  - internal/tui -> internal/service

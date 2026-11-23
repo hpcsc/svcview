@@ -1,0 +1,109 @@
+{
+  "story": "The detail pane shows the launchd data of the selected service",
+  "story_id": "launchd-tui/US-001",
+  "tasks_file": "tasks/see-the-launchd-services-in-a-list/detail-pane/tasks.md",
+  "tasks": [
+    {
+      "n": 1,
+      "done": false,
+      "title": "Read the PID and the uptime of each running service",
+      "language": "Go",
+      "testable": true,
+      "certainty": "medium",
+      "blast_radius": "low",
+      "patterns_to_follow": [
+        "internal/cli/release/updater.go:101-114",
+        "internal/cli/release/updater_test.go:26-84"
+      ],
+      "depends_on": [],
+      "affected_files": [
+        "internal/service/service.go",
+        "internal/launchd/uptime.go",
+        "internal/launchd/domain.go",
+        "internal/launchd/domain_test.go"
+      ]
+    },
+    {
+      "n": 2,
+      "done": false,
+      "title": "Select a service with the up and down keys",
+      "language": "Go",
+      "testable": true,
+      "certainty": "low",
+      "blast_radius": "low",
+      "patterns_to_follow": [
+        "internal/cli/progress/line_test.go:13-60"
+      ],
+      "depends_on": [],
+      "affected_files": [
+        "internal/tui/screen.go",
+        "internal/tui/view.go",
+        "internal/tui/screen_test.go",
+        "internal/tui/testdata/",
+        "e2e/tests/screen.test.ts"
+      ]
+    },
+    {
+      "n": 3,
+      "done": false,
+      "title": "Show the selected service in the detail pane",
+      "language": "Go",
+      "testable": true,
+      "certainty": "medium",
+      "blast_radius": "low",
+      "patterns_to_follow": [
+        "task:1",
+        "task:2",
+        "docs/proposal-launchd-tui.md:70-108"
+      ],
+      "depends_on": [1, 2],
+      "affected_files": [
+        "internal/tui/view.go",
+        "internal/tui/screen_test.go",
+        "internal/tui/testdata/",
+        "e2e/fakes/ps",
+        "e2e/testUtils.ts",
+        "e2e/tests/screen.test.ts",
+        "docs/e2e-tests.md"
+      ]
+    },
+    {
+      "n": 4,
+      "done": false,
+      "title": "Show all keys with ?",
+      "language": "Go",
+      "testable": true,
+      "certainty": "medium",
+      "blast_radius": "low",
+      "patterns_to_follow": [
+        "task:2"
+      ],
+      "depends_on": [2],
+      "affected_files": [
+        "internal/tui/keys.go",
+        "internal/tui/screen.go",
+        "internal/tui/view.go",
+        "internal/tui/screen_test.go",
+        "internal/tui/testdata/",
+        "e2e/tests/screen.test.ts"
+      ]
+    },
+    {
+      "n": 5,
+      "done": false,
+      "title": "Describe the screen and its keys in docs/cli.md",
+      "language": "Markdown",
+      "testable": false,
+      "certainty": "high",
+      "blast_radius": "low",
+      "patterns_to_follow": [
+        "docs/cli.md:35-56"
+      ],
+      "depends_on": [3, 4],
+      "affected_files": [
+        "docs/cli.md"
+      ]
+    }
+  ],
+  "design_file": "tasks/see-the-launchd-services-in-a-list/detail-pane/design.yaml"
+}

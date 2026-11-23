@@ -1,0 +1,46 @@
+design: planned
+types:
+  - name: Service
+    package: internal/service
+    change: changed
+    does: one launchd job of the user, as the packages outside internal/launchd see it
+    owns:
+      - a service that does not run has no PID and no uptime
+    fields: [Name, State, LastExit, PID, Uptime]
+  - name: Domain
+    package: internal/launchd
+    change: changed
+    does: reads the services of the gui domain of the user from the plists in Library/LaunchAgents, launchctl list and ps
+    owns:
+      - one ps call gives the uptime of all running services at each read, and no ps call runs when no service runs
+      - a PID that ps does not report gives its service no uptime
+      - a failure of ps leaves every uptime empty, and the read still gives the services
+    fields: []
+    methods: [Services, String]
+  - name: Screen
+    package: internal/tui
+    change: changed
+    does: the Bubble Tea model of the screen of svcview
+    owns:
+      - one row is selected when the list has rows, and a refresh keeps the same name selected
+      - when the selected service is gone, the row that takes its place is selected, or the last row
+      - the detail pane shows the selected service, beside the list, which takes 40 percent of the width
+      - "? shows all keys, and ? or esc hides them"
+    fields: []
+    methods: [Init, Update, View]
+words:
+  - concept: the time since the process of the service started
+    word: uptime
+    not: [elapsed, etime, age, runtime]
+  - concept: the row that the up and down keys move
+    word: selected
+    not: [cursor, focused, highlighted, current, active]
+  - concept: the pane beside the list that shows one service
+    word: detail pane
+    not: [info pane, inspector, sidebar, preview]
+  - concept: the list of the keys of the screen that ? shows
+    word: help
+    not: [keymap, cheatsheet, shortcuts]
+dependencies:
+  - internal/launchd -> internal/service
+  - internal/tui -> internal/service

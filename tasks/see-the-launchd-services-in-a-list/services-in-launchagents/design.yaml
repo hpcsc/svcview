@@ -1,0 +1,52 @@
+design: planned
+types:
+  - name: Service
+    package: internal/service
+    change: new
+    does: one launchd job of the user, as the packages outside internal/launchd see it
+    owns: []
+    fields: [Name]
+  - name: Domain
+    package: internal/launchd
+    change: new
+    does: reads the services of the gui domain of the user from the plists in Library/LaunchAgents
+    owns:
+      - a file gives a service only when it is a plist with a Label
+      - two plists with the same Label give one service
+      - a plist is read again only when its modification time changes
+    fields: []
+    methods: [Services, String]
+  - name: Screen
+    package: internal/tui
+    change: new
+    does: the Bubble Tea model of the screen of svcview
+    owns:
+      - the group Other holds each service, sorted by name
+      - a name that does not fit the list pane ends with …
+      - the screen reads the services at start and again every 2 s, one read at a time
+    fields: []
+    methods: [Init, Update, View]
+functions:
+  - launchd.NewDomain(home, uid) *Domain
+  - tui.NewScreen(domain, read) Screen
+words:
+  - concept: a launchd job in the gui domain of the user
+    word: service
+    not: [job, agent, daemon]
+  - concept: the launchd label of a service
+    word: name
+    not: [label, id]
+  - concept: gui/<uid>, the launchd domain of the user
+    word: domain
+    not: [session, target]
+  - concept: the terminal UI of svcview as a whole
+    word: screen
+    not: [app, ui, dashboard]
+  - concept: the read of the services again, every 2 s
+    word: refresh
+    not: [poll, reload, tick, sync]
+dependencies:
+  - internal/launchd -> internal/service
+  - internal/tui -> internal/service
+  - internal/cli -> internal/launchd
+  - internal/cli -> internal/tui
