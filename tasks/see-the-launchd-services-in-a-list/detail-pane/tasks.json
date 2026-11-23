@@ -95,7 +95,7 @@
     },
     {
       "n": 5,
-      "done": false,
+      "done": true,
       "title": "Describe the screen and its keys in docs/cli.md",
       "language": "Markdown",
       "testable": false,

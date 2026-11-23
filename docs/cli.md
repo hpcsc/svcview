@@ -32,6 +32,79 @@ task build             # build ./bin/svcview
 task cli -- --help     # run the CLI from the source, with the arguments after --
 ```
 
+## The screen
+
+```shell
+svcview                # open the screen
+```
+
+`svcview` with no command opens the screen when stdin and stdout are both terminals. When stdin or stdout is not a
+terminal, for example in a pipe, it prints the help and opens no screen.
+
+```
+╭ svcview ──────────────────────────────────────────────────────────── gui/501 ╮
+│  ● 1 running   ◐ 0 loaded   ○ 0 not loaded                                   │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭ Services ────────────────────╮╭ com.example.worker ──────────────────────────╮
+│ Other                        ││ ● running     PID 4122                       │
+│ ▌● com.example.worker        ││ up 3h12m      last exit 0                    │
+│                              ││                                              │
+│                              ││                                              │
+│                              ││                                              │
+│                              ││                                              │
+╰──────────────────────────────╯╰──────────────────────────────────────────────╯
+ ? help
+```
+
+| Part | What it shows |
+| --- | --- |
+| The header | The domain `gui/<uid>` of the user, and the number of services in each state. |
+| The list | One row for each service that has a plist in `~/Library/LaunchAgents`, in the group `Other`, sorted by name. Each row starts with the glyph of the state of the service. svcview cuts a name that is too long for the list with `…`. The list takes 40 percent of the width. |
+| The detail pane | The selected service. Its title is the full name of the service. The pane shows the state, the PID, the uptime, and the last exit. |
+| The help line | `? help` |
+
+The name of a service is the `Label` of its plist. svcview gets the state, the PID, and the last exit of each
+service from `launchctl list`, and the uptime from `ps`.
+
+### Glyphs and colors
+
+| Element | Look |
+| --- | --- |
+| The state `running` | A green `●` |
+| The state `loaded` | A yellow `◐` |
+| The state `not loaded` | A gray `○` |
+| A last exit other than 0 | The glyph in the list and the `last exit` value are red. |
+| The selected row | A blue `▌`, and a gray background on the name |
+
+svcview uses the 16 colors of the ANSI palette, so the theme of the terminal sets the real colors. Each state has a
+glyph of a different shape, so the screen shows the state without color too.
+
+### The detail pane
+
+| Value | What it shows |
+| --- | --- |
+| `PID` | The PID of the process of a `running` service. A service that does not run shows `-`. |
+| `up` | The time since the process of the service started, in its two largest units: for example `up 45s`, `up 3m12s`, `up 3h12m`, or `up 4d9h`. A service that does not run shows `-`. A service whose PID `ps` does not report shows `-` too. |
+| `last exit` | The exit code of the last run, or the name of the signal that ended it, for example `SIGKILL`. |
+
+### Refresh
+
+Every 2 s, svcview reads the plists and runs `launchctl list` and `ps` again, with no key press. It reads a plist
+again only when the modification time of the file changes. The same service stays selected. When the selected
+service is gone, the row after it is selected, or the last row when it was the last.
+
+When `launchctl list` fails, or prints a header line other than `PID`, `Status`, `Label`, the list shows the error
+and no rows. When `ps` fails, no service shows an uptime.
+
+### Keys
+
+| Key | Action |
+| --- | --- |
+| `↑` `↓` | Select a service. |
+| `?` | Show the help, which lists all keys, or hide it. |
+| `esc` | Hide the help. |
+| `q` or `ctrl+c` | Quit. |
+
 ## Version and update
 
 ```shell

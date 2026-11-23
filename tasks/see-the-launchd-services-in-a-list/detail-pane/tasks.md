@@ -231,13 +231,13 @@ at the bottom of the screen shows `? help`.
 **Behavior:** `docs/cli.md` tells how to open the screen and what each part of it shows, and lists the keys.
 
 **Acceptance Criteria:**
-- [ ] `docs/cli.md` has a section on the screen. It says that `svcview` with no command opens the screen in a
+- [x] `docs/cli.md` has a section on the screen. It says that `svcview` with no command opens the screen in a
       terminal, and prints the help when stdin or stdout is not a terminal.
-- [ ] The section tells what the header, the list and the detail pane show, the glyph and the color of each state,
+- [x] The section tells what the header, the list and the detail pane show, the glyph and the color of each state,
       the red mark of a last exit other than 0, and the refresh every 2 s.
-- [ ] The section says that the list shows each service that has a plist in `~/Library/LaunchAgents`, in the group
+- [x] The section says that the list shows each service that has a plist in `~/Library/LaunchAgents`, in the group
       `Other`.
-- [ ] The section lists each key of the screen with its action.
+- [x] The section lists each key of the screen with its action.
 
 **Affected Files/Modules:**
 - `docs/cli.md` — a section on the screen
