@@ -1269,23 +1269,6 @@ func TestScreen(t *testing.T) {
 			})
 		})
 
-		t.Run("after a run with fields, a failure of the next run shows the failure and its lines under Status, and no field", func(t *testing.T) {
-			synctest.Test(t, func(t *testing.T) {
-				start := time.Now()
-				read := servicesNamed("com.example.worker.a")
-				run := func(status.Command, service.Service) status.Result {
-					if time.Since(start) < time.Second {
-						return status.Result{Ended: time.Now(), Output: &status.Output{Fields: []status.Field{{Name: "mode", Value: "busy"}}}}
-					}
-					return status.Result{Ended: time.Now(), Failure: &status.Failure{Kind: status.FailureKindError, Text: "exit code 3", Lines: []string{"broken"}}}
-				}
-
-				screen := runSized(t, tui.NewScreen("gui/501", read, run, workersWithStatus(t)), 80, 14, 2500*time.Millisecond)
-
-				require.Equal(t, []string{"exit code 3", "broken", "", "", ""}, detailPane(screen)[3:])
-			})
-		})
-
 		t.Run("under the value of a field with a progress, shows a bar of 10 cells on a line of its own, in the column of the values", func(t *testing.T) {
 			synctest.Test(t, func(t *testing.T) {
 				read := servicesNamed("com.example.worker.a")
@@ -1356,6 +1339,133 @@ func TestScreen(t *testing.T) {
 			})
 		})
 
+		t.Run("after the fields, shows an empty line, the line Events, and each event in the order of the output, with the hours and minutes of its at in the local time zone, a ●, and its text", func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				read := servicesNamed("com.example.worker.a")
+				run := runsGiving(map[string]status.Result{
+					"com.example.worker.a": {Output: &status.Output{
+						Fields: []status.Field{{Name: "mode", Value: "busy"}},
+						Events: []status.Event{
+							{At: time.Date(2026, 11, 23, 9, 4, 40, 0, time.Local), Text: "step review"},
+							{At: time.Date(2026, 11, 23, 9, 0, 12, 0, time.Local), Text: "claimed ENG-692"},
+						},
+					}},
+				})
+
+				screen := runSized(t, tui.NewScreen("gui/501", read, run, workersWithStatus(t)), 80, 14, 100*time.Millisecond)
+
+				require.Equal(t, []string{"mode  busy", "", "Events", "09:04 ● step review", "09:00 ● claimed ENG-692"}, detailPane(screen)[3:])
+			})
+		})
+
+		t.Run("shows the time of an event with two digits for the hours, from 00 to 23, and two digits for the minutes, and no date, also for an event of another day", func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				read := servicesNamed("com.example.worker.a")
+				run := runsGiving(map[string]status.Result{
+					"com.example.worker.a": {Output: &status.Output{Events: []status.Event{
+						{At: time.Date(2026, 11, 23, 0, 5, 0, 0, time.Local), Text: "a"},
+						{At: time.Date(2026, 11, 23, 7, 9, 59, 0, time.Local), Text: "b"},
+						{At: time.Date(2026, 11, 23, 13, 45, 0, 0, time.Local), Text: "c"},
+						{At: time.Date(2026, 11, 23, 23, 59, 59, 0, time.Local), Text: "d"},
+						{At: time.Date(2020, 1, 2, 14, 30, 0, 0, time.Local), Text: "e"},
+					}}},
+				})
+
+				screen := runSized(t, tui.NewScreen("gui/501", read, run, workersWithStatus(t)), 80, 16, 100*time.Millisecond)
+
+				require.Equal(t, []string{"", "Events", "00:05 ● a", "07:09 ● b", "13:45 ● c", "23:59 ● d", "14:30 ● e"}, detailPane(screen)[3:])
+			})
+		})
+
+		t.Run("shows an at in another time zone as the hours and minutes of the same time in the local time zone", func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				machineZone := time.Local
+				t.Cleanup(func() { time.Local = machineZone })
+				time.Local = time.FixedZone("UTC+5:30", 5*60*60+30*60)
+				read := servicesNamed("com.example.worker.a")
+				run := runsGiving(map[string]status.Result{
+					"com.example.worker.a": {Output: &status.Output{Events: []status.Event{
+						{At: time.Date(2026, 11, 23, 3, 34, 0, 0, time.UTC), Text: "step review"},
+					}}},
+				})
+
+				screen := runSized(t, tui.NewScreen("gui/501", read, run, workersWithStatus(t)), 80, 12, 100*time.Millisecond)
+
+				require.Equal(t, []string{"", "Events", "09:04 ● step review"}, detailPane(screen)[3:])
+			})
+		})
+
+		t.Run("draws the ● of an event in the default color for info, yellow for warn, and red for error", func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				read := servicesNamed("com.example.worker.a")
+				run := runsGiving(map[string]status.Result{
+					"com.example.worker.a": {Output: &status.Output{Events: []status.Event{
+						{At: time.Date(2026, 11, 23, 9, 0, 0, 0, time.Local), Level: status.LevelInfo, Text: "a"},
+						{At: time.Date(2026, 11, 23, 9, 1, 0, 0, time.Local), Level: status.LevelWarn, Text: "b"},
+						{At: time.Date(2026, 11, 23, 9, 2, 0, 0, time.Local), Level: status.LevelError, Text: "c"},
+					}}},
+				})
+
+				screen := runSized(t, tui.NewScreen("gui/501", read, run, workersWithStatus(t)), 80, 14, 100*time.Millisecond)
+
+				content := screen.View().Content
+				require.Equal(t, []bool{true, true, true}, []bool{
+					strings.Contains(content, "09:00 ● a "),
+					strings.Contains(content, "09:01 \x1b[33m●\x1b[m b "),
+					strings.Contains(content, "09:02 \x1b[31m●\x1b[m c "),
+				})
+			})
+		})
+
+		t.Run("shows each control character in the text of an event as �", func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				read := servicesNamed("com.example.worker.a")
+				run := runsGiving(map[string]status.Result{
+					"com.example.worker.a": {Output: &status.Output{Events: []status.Event{
+						{At: time.Date(2026, 11, 23, 9, 4, 0, 0, time.Local), Text: "step\x1b[2J\nreview"},
+					}}},
+				})
+
+				screen := runSized(t, tui.NewScreen("gui/501", read, run, workersWithStatus(t)), 80, 12, 100*time.Millisecond)
+
+				require.Equal(t, []string{"", "Events", "09:04 ● step�[2J�review"}, detailPane(screen)[3:])
+				require.NotContains(t, screen.View().Content, "\x1b[2J")
+			})
+		})
+
+		t.Run("an output with fields and no events shows no line Events and no empty line for it", func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				read := servicesNamed("com.example.worker.a")
+				run := runsGiving(map[string]status.Result{
+					"com.example.worker.a": {Output: &status.Output{Fields: []status.Field{{Name: "mode", Value: "busy"}}}},
+				})
+
+				screen := runSized(t, tui.NewScreen("gui/501", read, run, workersWithStatus(t)), 80, 12, 100*time.Millisecond)
+
+				require.Equal(t, []string{"mode  busy", "", ""}, detailPane(screen)[3:])
+			})
+		})
+
+		t.Run("after a run with fields and events, a failure of the next run shows the failure and its lines under Status, and no field and no event", func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				start := time.Now()
+				read := servicesNamed("com.example.worker.a")
+				run := func(status.Command, service.Service) status.Result {
+					if time.Since(start) < time.Second {
+						return status.Result{Ended: time.Now(), Output: &status.Output{
+							Fields: []status.Field{{Name: "mode", Value: "busy"}},
+							Events: []status.Event{{At: time.Date(2026, 11, 23, 9, 4, 0, 0, time.Local), Text: "step review"}},
+						}}
+					}
+					return status.Result{Ended: time.Now(), Failure: &status.Failure{Kind: status.FailureKindError, Text: "exit code 3", Lines: []string{"broken"}}}
+				}
+
+				screen := runSized(t, tui.NewScreen("gui/501", read, run, workersWithStatus(t)), 80, 14, 2500*time.Millisecond)
+
+				require.Equal(t, []string{"exit code 3", "broken", "", "", ""}, detailPane(screen)[3:])
+			})
+		})
+
 		t.Run("draws the fields under Status, and under the value of a field with a progress, its bar of blue ▰ and dim ▱", func(t *testing.T) {
 			synctest.Test(t, func(t *testing.T) {
 				read := readGiving(service.Service{Name: "com.example.worker.01", State: service.Running, PID: 4122, Uptime: new(3*time.Hour + 12*time.Minute)})
@@ -1372,6 +1482,32 @@ func TestScreen(t *testing.T) {
 				screen := runSized(t, tui.NewScreen("gui/501", read, run, workersWithStatus(t)), 80, 16, 100*time.Millisecond)
 
 				requireGolden(t, "status-fields", screen)
+			})
+		})
+
+		t.Run("draws the fields under Status, then an empty line, the line Events, and each event with its time, its ● in the color of its level, and its text", func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				read := readGiving(service.Service{Name: "com.example.worker.01", State: service.Running, PID: 4122, Uptime: new(3*time.Hour + 12*time.Minute)})
+				run := runsGiving(map[string]status.Result{
+					"com.example.worker.01": {Output: &status.Output{
+						Summary: "busy · ENG-692 · 12m",
+						Fields: []status.Field{
+							{Name: "mode", Value: "busy"},
+							{Name: "ticket", Value: "ENG-692"},
+							{Name: "step", Value: "review · 12m / 20m", Progress: new(0.6)},
+							{Name: "done", Value: "14"},
+							{Name: "failed", Value: "1"},
+						},
+						Events: []status.Event{
+							{At: time.Date(2026, 11, 23, 9, 4, 40, 0, time.Local), Level: status.LevelInfo, Text: "step review"},
+							{At: time.Date(2026, 11, 23, 9, 0, 12, 0, time.Local), Level: status.LevelWarn, Text: "claimed ENG-692"},
+						},
+					}},
+				})
+
+				screen := runSized(t, tui.NewScreen("gui/501", read, run, workersWithStatus(t)), 80, 19, 100*time.Millisecond)
+
+				requireGolden(t, "status-fields-events", screen)
 			})
 		})
 

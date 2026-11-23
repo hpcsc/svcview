@@ -251,20 +251,20 @@ the output, in the order of the output. Each line has the time of its `at` as ho
 zone, a `●` in the color of its `level`, and its `text`, for example `09:04 ● step review`.
 
 **Acceptance Criteria:**
-- [ ] An output with the events `step review` at 09:04:40 and `claimed ENG-692` at 09:00:12, in the local time zone,
+- [x] An output with the events `step review` at 09:04:40 and `claimed ENG-692` at 09:00:12, in the local time zone,
       shows under the fields an empty line, the line `Events`, `09:04 ● step review` and `09:00 ● claimed ENG-692`, in
       the order of the output.
-- [ ] The time has two digits for the hours, 0 to 23, and two digits for the minutes.
-- [ ] An `at` in another time zone shows the hours and minutes of the same time in the local time zone.
-- [ ] An event of another day shows only its hours and minutes.
-- [ ] The `●` of an event is in the default color for `info`, yellow for `warn`, and red for `error`, as the summary
+- [x] The time has two digits for the hours, 0 to 23, and two digits for the minutes.
+- [x] An `at` in another time zone shows the hours and minutes of the same time in the local time zone.
+- [x] An event of another day shows only its hours and minutes.
+- [x] The `●` of an event is in the default color for `info`, yellow for `warn`, and red for `error`, as the summary
       of each level.
-- [ ] Each control character in the text of an event shows as `�`, and no escape sequence of a text reaches the
+- [x] Each control character in the text of an event shows as `�`, and no escape sequence of a text reaches the
       terminal.
-- [ ] An output with no events shows no line `Events`, and no empty line for it. An output with events and no fields
+- [x] An output with no events shows no line `Events`, and no empty line for it. An output with events and no fields
       shows the empty line and `Events` under the line `Status`.
-- [ ] A golden file shows the detail pane of a service with the fields and the events of the proposal.
-- [ ] e2e test: a status file with two events shows each under `Events`, in the order of the file, with its time in
+- [x] A golden file shows the detail pane of a service with the fields and the events of the proposal.
+- [x] e2e test: a status file with two events shows each under `Events`, in the order of the file, with its time in
       the time zone that the test gives svcview.
 
 **Affected Files/Modules:**

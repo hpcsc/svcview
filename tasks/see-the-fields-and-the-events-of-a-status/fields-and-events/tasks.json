@@ -74,7 +74,7 @@
     },
     {
       "n": 4,
-      "done": false,
+      "done": true,
       "title": "Show the events of a status under Events",
       "language": "Go",
       "testable": true,

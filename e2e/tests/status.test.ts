@@ -54,6 +54,27 @@ describe('the status command', () => {
     expect(lines[value + 1]).toContain('│         ▰▰▰▰▰▰▱▱▱▱ ')
   })
 
+  it('a status file with two events shows each under Events, in the order of the file, with the hours and minutes of its at in the time zone of svcview', async () => {
+    const home = homeWithPlists([])
+    const statusFile = join(scratchDir(), 'status.json')
+    writeFileSync(
+      statusFile,
+      '{"version":1,"events":[{"at":"2026-11-23T09:04:40Z","level":"info","text":"step review"},{"at":"2026-11-23T09:00:12+02:00","level":"warn","text":"claimed ENG-692"}]}\n',
+    )
+    addPlist(home, 'com.example.worker.01', { WORKER_STATUS_FILE: statusFile })
+    writeConfig(join(home, '.config', 'svcview'), workersWithStatusCommand(`[cat, '{{.Env.WORKER_STATUS_FILE}}']`))
+
+    const session = await openCli(scratchDir(), [], { HOME: home, TZ: 'UTC' })
+    await session.waitForText('│ 07:00 ● claimed ENG-692 ')
+
+    const lines = (await session.text()).split('\n')
+    const events = lines.findIndex((line) => line.includes('│ Events '))
+    expect([lines[events + 1], lines[events + 2]]).toEqual([
+      expect.stringContaining('│ 09:04 ● step review '),
+      expect.stringContaining('│ 07:00 ● claimed ENG-692 '),
+    ])
+  })
+
   it('a group whose status command uses a variable that the plist does not have shows the plist has no and the name of the variable in the row of the service', async () => {
     const home = homeWithPlists([])
     addPlist(home, 'com.example.worker.01', { WORKER_STATUS_FILE: '/tmp/status.json' })

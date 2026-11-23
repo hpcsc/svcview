@@ -425,6 +425,7 @@ func (s Screen) detailText(svc service.Service) []string {
 		}
 		if result.Output != nil {
 			text = append(text, s.fieldLines(result.Output.Fields)...)
+			text = append(text, s.eventLines(result.Output.Events)...)
 		}
 	}
 	return text
@@ -443,6 +444,17 @@ func (s Screen) fieldLines(fields []status.Field) []string {
 		if field.Progress != nil {
 			lines = append(lines, strings.Repeat(" ", valueColumn)+s.bar(*field.Progress))
 		}
+	}
+	return lines
+}
+
+func (s Screen) eventLines(events []status.Event) []string {
+	if len(events) == 0 {
+		return nil
+	}
+	lines := []string{"", "Events"}
+	for _, event := range events {
+		lines = append(lines, event.At.Local().Format("15:04")+" "+s.textStyle(s.levelColor(event.Level), nil).Styled("●")+" "+s.printable(event.Text))
 	}
 	return lines
 }
