@@ -34,6 +34,7 @@ type Screen struct {
 	lastRead servicesRead
 	hasRead  bool
 	selected string
+	listTop  int
 	showHelp bool
 	width    int
 	height   int
@@ -48,6 +49,7 @@ func (s Screen) Init() tea.Cmd {
 }
 
 func (s Screen) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	var cmd tea.Cmd
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		s.width, s.height = msg.Width, msg.Height
@@ -74,11 +76,12 @@ func (s Screen) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		})
 		s.lastRead, s.hasRead = msg, true
 		s.selected = s.selectedAfterRead()
-		return s, tea.Tick(refreshEvery, func(time.Time) tea.Msg { return refresh{} })
+		cmd = tea.Tick(refreshEvery, func(time.Time) tea.Msg { return refresh{} })
 	case refresh:
 		return s, s.readServices
 	}
-	return s, nil
+	s.listTop = s.listTopInView()
+	return s, cmd
 }
 
 func (s Screen) View() tea.View {
@@ -119,6 +122,17 @@ func (s Screen) selectedAfterMove(step int) string {
 	return rows[min(max(at+step, 0), len(rows)-1)].Name
 }
 
+func (s Screen) listTopInView() int {
+	at := s.selectedAt()
+	line := at + 1
+	shown := max(s.paneHeight()-2, 1)
+	top := min(max(s.listTop, line-shown+1), line)
+	if at == 0 {
+		top = line - shown + 1
+	}
+	return max(min(top, len(s.rows())+1-shown), 0)
+}
+
 func (s Screen) selectedAt() int {
 	return slices.IndexFunc(s.rows(), func(svc service.Service) bool { return svc.Name == s.selected })
 }
@@ -144,7 +158,7 @@ func (s Screen) paneHeight() int {
 
 func (s Screen) panes() []string {
 	list := box{title: "Services", width: s.width * 40 / 100, height: s.paneHeight()}
-	list.text = s.listText(list.textWidth())
+	list.text = s.listText(list.textWidth())[s.listTop:]
 	detail := box{width: s.width - list.width, height: list.height}
 	if at := s.selectedAt(); at >= 0 {
 		svc := s.rows()[at]

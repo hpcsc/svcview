@@ -82,6 +82,18 @@ func pressKeys(screen tea.Model, keys ...tea.KeyPressMsg) tea.Model {
 	return screen
 }
 
+func listRows(screen tea.Model) []string {
+	var rows []string
+	for _, line := range strings.Split(ansi.Strip(screen.View().Content), "\n")[4:] {
+		if strings.HasPrefix(line, "╰") {
+			break
+		}
+		text, _, _ := strings.Cut(strings.TrimPrefix(line, "│"), "│")
+		rows = append(rows, strings.TrimSpace(text))
+	}
+	return rows
+}
+
 func selectedName(screen tea.Model) string {
 	for line := range strings.SplitSeq(ansi.Strip(screen.View().Content), "\n") {
 		_, row, found := strings.Cut(line, "▌")
@@ -616,6 +628,135 @@ func TestScreen(t *testing.T) {
 			lines := strings.Split(ansi.Strip(screen.View().Content), "\n")
 
 			require.Contains(t, lines[5], "│ ▌○ com.example.a-na… ││")
+		})
+
+		t.Run("↓ past the last row that the list pane shows scrolls the list, so the selected row stays in view", func(t *testing.T) {
+			screen := open(t, "gui/501", servicesNamed("com.example.1", "com.example.2", "com.example.3", "com.example.4", "com.example.5", "com.example.6", "com.example.7"), 80, 12)
+
+			screen = pressKeys(screen, down, down, down, down, down)
+
+			require.Equal(t, []string{
+				"○ com.example.1",
+				"○ com.example.2",
+				"○ com.example.3",
+				"○ com.example.4",
+				"○ com.example.5",
+				"▌○ com.example.6",
+			}, listRows(screen))
+		})
+
+		t.Run("↑ keeps the list where it is while the selected row is in view, and scrolls it back when the row is above it", func(t *testing.T) {
+			screen := open(t, "gui/501", servicesNamed("com.example.1", "com.example.2", "com.example.3", "com.example.4", "com.example.5", "com.example.6", "com.example.7", "com.example.8", "com.example.9"), 80, 12)
+			screen = pressKeys(screen, down, down, down, down, down, down, down, down)
+
+			inView := pressKeys(screen, up, up, up, up, up)
+			above := pressKeys(inView, up)
+			second := pressKeys(above, up)
+
+			require.Equal(t, []string{
+				"▌○ com.example.4",
+				"○ com.example.5",
+				"○ com.example.6",
+				"○ com.example.7",
+				"○ com.example.8",
+				"○ com.example.9",
+			}, listRows(inView))
+			require.Equal(t, []string{
+				"▌○ com.example.3",
+				"○ com.example.4",
+				"○ com.example.5",
+				"○ com.example.6",
+				"○ com.example.7",
+				"○ com.example.8",
+			}, listRows(above))
+			require.Equal(t, []string{
+				"▌○ com.example.2",
+				"○ com.example.3",
+				"○ com.example.4",
+				"○ com.example.5",
+				"○ com.example.6",
+				"○ com.example.7",
+			}, listRows(second))
+		})
+
+		t.Run("a list pane with room for one row shows the selected row", func(t *testing.T) {
+			screen := open(t, "gui/501", servicesNamed("com.example.1", "com.example.2", "com.example.3"), 80, 7)
+
+			second := pressKeys(screen, down)
+			first := pressKeys(second, up)
+
+			require.Equal(t, []string{"▌○ com.example.1"}, listRows(screen))
+			require.Equal(t, []string{"▌○ com.example.2"}, listRows(second))
+			require.Equal(t, []string{"▌○ com.example.1"}, listRows(first))
+		})
+
+		t.Run("a smaller terminal scrolls the list, so the selected row stays in view", func(t *testing.T) {
+			screen := open(t, "gui/501", servicesNamed("com.example.1", "com.example.2", "com.example.3", "com.example.4", "com.example.5", "com.example.6", "com.example.7"), 80, 20)
+			screen = pressKeys(screen, down, down, down, down, down, down)
+
+			screen, _ = screen.Update(tea.WindowSizeMsg{Width: 80, Height: 12})
+
+			require.Equal(t, []string{
+				"○ com.example.2",
+				"○ com.example.3",
+				"○ com.example.4",
+				"○ com.example.5",
+				"○ com.example.6",
+				"▌○ com.example.7",
+			}, listRows(screen))
+		})
+
+		t.Run("a read that removes the rows at the end of a scrolled list keeps the list pane full", func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				read := changingAt(100*time.Millisecond,
+					servicesNamed("com.example.1", "com.example.2", "com.example.3", "com.example.4", "com.example.5", "com.example.6", "com.example.7", "com.example.8", "com.example.9"),
+					servicesNamed("com.example.1", "com.example.2", "com.example.3", "com.example.4", "com.example.5", "com.example.6", "com.example.7"))
+
+				screen := runFor(t, tui.NewScreen("gui/501", read), 2100*time.Millisecond, down, down, down, down, down, down, down, down)
+
+				require.Equal(t, []string{
+					"○ com.example.2",
+					"○ com.example.3",
+					"○ com.example.4",
+					"○ com.example.5",
+					"○ com.example.6",
+					"▌○ com.example.7",
+				}, listRows(screen))
+			})
+		})
+
+		t.Run("the group line shows again when the first row is selected", func(t *testing.T) {
+			screen := open(t, "gui/501", servicesNamed("com.example.1", "com.example.2", "com.example.3", "com.example.4", "com.example.5", "com.example.6", "com.example.7"), 80, 12)
+
+			screen = pressKeys(screen, down, down, down, down, down, down, up, up, up, up, up, up)
+
+			require.Equal(t, []string{
+				"Other",
+				"▌○ com.example.1",
+				"○ com.example.2",
+				"○ com.example.3",
+				"○ com.example.4",
+				"○ com.example.5",
+			}, listRows(screen))
+		})
+
+		t.Run("a read that removes rows fills the list pane again from the top", func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				read := changingAt(100*time.Millisecond,
+					servicesNamed("com.example.1", "com.example.2", "com.example.3", "com.example.4", "com.example.5", "com.example.6", "com.example.7"),
+					servicesNamed("com.example.1", "com.example.2", "com.example.7"))
+
+				screen := runFor(t, tui.NewScreen("gui/501", read), 2100*time.Millisecond, down, down, down, down, down, down)
+
+				require.Equal(t, []string{
+					"Other",
+					"○ com.example.1",
+					"○ com.example.2",
+					"▌○ com.example.7",
+					"",
+					"",
+				}, listRows(screen))
+			})
 		})
 
 		t.Run("with no rows, no row is selected, and ↑ and ↓ do nothing", func(t *testing.T) {

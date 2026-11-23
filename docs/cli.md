@@ -59,7 +59,7 @@ terminal, for example in a pipe, it prints the help and opens no screen.
 | Part | What it shows |
 | --- | --- |
 | The header | The domain `gui/<uid>` of the user, and the number of services in each state. |
-| The list | One row for each service that has a plist in `~/Library/LaunchAgents`, in the group `Other`, sorted by name. Each row starts with the glyph of the state of the service. svcview cuts a name that is too long for the list with `…`. The list takes 40 percent of the width. |
+| The list | One row for each service that has a plist in `~/Library/LaunchAgents`, in the group `Other`, sorted by name. Each row starts with the glyph of the state of the service. svcview cuts a name that is too long for the list with `…`. When the list has more rows than the pane, it scrolls to keep the selected row in view. The list takes 40 percent of the width. |
 | The detail pane | The selected service. Its title is the full name of the service. The pane shows the state, the PID, the uptime, and the last exit. |
 | The help line | `? help` |
 
