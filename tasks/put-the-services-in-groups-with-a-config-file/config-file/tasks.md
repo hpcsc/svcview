@@ -179,20 +179,20 @@ config file stops svcview before the screen opens: svcview prints the error, whi
 1. With no config file, the screen opens as before.
 
 **Acceptance Criteria:**
-- [ ] `svcview` with no command, in a terminal, reads `config.yaml` in `$XDG_CONFIG_HOME/svcview/`, or in
+- [x] `svcview` with no command, in a terminal, reads `config.yaml` in `$XDG_CONFIG_HOME/svcview/`, or in
       `~/.config/svcview/` when `XDG_CONFIG_HOME` is not set, before it opens the screen.
-- [ ] Each error of the config file stops svcview before the screen opens. svcview prints the error, which names
+- [x] Each error of the config file stops svcview before the screen opens. svcview prints the error, which names
       the file, and exits with 1.
-- [ ] svcview reads the config file only when it opens the screen. `svcview version`, `svcview update`, and the
+- [x] svcview reads the config file only when it opens the screen. `svcview version`, `svcview update`, and the
       help that svcview prints when stdin or stdout is not a terminal do not read it.
-- [ ] The e2e tests start svcview with no `XDG_CONFIG_HOME` from the environment of the test run, so a test run
+- [x] The e2e tests start svcview with no `XDG_CONFIG_HOME` from the environment of the test run, so a test run
       never reads the config file of the user who runs it. A test can set `XDG_CONFIG_HOME` for itself.
-- [ ] An e2e helper writes a `config.yaml` into a config folder.
-- [ ] e2e tests: an unknown setting in `$XDG_CONFIG_HOME/svcview/config.yaml`, and one in
+- [x] An e2e helper writes a `config.yaml` into a config folder.
+- [x] e2e tests: an unknown setting in `$XDG_CONFIG_HOME/svcview/config.yaml`, and one in
       `$HOME/.config/svcview/config.yaml` with no `XDG_CONFIG_HOME`, each stop svcview with `EXIT:1` and an error
       that names that file. A `config.yaml` that all users can write stops svcview with `EXIT:1` and an error that
       names the file. A valid `config.yaml` opens the screen.
-- [ ] `docs/e2e-tests.md` describes the helper that writes a `config.yaml`, and says that the tests start svcview
+- [x] `docs/e2e-tests.md` describes the helper that writes a `config.yaml`, and says that the tests start svcview
       with no `XDG_CONFIG_HOME` of their own environment.
 
 **Affected Files/Modules:**

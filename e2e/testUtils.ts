@@ -1,5 +1,5 @@
 import { spawn } from 'node:child_process'
-import { mkdirSync, mkdtempSync, renameSync, rmSync, writeFileSync } from 'node:fs'
+import { chmodSync, mkdirSync, mkdtempSync, renameSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -73,6 +73,14 @@ export function homeWithPlists(names: string[]): string {
   return home
 }
 
+export function writeConfig(configFolder: string, content: string, mode = 0o644): string {
+  mkdirSync(configFolder, { recursive: true })
+  const path = join(configFolder, 'config.yaml')
+  writeFileSync(path, content)
+  chmodSync(path, mode)
+  return path
+}
+
 export interface Result {
   stdout: string
   stderr: string
@@ -89,8 +97,9 @@ export function runCli(
   executable = getExecutablePath(),
   input?: string,
 ): Promise<Result> {
+  const { XDG_CONFIG_HOME: _, ...inherited } = process.env
   return new Promise((done, fail) => {
-    const child = spawn(executable, args, { cwd, env: { ...process.env, ...env } })
+    const child = spawn(executable, args, { cwd, env: { ...inherited, ...env } })
     if (input !== undefined) child.stdin.end(input)
     let stdout = ''
     let stderr = ''
@@ -113,7 +122,10 @@ export async function openCli(cwd: string, args: string[] = [], env: Record<stri
     // column 1. A real terminal does not, and a full screen program that moves
     // the cursor down with a line feed then draws in the wrong column, so
     // \e[20l turns the mode off before the CLI starts.
-    args: ['-c', `printf '\\033[20l'; ${assignments} "${getExecutablePath()}" ${args.join(' ')}; echo "EXIT:$?"`],
+    args: [
+      '-c',
+      `printf '\\033[20l'; unset XDG_CONFIG_HOME; ${assignments} "${getExecutablePath()}" ${args.join(' ')}; echo "EXIT:$?"`,
+    ],
     cwd,
     cols: 160,
     rows: 40,

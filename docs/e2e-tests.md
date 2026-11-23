@@ -35,7 +35,7 @@ Two helpers start the CLI:
 | Helper | Use for | How it works |
 | --- | --- | --- |
 | `runCli(cwd, args, env)` | Commands that print and stop, such as `version` and `update` | Starts the CLI as a child process with pipes. It gives stdout, stderr and the exit status. |
-| `openCli(cwd, args, env)` | The screen, and commands that ask for input | Starts `sh -c 'printf "\033[20l"; <env> <cli> <args>; echo "EXIT:$?"'` in a pseudo-terminal. When the CLI stops, the shell writes its exit status on the screen, so a test can wait for `EXIT:0`. [New line mode](#new-line-mode) tells why the command starts with `printf`. |
+| `openCli(cwd, args, env)` | The screen, and commands that ask for input | Starts `sh -c 'printf "\033[20l"; unset XDG_CONFIG_HOME; <env> <cli> <args>; echo "EXIT:$?"'` in a pseudo-terminal. When the CLI stops, the shell writes its exit status on the screen, so a test can wait for `EXIT:0`. [New line mode](#new-line-mode) tells why the command starts with `printf`, and [the config file](#the-config-file) tells why it unsets `XDG_CONFIG_HOME`. |
 
 `runCli` does not block. The update tests run a fake server in the test process, and that server must
 answer while the CLI waits for it.
@@ -139,6 +139,35 @@ Docker image has no `ps`, and the real `ps` on a Mac knows nothing of the PIDs o
 - The fake must stay executable in git (mode `100755`), as the fake `launchctl` must.
 
 A test that passes its own `PATH` to `openCli` replaces the `PATH` with the fakes. Keep `e2e/fakes` first in it.
+
+### The config file
+
+Before svcview opens the screen, it reads `config.yaml` in `$XDG_CONFIG_HOME/svcview/`, or in
+`$HOME/.config/svcview/` when `XDG_CONFIG_HOME` is not set. On a Mac whose user sets `XDG_CONFIG_HOME`, a test
+would then read the real config file of that user. So the tests start svcview with no `XDG_CONFIG_HOME` of the
+test run:
+
+- `openCli` unsets `XDG_CONFIG_HOME` before it sets the `env` of the test.
+- `runCli` gives svcview the environment of the test run without `XDG_CONFIG_HOME`.
+
+A test that puts `XDG_CONFIG_HOME` in its `env` gives svcview that value.
+
+| Helper | Job |
+| --- | --- |
+| `writeConfig(configFolder, content, mode)` | Makes the config folder, writes `content` to `config.yaml` in it, and gives the file the mode `mode`, `0o644` when the test gives none. It returns the path of the file, which each error of the config file names. |
+
+```ts
+const home = homeWithPlists(['com.example.worker'])
+writeConfig(join(home, '.config', 'svcview'), 'refresh: 1m\n')
+const session = await openCli(scratchDir(), [], { HOME: home })
+```
+
+svcview refuses a `config.yaml` that its group or other users can write, so `writeConfig` sets the mode with
+`chmod` and does not depend on the umask. In Docker the tests run as root, and root owns the file that a test
+writes, so svcview accepts the owner.
+
+The terminal has 160 columns, and an error that names a long path continues on the next line. A test that checks
+the error removes the line breaks from the screen text first.
 
 ## Where the tests run
 

@@ -9,6 +9,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/fatih/color"
 	"github.com/hpcsc/svcview/internal/cli/version"
+	"github.com/hpcsc/svcview/internal/config"
 	"github.com/hpcsc/svcview/internal/launchd"
 	"github.com/hpcsc/svcview/internal/tui"
 	"github.com/urfave/cli/v3"
@@ -53,7 +54,11 @@ func showScreen(ctx context.Context, input io.Reader, output io.Writer) error {
 	if err != nil {
 		return err
 	}
-	domain := launchd.NewDomain(home, os.Getuid())
+	uid := os.Getuid()
+	if _, err := config.Read(config.Folder(home, os.Getenv("XDG_CONFIG_HOME")), uid); err != nil {
+		return err
+	}
+	domain := launchd.NewDomain(home, uid)
 	screen := tui.NewScreen(domain.String(), domain.Services)
 	_, err = tea.NewProgram(screen, tea.WithContext(ctx), tea.WithInput(input), tea.WithOutput(output)).Run()
 	return err
