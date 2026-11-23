@@ -5,7 +5,7 @@
   "tasks": [
     {
       "n": 1,
-      "done": false,
+      "done": true,
       "title": "Show a status command that exits with a code other than 0",
       "language": "Go",
       "testable": true,
@@ -38,7 +38,9 @@
         "internal/launchd/launchctl_list.go:24-41",
         "task:1"
       ],
-      "depends_on": [1],
+      "depends_on": [
+        1
+      ],
       "affected_files": [
         "internal/status/command.go",
         "internal/status/command_test.go",
@@ -61,7 +63,9 @@
         "internal/tui/screen.go:251-269",
         "task:1"
       ],
-      "depends_on": [1],
+      "depends_on": [
+        1
+      ],
       "affected_files": [
         "internal/status/output.go",
         "internal/status/command.go",
@@ -83,7 +87,10 @@
       "patterns_to_follow": [
         "docs/cli.md:72-111"
       ],
-      "depends_on": [2, 3],
+      "depends_on": [
+        2,
+        3
+      ],
       "affected_files": [
         "docs/cli.md"
       ]

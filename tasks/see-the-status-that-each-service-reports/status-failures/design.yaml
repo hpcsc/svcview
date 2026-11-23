@@ -10,7 +10,7 @@ types:
       - Run sends a signal only to the process group that it started, never to the group of svcview and never to each process of the user
       - a run longer than the timeout is a status timeout with the command line
       - an output that is not a JSON object of version 1, or that is larger than 1 MiB, is a status invalid with the parse error and the first 20 lines of the output
-    fields: [arguments, Every, Timeout]
+    fields: [templates, Every, Timeout]
     methods: [Run]
   - name: Failure
     package: internal/status
@@ -37,6 +37,15 @@ types:
       - it keeps no more than the last 20 lines, whatever the program writes
     fields: []
     methods: [Write, Lines]
+  - name: stdoutBuffer
+    package: internal/status
+    change: changed
+    does: the stdout of a run, with no more than 1 MiB in memory
+    owns:
+      - it keeps a record that the program printed more than 1 MiB
+      - it gives the first 20 lines of what it holds
+    fields: [data, tooLarge]
+    methods: [Write, firstLines]
   - name: Screen
     package: internal/tui
     change: changed

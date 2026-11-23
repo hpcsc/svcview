@@ -91,15 +91,15 @@ of stderr. The row shows `status error` in red. Under `Status`, the detail pane 
 stderr.
 
 **Acceptance Criteria:**
-- [ ] A program that exits with 3 gives a status error with the exit code 3, also when it prints a valid output.
-- [ ] svcview keeps only the last 20 lines of stderr, also for a program that writes many more.
-- [ ] A program that a signal ends gives a status error with the name of the signal.
-- [ ] A program that svcview cannot start, for example one that is not on the `PATH`, gives a status error that says
+- [x] A program that exits with 3 gives a status error with the exit code 3, also when it prints a valid output.
+- [x] svcview keeps only the last 20 lines of stderr, also for a program that writes many more.
+- [x] A program that a signal ends gives a status error with the name of the signal.
+- [x] A program that svcview cannot start, for example one that is not on the `PATH`, gives a status error that says
       why.
-- [ ] The row shows `status error` in red in place of the summary.
-- [ ] Under the line `Status`, the detail pane shows the exit code, or the signal, or why the program could not
+- [x] The row shows `status error` in red in place of the summary.
+- [x] Under the line `Status`, the detail pane shows the exit code, or the signal, or why the program could not
       start, and then the lines of stderr. Each control character shows as `�`.
-- [ ] e2e test: a status command `[sh, -c, 'echo broken >&2; exit 3']` shows `status error` in the row, and the exit
+- [x] e2e test: a status command `[sh, -c, 'echo broken >&2; exit 3']` shows `status error` in the row, and the exit
       code 3 and `broken` in the detail pane.
 
 **Affected Files/Modules:**

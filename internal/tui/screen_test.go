@@ -821,7 +821,7 @@ func TestScreen(t *testing.T) {
 					"com.example.worker.a":    summary("busy · ENG-692", status.LevelInfo),
 					"com.example.worker.bb":   summary("idle", status.LevelWarn),
 					"com.example.worker.ccc":  summary("3 failed", status.LevelError),
-					"com.example.worker.dddd": {Failure: &status.Failure{Text: "the plist has no WORKER_STATUS_FILE"}},
+					"com.example.worker.dddd": {Failure: &status.Failure{Kind: status.FailureKindTemplateValue, Text: "the plist has no WORKER_STATUS_FILE"}},
 				})
 
 				screen := runSized(t, tui.NewScreen("gui/501", read, run, workersWithStatus(t)), 80, 14, 100*time.Millisecond)
@@ -884,12 +884,27 @@ func TestScreen(t *testing.T) {
 			})
 		})
 
+		t.Run("the row shows status error in red in place of the summary for a status error, also on the background of the selected row", func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				read := servicesNamed("com.example.worker.a", "com.example.worker.b")
+				run := runsGiving(map[string]status.Result{
+					"com.example.worker.a": {Failure: &status.Failure{Kind: status.FailureKindError, Text: "exit code 3", Lines: []string{"broken"}}},
+					"com.example.worker.b": {Failure: &status.Failure{Kind: status.FailureKindError, Text: "ended by SIGTERM"}},
+				})
+
+				screen := runSized(t, tui.NewScreen("gui/501", read, run, workersWithStatus(t)), 80, 12, 100*time.Millisecond)
+
+				requireGolden(t, "status-error", screen)
+				require.Equal(t, []string{"Workers", "▌○ a  status error", "○ b  status error"}, listRows(screen)[:3])
+			})
+		})
+
 		t.Run("cuts a summary that is longer than the list pane and ends it with …, and shows each control character in a summary or a failure as �", func(t *testing.T) {
 			synctest.Test(t, func(t *testing.T) {
 				read := servicesNamed("com.example.worker.a", "com.example.worker.b")
 				run := runsGiving(map[string]status.Result{
 					"com.example.worker.a": summary("busy\x1b[2J\nnext · a summary that is longer than the pane", status.LevelWarn),
-					"com.example.worker.b": {Failure: &status.Failure{Text: "no\x1b[2Jfile"}},
+					"com.example.worker.b": {Failure: &status.Failure{Kind: status.FailureKindTemplateValue, Text: "no\x1b[2Jfile"}},
 				})
 
 				screen := runSized(t, tui.NewScreen("gui/501", read, run, workersWithStatus(t)), 80, 12, 100*time.Millisecond)
@@ -1019,7 +1034,7 @@ func TestScreen(t *testing.T) {
 				run := runsGiving(map[string]status.Result{
 					"com.example.worker.a": {Ended: start.Add(-12 * time.Second), Output: &status.Output{Summary: "busy"}},
 					"com.example.worker.b": {Ended: start.Add(-13 * time.Second)},
-					"com.example.worker.c": {Ended: start.Add(-14 * time.Second), Failure: &status.Failure{Text: "the plist has no WORKER_STATUS_FILE"}},
+					"com.example.worker.c": {Ended: start.Add(-14 * time.Second), Failure: &status.Failure{Kind: status.FailureKindTemplateValue, Text: "the plist has no WORKER_STATUS_FILE"}},
 				})
 
 				screen := runSized(t, tui.NewScreen("gui/501", read, run, workersWithStatus(t)), 80, 12, 100*time.Millisecond)
@@ -1074,6 +1089,24 @@ func TestScreen(t *testing.T) {
 
 				require.Equal(t, []string{"Status 5m0s ago", "Status 5m7s ago"}, []string{before, detailPane(screen)[2]})
 				require.Equal(t, int32(1), runs.Load())
+			})
+		})
+
+		t.Run("under the line Status, shows the text of a failure and then each of its lines, with each control character as �", func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				read := servicesNamed("com.example.worker.a", "com.example.worker.b")
+				run := runsGiving(map[string]status.Result{
+					"com.example.worker.a": {Failure: &status.Failure{Kind: status.FailureKindError, Text: "exit\x1b[2J code 3", Lines: []string{"first", "", "third\x1b[2J line"}}},
+					"com.example.worker.b": {Failure: &status.Failure{Kind: status.FailureKindTemplateValue, Text: "the plist has no WORKER_STATUS_FILE"}},
+				})
+
+				screen := runSized(t, tui.NewScreen("gui/501", read, run, workersWithStatus(t)), 80, 14, 100*time.Millisecond)
+
+				require.Equal(t, [][]string{
+					{"exit�[2J code 3", "first", "", "third�[2J line", ""},
+					{"the plist has no WORKER_STATUS_FILE", "", "", "", ""},
+				}, [][]string{detailPane(screen)[3:], detailPane(pressKeys(screen, down))[3:]})
+				require.NotContains(t, screen.View().Content, "\x1b[2J")
 			})
 		})
 

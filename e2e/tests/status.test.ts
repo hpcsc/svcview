@@ -45,6 +45,17 @@ describe('the status command', () => {
     await session.waitForText('01  busy', { timeout: 5000 })
   })
 
+  it('a status command that exits with 3 shows status error in the row, and the exit code and the lines of stderr in the detail pane', async () => {
+    const home = homeWithPlists(['com.example.worker.01'])
+    writeConfig(join(home, '.config', 'svcview'), workersWithStatusCommand(`[sh, -c, 'echo broken >&2; exit 3']`))
+
+    const session = await openCli(scratchDir(), [], { HOME: home })
+
+    await session.waitForText('01  status error')
+    await session.waitForText('exit code 3')
+    await session.waitForText('│ broken ')
+  })
+
   it('a status command that writes a file after 2 s, with a timeout of 10 s, does not write it when svcview quits after the run starts', async () => {
     const home = homeWithPlists(['com.example.worker.01'])
     const marker = join(scratchDir(), 'written')

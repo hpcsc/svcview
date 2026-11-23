@@ -23,21 +23,21 @@ func newValues(svc service.Service) values {
 
 func (v values) StdoutPath() (string, error) {
 	if v.stdoutPath == "" {
-		return "", &Failure{Text: "the plist has no StandardOutPath"}
+		return "", &Failure{Kind: FailureKindTemplateValue, Text: "the plist has no StandardOutPath"}
 	}
 	return v.stdoutPath, nil
 }
 
 func (v values) StderrPath() (string, error) {
 	if v.stderrPath == "" {
-		return "", &Failure{Text: "the plist has no StandardErrorPath"}
+		return "", &Failure{Kind: FailureKindTemplateValue, Text: "the plist has no StandardErrorPath"}
 	}
 	return v.stderrPath, nil
 }
 
 func (v values) PlistPath() (string, error) {
 	if v.plistPath == "" {
-		return "", &Failure{Text: "the service has no plist"}
+		return "", &Failure{Kind: FailureKindTemplateValue, Text: "the service has no plist"}
 	}
 	return v.plistPath, nil
 }
@@ -54,7 +54,7 @@ func (v values) apply(parsed *template.Template) (string, *Failure) {
 	// text/template names a missing key of a map only in the text of its error.
 	if _, key, found := strings.Cut(err.Error(), "map has no entry for key "); found {
 		name, _ := strconv.Unquote(key)
-		return "", &Failure{Text: "the plist has no " + name}
+		return "", &Failure{Kind: FailureKindTemplateValue, Text: "the plist has no " + name}
 	}
-	return "", &Failure{Text: err.Error()}
+	return "", &Failure{Kind: FailureKindTemplateValue, Text: err.Error()}
 }

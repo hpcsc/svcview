@@ -15,8 +15,17 @@ func (r Result) Time() time.Time {
 	return r.Ended
 }
 
+type FailureKind int
+
+const (
+	FailureKindTemplateValue FailureKind = iota
+	FailureKindError
+)
+
 type Failure struct {
-	Text string
+	Kind  FailureKind
+	Text  string
+	Lines []string
 }
 
 func (f *Failure) Error() string {

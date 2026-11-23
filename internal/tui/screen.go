@@ -353,11 +353,18 @@ func (s Screen) statusText(name string) (string, ansi.Color) {
 	result := s.statuses[name]
 	switch {
 	case result.Failure != nil:
-		return s.printable(result.Failure.Text), ansi.Red
+		return s.printable(s.failureRowText(result.Failure)), ansi.Red
 	case result.Output != nil:
 		return s.printable(result.Output.Summary), s.levelColor(result.Output.Level)
 	}
 	return "", nil
+}
+
+func (s Screen) failureRowText(failure *status.Failure) string {
+	if failure.Kind == status.FailureKindError {
+		return "status error"
+	}
+	return failure.Text
 }
 
 func (s Screen) levelColor(level status.Level) ansi.Color {
@@ -404,6 +411,12 @@ func (s Screen) detailText(svc service.Service) []string {
 	}
 	if result, ok := s.statuses[svc.Name]; ok {
 		text = append(text, "Status "+s.durationText(s.statusAge(result))+" ago")
+		if result.Failure != nil {
+			text = append(text, s.printable(result.Failure.Text))
+			for _, line := range result.Failure.Lines {
+				text = append(text, s.printable(line))
+			}
+		}
 	}
 	return text
 }

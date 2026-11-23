@@ -5,6 +5,7 @@ package status_test
 import (
 	"context"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -232,7 +233,7 @@ func TestCommand(t *testing.T) {
 
 				result := command.Run(context.Background(), service.Service{Name: "com.example.worker", Env: map[string]string{"WORKER_STATUS_FILE": "/Users/me/worker/status.json"}})
 
-				require.Equal(t, &status.Failure{Text: failure}, result.Failure, text)
+				require.Equal(t, &status.Failure{Kind: status.FailureKindTemplateValue, Text: failure}, result.Failure, text)
 				require.Nil(t, result.Output, text)
 				require.NoFileExists(t, marker, text)
 			}
@@ -245,6 +246,7 @@ func TestCommand(t *testing.T) {
 			result := command.Run(context.Background(), worker())
 
 			require.NotNil(t, result.Failure)
+			require.Equal(t, status.FailureKindTemplateValue, result.Failure.Kind)
 			require.Contains(t, result.Failure.Text, "slice")
 			require.Contains(t, result.Failure.Text, "out of range")
 			require.NoFileExists(t, marker)
@@ -255,7 +257,7 @@ func TestCommand(t *testing.T) {
 
 			result := command.Run(context.Background(), service.Service{Name: "com.example.worker"})
 
-			require.Equal(t, &status.Failure{Text: "the plist has no WORKER_STATUS_FILE"}, result.Failure)
+			require.Equal(t, &status.Failure{Kind: status.FailureKindTemplateValue, Text: "the plist has no WORKER_STATUS_FILE"}, result.Failure)
 		})
 
 		t.Run("the program runs with its arguments and no shell, so $HOME, ;, |, * and a space reach the program as they are", func(t *testing.T) {
@@ -381,22 +383,102 @@ func TestCommand(t *testing.T) {
 			}
 		})
 
-		t.Run("a program that exits with a code other than 0 gives a result with no output, also when it prints a JSON object of version 1", func(t *testing.T) {
-			command := newCommand(t, 0, "sh", "-c", `printf '{"version":1,"summary":"busy"}'; exit 3`)
+		t.Run("a program that exits with a code other than 0 gives a status error with the exit code and the lines of stderr, also when it prints a JSON object of version 1", func(t *testing.T) {
+			command := newCommand(t, 0, "sh", "-c", `printf '{"version":1,"summary":"busy"}'; echo first >&2; echo second >&2; exit 3`)
 
 			result := command.Run(context.Background(), worker())
 
+			require.Equal(t, &status.Failure{Kind: status.FailureKindError, Text: "exit code 3", Lines: []string{"first", "second"}}, result.Failure)
 			require.Nil(t, result.Output)
-			require.Nil(t, result.Failure)
 		})
 
-		t.Run("a program that is not found gives a result with no output", func(t *testing.T) {
-			command := newCommand(t, 0, "svcview-no-such-program", "status.json")
+		t.Run("a status error keeps only the last 20 lines of stderr, also for a program that writes many more", func(t *testing.T) {
+			command := newCommand(t, 0, "sh", "-c", `i=1; while [ $i -le 5000 ]; do echo "line $i" >&2; i=$((i+1)); done; exit 1`)
 
 			result := command.Run(context.Background(), worker())
 
+			var last20 []string
+			for i := 4981; i <= 5000; i++ {
+				last20 = append(last20, "line "+strconv.Itoa(i))
+			}
+			require.Equal(t, &status.Failure{Kind: status.FailureKindError, Text: "exit code 1", Lines: last20}, result.Failure)
+		})
+
+		t.Run("a status error keeps only the last 20 lines of stderr when the last line has no new line", func(t *testing.T) {
+			command := newCommand(t, 0, "sh", "-c", `i=1; while [ $i -le 25 ]; do echo "line $i" >&2; i=$((i+1)); done; printf last >&2; exit 1`)
+
+			result := command.Run(context.Background(), worker())
+
+			var last20 []string
+			for i := 7; i <= 25; i++ {
+				last20 = append(last20, "line "+strconv.Itoa(i))
+			}
+			require.Equal(t, &status.Failure{Kind: status.FailureKindError, Text: "exit code 1", Lines: append(last20, "last")}, result.Failure)
+		})
+
+		t.Run("a status error has a last line of stderr with no new line, and keeps no empty line for the new line at the end", func(t *testing.T) {
+			for stderr, lines := range map[string][]string{
+				`first\nlast`:   {"first", "last"},
+				`first\nx`:      {"first", "x"},
+				`first\nlast\n`: {"first", "last"},
+				`first\n\nlast`: {"first", "", "last"},
+				`\n`:            {""},
+				``:              nil,
+			} {
+				command := newCommand(t, 0, "sh", "-c", `printf "$0" >&2; exit 1`, stderr)
+
+				result := command.Run(context.Background(), worker())
+
+				require.NotNil(t, result.Failure, stderr)
+				require.Equal(t, lines, result.Failure.Lines, stderr)
+			}
+		})
+
+		t.Run("a status error keeps the first 4096 bytes of a longer line of stderr", func(t *testing.T) {
+			file := filepath.Join(t.TempDir(), "stderr.txt")
+			require.NoError(t, os.WriteFile(file, []byte(strings.Repeat("a", 4000)+strings.Repeat("b", 1<<20)+"\nnext"), 0o644))
+			command := newCommand(t, 0, "sh", "-c", `cat "$0" >&2; exit 1`, file)
+
+			result := command.Run(context.Background(), worker())
+
+			require.NotNil(t, result.Failure)
+			require.Equal(t, []string{strings.Repeat("a", 4000) + strings.Repeat("b", 96), "next"}, result.Failure.Lines)
+		})
+
+		t.Run("a program that exits with 0 while a process that it started keeps its stdout open gives a status error with the lines of stderr, no later than 1 s after the exit", func(t *testing.T) {
+			command := newCommand(t, 10*time.Second, "sh", "-c", `echo started >&2; sleep 5 & printf '{"version":1,"summary":"busy"}'`)
+			started := time.Now()
+
+			result := command.Run(context.Background(), worker())
+
+			require.Equal(t, &status.Failure{Kind: status.FailureKindError, Text: exec.ErrWaitDelay.Error(), Lines: []string{"started"}}, result.Failure)
 			require.Nil(t, result.Output)
-			require.Nil(t, result.Failure)
+			require.Less(t, time.Since(started), 3*time.Second)
+		})
+
+		t.Run("a program that a signal ends gives a status error with the name of the signal", func(t *testing.T) {
+			command := newCommand(t, 0, "sh", "-c", `echo stopping >&2; kill -TERM $$`)
+
+			result := command.Run(context.Background(), worker())
+
+			require.Equal(t, &status.Failure{Kind: status.FailureKindError, Text: "ended by SIGTERM", Lines: []string{"stopping"}}, result.Failure)
+			require.Nil(t, result.Output)
+		})
+
+		t.Run("a program that svcview cannot start gives a status error that says why", func(t *testing.T) {
+			notExecutable := filepath.Join(t.TempDir(), "status")
+			require.NoError(t, os.WriteFile(notExecutable, []byte("#!/bin/sh\necho '{\"version\":1}'\n"), 0o644))
+			for program, why := range map[string]string{
+				"svcview-no-such-program": `"svcview-no-such-program": executable file not found in $PATH`,
+				notExecutable:             "permission denied",
+			} {
+				result := newCommand(t, 0, program, "status.json").Run(context.Background(), worker())
+
+				require.NotNil(t, result.Failure, program)
+				require.Equal(t, status.FailureKindError, result.Failure.Kind, program)
+				require.Contains(t, result.Failure.Text, why, program)
+				require.Nil(t, result.Output, program)
+			}
 		})
 
 		t.Run("a program that runs longer than the timeout stops, and gives a result with no output no later than 1 s after the timeout, also when a child of the program keeps its stdout open", func(t *testing.T) {
@@ -461,14 +543,16 @@ func TestCommand(t *testing.T) {
 			require.WithinRange(t, result.Ended, started.Add(300*time.Millisecond), time.Now())
 		})
 
-		t.Run("the result of a failure has the time at which the run ended", func(t *testing.T) {
-			command := newCommand(t, 0, "cat", "{{.Env.WORKER_LOG}}")
-			started := time.Now()
+		t.Run("the result of a failure has the time at which the run ended, also when svcview cannot start the program", func(t *testing.T) {
+			for _, texts := range [][]string{{"cat", "{{.Env.WORKER_LOG}}"}, {"svcview-no-such-program"}} {
+				command := newCommand(t, 0, texts...)
+				started := time.Now()
 
-			result := command.Run(context.Background(), worker())
+				result := command.Run(context.Background(), worker())
 
-			require.NotNil(t, result.Failure)
-			require.WithinRange(t, result.Ended, started, time.Now())
+				require.NotNil(t, result.Failure, texts)
+				require.WithinRange(t, result.Ended, started, time.Now(), texts)
+			}
 		})
 	})
 }

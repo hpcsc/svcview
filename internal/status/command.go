@@ -5,8 +5,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
 	"os/exec"
 	"slices"
+	"syscall"
 	"text/template"
 	"text/template/parse"
 	"time"
@@ -65,13 +67,29 @@ func (c Command) Run(ctx context.Context, svc service.Service) Result {
 	program := exec.CommandContext(ctx, line[0], line[1:]...)
 	program.WaitDelay = stopDelay
 	var stdout stdoutBuffer
-	program.Stdout = &stdout
-	err := program.Run()
+	var stderr lastLines
+	program.Stdout, program.Stderr = &stdout, &stderr
+	if err := program.Start(); err != nil {
+		return Result{Ended: time.Now(), Failure: &Failure{Kind: FailureKindError, Text: err.Error()}}
+	}
+	err := program.Wait()
 	result := Result{Ended: time.Now()}
-	if err == nil {
+	switch exited, ok := errors.AsType[*exec.ExitError](err); {
+	case ok:
+		result.Failure = &Failure{Kind: FailureKindError, Text: c.exitText(exited.ProcessState), Lines: stderr.lines()}
+	case err != nil:
+		result.Failure = &Failure{Kind: FailureKindError, Text: err.Error(), Lines: stderr.lines()}
+	default:
 		result.Output = parseOutput(stdout.data)
 	}
 	return result
+}
+
+func (c Command) exitText(state *os.ProcessState) string {
+	if wait, _ := state.Sys().(syscall.WaitStatus); wait.Signaled() {
+		return "ended by " + service.SignalName(int(wait.Signal()))
+	}
+	return fmt.Sprintf("exit code %d", state.ExitCode())
 }
 
 func (c Command) commandLine(svc service.Service) ([]string, *Failure) {
