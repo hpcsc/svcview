@@ -20,6 +20,22 @@ describe('the status command', () => {
     await session.waitForText('01  busy · ENG-692')
   })
 
+  it('a status file with the fields mode and ticket shows each field with its name and its value in the detail pane', async () => {
+    const home = homeWithPlists([])
+    const statusFile = join(scratchDir(), 'status.json')
+    writeFileSync(
+      statusFile,
+      '{"version":1,"summary":"busy","fields":[{"name":"mode","value":"busy"},{"name":"ticket","value":"ENG-692"}]}\n',
+    )
+    addPlist(home, 'com.example.worker.01', { WORKER_STATUS_FILE: statusFile })
+    writeConfig(join(home, '.config', 'svcview'), workersWithStatusCommand(`[cat, '{{.Env.WORKER_STATUS_FILE}}']`))
+
+    const session = await openCli(scratchDir(), [], { HOME: home })
+
+    await session.waitForText('│ mode    busy ')
+    await session.waitForText('│ ticket  ENG-692 ')
+  })
+
   it('a group whose status command uses a variable that the plist does not have shows the plist has no and the name of the variable in the row of the service', async () => {
     const home = homeWithPlists([])
     addPlist(home, 'com.example.worker.01', { WORKER_STATUS_FILE: '/tmp/status.json' })

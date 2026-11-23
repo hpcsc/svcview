@@ -27,7 +27,7 @@
     },
     {
       "n": 2,
-      "done": false,
+      "done": true,
       "title": "Show the fields of a status under Status, each with its name and its value",
       "language": "Go",
       "testable": true,

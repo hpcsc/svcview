@@ -164,20 +164,20 @@ one column, two spaces after the widest name of that output. svcview shows each 
 name, so a service can add a field with no change to svcview.
 
 **Acceptance Criteria:**
-- [ ] An output with the fields `mode` `busy`, `ticket` `ENG-692`, `done` `14` and `failed` `1` shows four lines under
+- [x] An output with the fields `mode` `busy`, `ticket` `ENG-692`, `done` `14` and `failed` `1` shows four lines under
       the line `Status`, in this order: `mode    busy`, `ticket  ENG-692`, `done    14` and `failed  1`.
-- [ ] The values of one output start in one column, two spaces after its widest name. Another output with another
+- [x] The values of one output start in one column, two spaces after its widest name. Another output with another
       widest name moves the column.
-- [ ] A field whose name svcview has never seen, and a field named `Status`, `Events`, `summary` or `progress`, show
+- [x] A field whose name svcview has never seen, and a field named `Status`, `Events`, `summary` or `progress`, show
       as their name and their value, as each other field does.
-- [ ] A field with an empty value shows its name, and nothing after it.
-- [ ] Each control character in a name or a value shows as `�`, and no escape sequence of a name or a value reaches
+- [x] A field with an empty value shows its name, and nothing after it.
+- [x] Each control character in a name or a value shows as `�`, and no escape sequence of a name or a value reaches
       the terminal.
-- [ ] An output with no fields shows no line under `Status`. After a failure, the detail pane shows the text of the
+- [x] An output with no fields shows no line under `Status`. After a failure, the detail pane shows the text of the
       failure and its lines under `Status`, as before, and no field.
-- [ ] When the output of the next run has other fields, the detail pane shows the fields of that run.
-- [ ] A golden file shows the detail pane of a service with the fields of the proposal.
-- [ ] e2e test: a status file with the fields `mode` `busy` and `ticket` `ENG-692` shows `mode    busy` and
+- [x] When the output of the next run has other fields, the detail pane shows the fields of that run.
+- [x] A golden file shows the detail pane of a service with the fields of the proposal.
+- [x] e2e test: a status file with the fields `mode` `busy` and `ticket` `ENG-692` shows `mode    busy` and
       `ticket  ENG-692` in the detail pane.
 
 **Affected Files/Modules:**

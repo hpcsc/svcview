@@ -1142,6 +1142,174 @@ func TestScreen(t *testing.T) {
 			})
 		})
 
+		t.Run("under the line Status, shows each field as its name and its value, in the order of the output, with the values of one output in one column two spaces after its widest name", func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				read := servicesNamed("com.example.worker.a", "com.example.worker.b")
+				run := runsGiving(map[string]status.Result{
+					"com.example.worker.a": {Output: &status.Output{Fields: []status.Field{
+						{Name: "mode", Value: "busy"},
+						{Name: "ticket", Value: "ENG-692"},
+						{Name: "done", Value: "14"},
+						{Name: "failed", Value: "1"},
+					}}},
+					"com.example.worker.b": {Output: &status.Output{Fields: []status.Field{
+						{Name: "id", Value: "7"},
+						{Name: "queue", Value: "high"},
+						{Name: "a-long-name", Value: "x"},
+					}}},
+				})
+
+				screen := runSized(t, tui.NewScreen("gui/501", read, run, workersWithStatus(t)), 80, 14, 100*time.Millisecond)
+
+				require.Equal(t, [][]string{
+					{"mode    busy", "ticket  ENG-692", "done    14", "failed  1", ""},
+					{"id           7", "queue        high", "a-long-name  x", "", ""},
+				}, [][]string{detailPane(screen)[3:], detailPane(pressKeys(screen, down))[3:]})
+			})
+		})
+
+		t.Run("shows a field whose name svcview does not know, and a field named Status, Events, summary or progress, as each other field", func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				read := servicesNamed("com.example.worker.a")
+				run := runsGiving(map[string]status.Result{
+					"com.example.worker.a": {Output: &status.Output{Fields: []status.Field{
+						{Name: "Status", Value: "s"},
+						{Name: "Events", Value: "e"},
+						{Name: "summary", Value: "busy"},
+						{Name: "progress", Value: "0.5"},
+						{Name: "zz-unknown", Value: "u"},
+					}}},
+				})
+
+				screen := runSized(t, tui.NewScreen("gui/501", read, run, workersWithStatus(t)), 80, 14, 100*time.Millisecond)
+
+				require.Equal(t, []string{
+					"Status      s",
+					"Events      e",
+					"summary     busy",
+					"progress    0.5",
+					"zz-unknown  u",
+				}, detailPane(screen)[3:])
+			})
+		})
+
+		t.Run("a field with an empty value shows its name and nothing after it", func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				read := servicesNamed("com.example.worker.a")
+				run := runsGiving(map[string]status.Result{
+					"com.example.worker.a": {Output: &status.Output{Fields: []status.Field{
+						{Name: "failed", Value: ""},
+						{Name: "mode", Value: "busy"},
+					}}},
+				})
+
+				screen := runSized(t, tui.NewScreen("gui/501", read, run, workersWithStatus(t)), 80, 12, 100*time.Millisecond)
+
+				require.Equal(t, []string{"failed", "mode    busy", ""}, detailPane(screen)[3:])
+			})
+		})
+
+		t.Run("an output whose fields each have an empty name shows each value two spaces from the left of the text", func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				read := servicesNamed("com.example.worker.a")
+				run := runsGiving(map[string]status.Result{
+					"com.example.worker.a": {Output: &status.Output{Fields: []status.Field{{Name: "", Value: "busy"}, {Name: "", Value: "ENG-692"}}}},
+				})
+
+				screen := runSized(t, tui.NewScreen("gui/501", read, run, workersWithStatus(t)), 80, 12, 100*time.Millisecond)
+
+				var texts []string
+				for _, line := range strings.Split(ansi.Strip(screen.View().Content), "\n")[7:9] {
+					_, text, _ := strings.Cut(line, "││")
+					texts = append(texts, strings.TrimRight(text, " │"))
+				}
+				require.Equal(t, []string{"   busy", "   ENG-692"}, texts)
+			})
+		})
+
+		t.Run("shows each control character in the name or the value of a field as �, and puts the values in the column after the widest name as it shows", func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				read := servicesNamed("com.example.worker.a")
+				run := runsGiving(map[string]status.Result{
+					"com.example.worker.a": {Output: &status.Output{Fields: []status.Field{
+						{Name: "mo\x1b[2Jde", Value: "busy\x1b[2J\nnext"},
+						{Name: "ticket", Value: "ENG-692"},
+					}}},
+				})
+
+				screen := runSized(t, tui.NewScreen("gui/501", read, run, workersWithStatus(t)), 80, 12, 100*time.Millisecond)
+
+				require.Equal(t, []string{"mo�[2Jde  busy�[2J�next", "ticket    ENG-692", ""}, detailPane(screen)[3:])
+				require.NotContains(t, screen.View().Content, "\x1b[2J")
+			})
+		})
+
+		t.Run("an output with no fields shows no line under Status", func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				start := time.Now()
+				read := servicesNamed("com.example.worker.a")
+				run := runsGiving(map[string]status.Result{"com.example.worker.a": {Ended: start, Output: &status.Output{Summary: "busy"}}})
+
+				screen := runSized(t, tui.NewScreen("gui/501", read, run, workersWithStatus(t)), 80, 12, 100*time.Millisecond)
+				time.Sleep(time.Until(start.Add(5 * time.Minute)))
+
+				require.Equal(t, []string{"Status 5m0s ago", "", "", ""}, detailPane(screen)[2:])
+			})
+		})
+
+		t.Run("shows the fields of the last run, and the fields of the next run when its output has other fields", func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				start := time.Now()
+				read := servicesNamed("com.example.worker.a")
+				run := func(status.Command, service.Service) status.Result {
+					if time.Since(start) < time.Second {
+						return status.Result{Ended: time.Now(), Output: &status.Output{Fields: []status.Field{{Name: "mode", Value: "idle"}}}}
+					}
+					return status.Result{Ended: time.Now(), Output: &status.Output{Fields: []status.Field{{Name: "ticket", Value: "ENG-692"}, {Name: "step", Value: "review"}}}}
+				}
+
+				screen := runSized(t, tui.NewScreen("gui/501", read, run, workersWithStatus(t)), 80, 12, 2500*time.Millisecond)
+
+				require.Equal(t, []string{"ticket  ENG-692", "step    review", ""}, detailPane(screen)[3:])
+			})
+		})
+
+		t.Run("after a run with fields, a failure of the next run shows the failure and its lines under Status, and no field", func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				start := time.Now()
+				read := servicesNamed("com.example.worker.a")
+				run := func(status.Command, service.Service) status.Result {
+					if time.Since(start) < time.Second {
+						return status.Result{Ended: time.Now(), Output: &status.Output{Fields: []status.Field{{Name: "mode", Value: "busy"}}}}
+					}
+					return status.Result{Ended: time.Now(), Failure: &status.Failure{Kind: status.FailureKindError, Text: "exit code 3", Lines: []string{"broken"}}}
+				}
+
+				screen := runSized(t, tui.NewScreen("gui/501", read, run, workersWithStatus(t)), 80, 14, 2500*time.Millisecond)
+
+				require.Equal(t, []string{"exit code 3", "broken", "", "", ""}, detailPane(screen)[3:])
+			})
+		})
+
+		t.Run("draws the fields under Status, each with its name and its value, with the values in one column", func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				read := readGiving(service.Service{Name: "com.example.worker.01", State: service.Running, PID: 4122, Uptime: new(3*time.Hour + 12*time.Minute)})
+				run := runsGiving(map[string]status.Result{
+					"com.example.worker.01": {Output: &status.Output{Summary: "busy · ENG-692 · 12m", Fields: []status.Field{
+						{Name: "mode", Value: "busy"},
+						{Name: "ticket", Value: "ENG-692"},
+						{Name: "step", Value: "review · 12m / 20m", Progress: new(0.6)},
+						{Name: "done", Value: "14"},
+						{Name: "failed", Value: "1"},
+					}}},
+				})
+
+				screen := runSized(t, tui.NewScreen("gui/501", read, run, workersWithStatus(t)), 80, 16, 100*time.Millisecond)
+
+				requireGolden(t, "status-fields", screen)
+			})
+		})
+
 		t.Run("shows no Status line for a service of a group with no status command, and before the first run of the service ends", func(t *testing.T) {
 			synctest.Test(t, func(t *testing.T) {
 				read := servicesNamed("com.example.worker.a", "homebrew.mxcl.redis")

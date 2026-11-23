@@ -422,8 +422,24 @@ func (s Screen) detailText(svc service.Service) []string {
 				text = append(text, s.printable(line))
 			}
 		}
+		if result.Output != nil {
+			text = append(text, s.fieldLines(result.Output.Fields)...)
+		}
 	}
 	return text
+}
+
+func (s Screen) fieldLines(fields []status.Field) []string {
+	nameWidth := 0
+	for _, field := range fields {
+		nameWidth = max(nameWidth, ansi.StringWidth(s.printable(field.Name)))
+	}
+	var lines []string
+	for _, field := range fields {
+		name := s.printable(field.Name)
+		lines = append(lines, name+strings.Repeat(" ", nameWidth-ansi.StringWidth(name)+2)+s.printable(field.Value))
+	}
+	return lines
 }
 
 func (s Screen) statusAge(result status.Result) time.Duration {
