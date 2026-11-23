@@ -91,19 +91,19 @@ group whose `match` matches its name. svcview refuses a list of groups that it c
 file and the group.
 
 **Acceptance Criteria:**
-- [ ] Each entry in `groups` gives a group with its `name` and its `match`, in the order of the file.
-- [ ] A service is in a group when the `match` of the group, a Go regular expression, matches its name. A match in
+- [x] Each entry in `groups` gives a group with its `name` and its `match`, in the order of the file.
+- [x] A service is in a group when the `match` of the group, a Go regular expression, matches its name. A match in
       any part of the name counts, unless the expression has `^` or `$`.
-- [ ] A service that the `match` of two groups matches is in the first of them. A service that no group matches is
+- [x] A service that the `match` of two groups matches is in the first of them. A service that no group matches is
       in no group of the settings.
-- [ ] With no `groups`, or with no config file, the settings have no groups.
-- [ ] `refresh` and `groups` are the settings at the top of the file. Any other setting there gives an error that
+- [x] With no `groups`, or with no config file, the settings have no groups.
+- [x] `refresh` and `groups` are the settings at the top of the file. Any other setting there gives an error that
       names the file and the setting.
-- [ ] An invalid regular expression gives an error that names the file and the group.
-- [ ] A group with no `name`, or with no `match`, gives an error that names the file and the group. A group with no
+- [x] An invalid regular expression gives an error that names the file and the group.
+- [x] A group with no `name`, or with no `match`, gives an error that names the file and the group. A group with no
       name is named by its place in `groups`, for example `group 2`.
-- [ ] An unknown setting in a group gives an error that names the file, the group, and the setting.
-- [ ] Two groups with the same name give an error that names the file and the group. A group named `Other` gives
+- [x] An unknown setting in a group gives an error that names the file, the group, and the setting.
+- [x] Two groups with the same name give an error that names the file and the group. A group named `Other` gives
       the same error, because `Other` is the group of the services that no group matches. Two names that differ in
       case, for example `Workers` and `workers`, are two names.
 

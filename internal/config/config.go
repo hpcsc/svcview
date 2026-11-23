@@ -15,12 +15,13 @@ import (
 )
 
 const (
-	fileName             = "config.yaml"
-	writeByGroupOrOthers = fs.FileMode(0o022)
+	fileName           = "config.yaml"
+	writeByAnotherUser = fs.FileMode(0o022)
 )
 
 type Settings struct {
 	Refresh time.Duration
+	Groups  []Group
 }
 
 func Read(folder string, uid int) (Settings, error) {
@@ -39,7 +40,7 @@ func Read(folder string, uid int) (Settings, error) {
 		return Settings{}, fmt.Errorf("read the config file: %w", err)
 	}
 	owner := info.Sys().(*syscall.Stat_t).Uid
-	if owner != uint32(uid) || info.Mode().Perm()&writeByGroupOrOthers != 0 {
+	if owner != uint32(uid) || info.Mode().Perm()&writeByAnotherUser != 0 {
 		return Settings{}, fmt.Errorf("another user can write the config file %s, so svcview does not read it: the file belongs to user %d and has the mode %s, and it must belong to user %d with no write permission for its group or for other users", path, owner, info.Mode().Perm(), uid)
 	}
 	content, err := io.ReadAll(file)
@@ -85,15 +86,53 @@ func (s *Settings) read(content []byte) error {
 }
 
 func (s *Settings) set(name, value *yaml.Node) error {
-	if name.Value != "refresh" {
-		return fmt.Errorf("line %d: svcview does not know the setting %q", name.Line, name.Value)
+	switch name.Value {
+	case "refresh":
+		return s.setRefresh(name, value)
+	case "groups":
+		return s.setGroups(name, value)
 	}
+	return fmt.Errorf("line %d: svcview does not know the setting %q", name.Line, name.Value)
+}
+
+func (s *Settings) setRefresh(name, value *yaml.Node) error {
 	refresh, err := time.ParseDuration(value.Value)
 	if err != nil || refresh <= 0 {
 		return fmt.Errorf("line %d: the setting %q must be a duration more than 0, such as 5s or 1m30s", value.Line, name.Value)
 	}
 	s.Refresh = refresh
 	return nil
+}
+
+func (s *Settings) setGroups(name, value *yaml.Node) error {
+	if value.Tag == "!!null" {
+		return nil
+	}
+	if value.Kind != yaml.SequenceNode {
+		return fmt.Errorf("line %d: the setting %q must be a list of groups, each with a name and a match", value.Line, name.Value)
+	}
+	lineOf := map[string]int{}
+	for i, entry := range value.Content {
+		group, err := readGroup(entry, i+1)
+		if err != nil {
+			return err
+		}
+		if line, ok := lineOf[group.Name]; ok {
+			return fmt.Errorf("line %d: the name of group %q is already the name of the group on line %d", entry.Line, group.Name, line)
+		}
+		lineOf[group.Name] = entry.Line
+		s.Groups = append(s.Groups, group)
+	}
+	return nil
+}
+
+func (s *Settings) GroupOf(serviceName string) Group {
+	for _, group := range s.Groups {
+		if group.matches(serviceName) {
+			return group
+		}
+	}
+	return Other
 }
 
 func Folder(home, xdgConfigHome string) string {

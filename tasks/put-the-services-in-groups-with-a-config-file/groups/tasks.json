@@ -5,7 +5,7 @@
   "tasks": [
     {
       "n": 1,
-      "done": false,
+      "done": true,
       "title": "Read the groups of the config file",
       "language": "Go",
       "testable": true,

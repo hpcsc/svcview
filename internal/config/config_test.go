@@ -20,6 +20,30 @@ func folderWith(t *testing.T, content string) (folder, path string) {
 	return folder, path
 }
 
+func readSettings(t *testing.T, content string) config.Settings {
+	t.Helper()
+	folder, _ := folderWith(t, content)
+	settings, err := config.Read(folder, os.Getuid())
+	require.NoError(t, err)
+	return settings
+}
+
+func groupNames(settings config.Settings) []string {
+	var names []string
+	for _, group := range settings.Groups {
+		names = append(names, group.Name)
+	}
+	return names
+}
+
+func groupOfEach(settings config.Settings, names ...string) map[string]string {
+	groups := map[string]string{}
+	for _, name := range names {
+		groups[name] = settings.GroupOf(name).Name
+	}
+	return groups
+}
+
 func TestSettings(t *testing.T) {
 	t.Run("config folder", func(t *testing.T) {
 		t.Run("is svcview in XDG_CONFIG_HOME when XDG_CONFIG_HOME is an absolute path", func(t *testing.T) {
@@ -246,6 +270,256 @@ func TestSettings(t *testing.T) {
 
 			require.NoError(t, err)
 			require.Equal(t, config.Settings{Refresh: 2 * time.Second}, settings)
+		})
+
+		t.Run("each entry of groups gives a group with its name, in the order of the file", func(t *testing.T) {
+			settings := readSettings(t, "refresh: 5s\ngroups:\n  - name: Workers\n    match: worker\n  - name: Databases\n    match: redis|postgres\n  - name: Apple\n    match: ^com\\.apple\\.\n")
+
+			require.Equal(t, []string{"Workers", "Databases", "Apple"}, groupNames(settings))
+			require.Equal(t, 5*time.Second, settings.Refresh)
+		})
+
+		t.Run("with no groups, with an empty list of groups, or with groups that has no entries, the settings have no groups", func(t *testing.T) {
+			for _, content := range []string{"refresh: 5s\n", "refresh: 5s\ngroups: []\n", "refresh: 5s\ngroups:\n", "groups: ~\nrefresh: 5s\n"} {
+				settings := readSettings(t, content)
+
+				require.Equal(t, config.Settings{Refresh: 5 * time.Second}, settings, content)
+			}
+		})
+
+		t.Run("a setting other than refresh and groups at the top of a file with groups gives an error that names the file and the setting", func(t *testing.T) {
+			folder, path := folderWith(t, "groups:\n  - name: Workers\n    match: worker\nstatus: running\n")
+
+			settings, err := config.Read(folder, os.Getuid())
+
+			require.ErrorContains(t, err, path)
+			require.ErrorContains(t, err, `"status"`)
+			require.Equal(t, config.Settings{}, settings)
+		})
+
+		t.Run("groups that is not a list gives an error that names the file and the setting, and no settings", func(t *testing.T) {
+			for _, content := range []string{"groups: Workers\n", "groups:\n  name: Workers\n  match: worker\n"} {
+				folder, path := folderWith(t, content)
+
+				settings, err := config.Read(folder, os.Getuid())
+
+				require.ErrorContains(t, err, path, content)
+				require.ErrorContains(t, err, `"groups"`, content)
+				require.Equal(t, config.Settings{}, settings, content)
+			}
+		})
+
+		t.Run("an entry of groups that is not a set of settings gives an error that names the file and the group by its place, and no settings", func(t *testing.T) {
+			for _, content := range []string{
+				"groups:\n  - name: Workers\n    match: worker\n  - Databases\n",
+				"groups:\n  - name: Workers\n    match: worker\n  -\n",
+				"groups:\n  - name: Workers\n    match: worker\n  - [Databases, redis]\n",
+				"groups:\n  - name: Workers\n    match: worker\n  - [Databases]\n",
+			} {
+				folder, path := folderWith(t, content)
+
+				settings, err := config.Read(folder, os.Getuid())
+
+				require.ErrorContains(t, err, path, content)
+				require.ErrorContains(t, err, "group 2 ", content)
+				require.Equal(t, config.Settings{}, settings, content)
+			}
+		})
+
+		t.Run("a group with no name gives an error that names the file and the group by its place, and no settings", func(t *testing.T) {
+			for _, content := range []string{
+				"groups:\n  - name: Workers\n    match: worker\n  - match: redis\n",
+				"groups:\n  - name: Workers\n    match: worker\n  - name:\n    match: redis\n",
+				"groups:\n  - name: Workers\n    match: worker\n  - name: ''\n    match: redis\n",
+				"groups:\n  - name: Workers\n    match: worker\n  - name: ~\n    match: redis\n",
+				"groups:\n  - name: Workers\n    match: worker\n  - name: [Databases]\n    match: redis\n",
+				"groups:\n  - name: &first Workers\n    match: worker\n  - name: *first\n    match: redis\n",
+			} {
+				folder, path := folderWith(t, content)
+
+				settings, err := config.Read(folder, os.Getuid())
+
+				require.ErrorContains(t, err, path, content)
+				require.ErrorContains(t, err, "group 2 has no name", content)
+				require.Equal(t, config.Settings{}, settings, content)
+			}
+		})
+
+		t.Run("a group with no match gives an error that names the file and the group, and no settings", func(t *testing.T) {
+			for _, content := range []string{
+				"groups:\n  - name: Databases\n",
+				"groups:\n  - name: Databases\n    match:\n",
+				"groups:\n  - name: Databases\n    match: ''\n",
+				"groups:\n  - name: Databases\n    match: ~\n",
+				"groups:\n  - name: Databases\n    match: [redis]\n",
+			} {
+				folder, path := folderWith(t, content)
+
+				settings, err := config.Read(folder, os.Getuid())
+
+				require.ErrorContains(t, err, path, content)
+				require.ErrorContains(t, err, `group "Databases" has no match`, content)
+				require.Equal(t, config.Settings{}, settings, content)
+			}
+		})
+
+		t.Run("a match that is not a Go regular expression gives an error that names the file and the group, and no settings", func(t *testing.T) {
+			for _, content := range []string{
+				"groups:\n  - name: Databases\n    match: '['\n",
+				"groups:\n  - name: Databases\n    match: redis(\n",
+				"groups:\n  - name: Databases\n    match: (?<=redis)\n",
+			} {
+				folder, path := folderWith(t, content)
+
+				settings, err := config.Read(folder, os.Getuid())
+
+				require.ErrorContains(t, err, path, content)
+				require.ErrorContains(t, err, `group "Databases" is not a Go regular expression`, content)
+				require.Equal(t, config.Settings{}, settings, content)
+			}
+		})
+
+		t.Run("a setting in a group that svcview does not know gives an error that names the file, the group and the setting, and no settings", func(t *testing.T) {
+			for content, setting := range map[string]string{
+				"groups:\n  - name: Databases\n    match: redis\n    status: running\n": `"status" of group "Databases"`,
+				"groups:\n  - status: running\n    name: Databases\n    match: redis\n": `"status" of group "Databases"`,
+				"groups:\n  - nme: Databases\n    match: redis\n":                       `"nme" of group 1`,
+			} {
+				folder, path := folderWith(t, content)
+
+				settings, err := config.Read(folder, os.Getuid())
+
+				require.ErrorContains(t, err, path, content)
+				require.ErrorContains(t, err, setting, content)
+				require.Equal(t, config.Settings{}, settings, content)
+			}
+		})
+
+		t.Run("a setting that a group sets two times gives an error that names the file, the group and the setting, and no settings", func(t *testing.T) {
+			for content, setting := range map[string]string{
+				"groups:\n  - name: Databases\n    match: redis\n    match: postgres\n": `"match" of group "Databases"`,
+				"groups:\n  - match: redis\n    match: postgres\n":                      `"match" of group 1`,
+			} {
+				folder, path := folderWith(t, content)
+
+				settings, err := config.Read(folder, os.Getuid())
+
+				require.ErrorContains(t, err, path, content)
+				require.ErrorContains(t, err, setting, content)
+				require.Equal(t, config.Settings{}, settings, content)
+			}
+		})
+
+		t.Run("two groups with the same name give an error that names the file and the group, and no settings", func(t *testing.T) {
+			folder, path := folderWith(t, "groups:\n  - name: Databases\n    match: redis\n  - name: Workers\n    match: worker\n  - name: Databases\n    match: postgres\n")
+
+			settings, err := config.Read(folder, os.Getuid())
+
+			require.ErrorContains(t, err, path)
+			require.ErrorContains(t, err, `group "Databases"`)
+			require.Equal(t, config.Settings{}, settings)
+		})
+
+		t.Run("a group with the name Other gives an error that names the file and the group, and no settings", func(t *testing.T) {
+			folder, path := folderWith(t, "groups:\n  - name: Workers\n    match: worker\n  - name: Other\n    match: redis\n")
+
+			settings, err := config.Read(folder, os.Getuid())
+
+			require.ErrorContains(t, err, path)
+			require.ErrorContains(t, err, `"Other"`)
+			require.Equal(t, config.Settings{}, settings)
+		})
+
+		t.Run("two names that differ only in case are two groups", func(t *testing.T) {
+			settings := readSettings(t, "groups:\n  - name: Workers\n    match: worker\n  - name: workers\n    match: job\n  - name: other\n    match: redis\n")
+
+			require.Equal(t, []string{"Workers", "workers", "other"}, groupNames(settings))
+		})
+	})
+
+	t.Run("group of a service", func(t *testing.T) {
+		t.Run("a service is in a group when the match of the group matches any part of its name", func(t *testing.T) {
+			settings := readSettings(t, "groups:\n  - name: Workers\n    match: worker\n  - name: Databases\n    match: redis|postgres\n")
+
+			require.Equal(t, map[string]string{
+				"com.example.worker.01":  "Workers",
+				"worker":                 "Workers",
+				"homebrew.mxcl.postgres": "Databases",
+				"homebrew.mxcl.redis":    "Databases",
+			}, groupOfEach(settings, "com.example.worker.01", "worker", "homebrew.mxcl.postgres", "homebrew.mxcl.redis"))
+		})
+
+		t.Run("^ and $ in a match tie it to the start and the end of the name", func(t *testing.T) {
+			settings := readSettings(t, "groups:\n  - name: Starts\n    match: ^com\\.example\\.\n  - name: Ends\n    match: \\.01$\n")
+
+			require.Equal(t, map[string]string{
+				"com.example.api":       "Starts",
+				"org.com.example.api":   "Other",
+				"org.example.worker.01": "Ends",
+				"org.example.01.worker": "Other",
+			}, groupOfEach(settings, "com.example.api", "org.com.example.api", "org.example.worker.01", "org.example.01.worker"))
+		})
+
+		t.Run("a service that the matches of two groups match is in the first of them", func(t *testing.T) {
+			workersFirst := readSettings(t, "groups:\n  - name: Workers\n    match: worker\n  - name: Examples\n    match: example\n")
+			examplesFirst := readSettings(t, "groups:\n  - name: Examples\n    match: example\n  - name: Workers\n    match: worker\n")
+
+			require.Equal(t, "Workers", workersFirst.GroupOf("com.example.worker.01").Name)
+			require.Equal(t, "Examples", examplesFirst.GroupOf("com.example.worker.01").Name)
+		})
+
+		t.Run("a service that no group matches is in the group Other", func(t *testing.T) {
+			settings := readSettings(t, "groups:\n  - name: Workers\n    match: worker\n")
+
+			require.Equal(t, "Other", settings.GroupOf("homebrew.mxcl.redis").Name)
+		})
+
+		t.Run("with no groups, each service is in the group Other", func(t *testing.T) {
+			settings, err := config.Read(t.TempDir(), os.Getuid())
+			require.NoError(t, err)
+
+			require.Equal(t, map[string]string{
+				"com.example.worker.01": "Other",
+				"homebrew.mxcl.redis":   "Other",
+			}, groupOfEach(settings, "com.example.worker.01", "homebrew.mxcl.redis"))
+		})
+	})
+}
+
+func TestGroup(t *testing.T) {
+	t.Run("create", func(t *testing.T) {
+		t.Run("a group has the name it was given, and holds each service whose name its match matches", func(t *testing.T) {
+			workers, err := config.NewGroup("Workers", `^com\.example\.worker\.`)
+			require.NoError(t, err)
+			settings := config.Settings{Groups: []config.Group{workers}}
+
+			require.Equal(t, map[string]string{
+				"com.example.worker.01": "Workers",
+				"com.example.api":       "Other",
+			}, groupOfEach(settings, "com.example.worker.01", "com.example.api"))
+		})
+
+		t.Run("a match that is not a Go regular expression gives an error that names the group", func(t *testing.T) {
+			_, err := config.NewGroup("Databases", "redis(")
+
+			require.ErrorContains(t, err, `group "Databases"`)
+		})
+
+		t.Run("a group with no name, a group with the name Other, and a group with no match give an error", func(t *testing.T) {
+			for name, match := range map[string]string{"": "worker", "Other": "worker", "Workers": ""} {
+				_, err := config.NewGroup(name, match)
+
+				require.Error(t, err, "name %q, match %q", name, match)
+			}
+		})
+
+		t.Run("a group with no match holds no service", func(t *testing.T) {
+			settings := config.Settings{Groups: []config.Group{{Name: "Workers"}, config.Other}}
+
+			require.Equal(t, map[string]string{
+				"com.example.worker.01": "Other",
+				"":                      "Other",
+			}, groupOfEach(settings, "com.example.worker.01", ""))
 		})
 	})
 }
