@@ -8,12 +8,16 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"syscall"
 	"time"
 
 	"go.yaml.in/yaml/v3"
 )
 
-const fileName = "config.yaml"
+const (
+	fileName             = "config.yaml"
+	writeByGroupOrOthers = fs.FileMode(0o022)
+)
 
 type Settings struct {
 	Refresh time.Duration
@@ -26,13 +30,26 @@ func Folder(home, xdgConfigHome string) string {
 	return filepath.Join(home, ".config", "svcview")
 }
 
-func Read(folder string) (Settings, error) {
+func Read(folder string, uid int) (Settings, error) {
 	settings := Settings{Refresh: 2 * time.Second}
 	path := filepath.Join(folder, fileName)
-	content, err := os.ReadFile(path)
+	file, err := os.Open(path)
 	if errors.Is(err, fs.ErrNotExist) {
 		return settings, nil
 	}
+	if err != nil {
+		return Settings{}, fmt.Errorf("read the config file: %w", err)
+	}
+	defer file.Close()
+	info, err := file.Stat()
+	if err != nil {
+		return Settings{}, fmt.Errorf("read the config file: %w", err)
+	}
+	owner := info.Sys().(*syscall.Stat_t).Uid
+	if owner != uint32(uid) || info.Mode().Perm()&writeByGroupOrOthers != 0 {
+		return Settings{}, fmt.Errorf("another user can write the config file %s, so svcview does not read it: the file belongs to user %d and has the mode %s, and it must belong to user %d with no write permission for its group or for other users", path, owner, info.Mode().Perm(), uid)
+	}
+	content, err := io.ReadAll(file)
 	if err != nil {
 		return Settings{}, fmt.Errorf("read the config file: %w", err)
 	}

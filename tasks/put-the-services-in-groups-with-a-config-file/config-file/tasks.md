@@ -60,6 +60,11 @@ describes the config file and `refresh`.
 **Deferred:**
 - The list keeps every service in the group `Other`. No setting puts a service in a group, and each row shows the
   full name.
+- svcview does not read the ACL of `config.yaml`. On macOS, an ACL can let another user write a file whose mode is
+  `0644`, and svcview reads that file. On Linux, the mode check covers a POSIX ACL, because an ACL entry that lets
+  another user write sets the group write bit through the ACL mask. `docs/cli.md` states the limit. The plan of
+  US-003 must refuse a `config.yaml` whose ACL lets another user write it, before any deliverable that runs a
+  command from the config (`decisions.md` of US-002, entry 2).
 
 ## Codebase Context
 
@@ -137,15 +142,15 @@ folder.
 a user other than the user of svcview owns it. The error names the file, and svcview gives no settings.
 
 **Acceptance Criteria:**
-- [ ] A `config.yaml` that its group can write, or that all users can write, gives an error that names the file
+- [x] A `config.yaml` that its group can write, or that all users can write, gives an error that names the file
       and says that another user can write it.
-- [ ] A `config.yaml` that a user other than the user of svcview owns gives the same error, also when only its
+- [x] A `config.yaml` that a user other than the user of svcview owns gives the same error, also when only its
       owner can write it.
-- [ ] A `config.yaml` that the user of svcview owns, and that only its owner can write, for example with the mode
+- [x] A `config.yaml` that the user of svcview owns, and that only its owner can write, for example with the mode
       `0644` or `0600`, gives its settings.
-- [ ] The mode and the owner that svcview checks are those of the file that it reads, also when `config.yaml` is a
+- [x] The mode and the owner that svcview checks are those of the file that it reads, also when `config.yaml` is a
       symbolic link.
-- [ ] With no `config.yaml`, svcview checks nothing, and the settings are the defaults.
+- [x] With no `config.yaml`, svcview checks nothing, and the settings are the defaults.
 
 **Affected Files/Modules:**
 - `internal/config/config.go` — the check of the mode and the owner of `config.yaml`
