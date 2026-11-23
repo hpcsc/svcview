@@ -220,14 +220,14 @@ service changes.
 detail pane. The Keys table matches the help of the screen.
 
 **Acceptance Criteria:**
-- [ ] The Keys table lists `tab`, and `↑` `↓` with both actions, as the help shows them.
-- [ ] The table of the glyphs and colors lists the border of the pane with the focus, blue, and the border of the
+- [x] The Keys table lists `tab`, and `↑` `↓` with both actions, as the help shows them.
+- [x] The table of the glyphs and colors lists the border of the pane with the focus, blue, and the border of the
       other pane, dim.
-- [ ] The table of the parts of the screen says that the list has the focus at start, and that the detail pane
+- [x] The table of the parts of the screen says that the list has the focus at start, and that the detail pane
       scrolls when it has the focus.
-- [ ] The two sentences that say that the detail pane does not scroll, at the end of "Failures" and at the end of
+- [x] The two sentences that say that the detail pane does not scroll, at the end of "Failures" and at the end of
       "In the list and the detail pane", say that `↑` and `↓` scroll it when it has the focus.
-- [ ] It says that a newly selected service shows from the first line of its detail pane.
+- [x] It says that a newly selected service shows from the first line of its detail pane.
 
 **Affected Files/Modules:**
 - `docs/cli.md` — the focus, `tab`, and the scroll of the detail pane

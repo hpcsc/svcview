@@ -70,8 +70,8 @@ This screen has the group `Workers`, with the match `^com\.example\.worker\.` an
 | Part | What it shows |
 | --- | --- |
 | The header | The domain `gui/<uid>` of the user, and the number of services in each state. |
-| The list | One row for each service that has a plist in `~/Library/LaunchAgents`, in [the groups of the config file](#groups), and then in the group `Other`. Each group starts with a line with its name, and an empty line separates two groups. In each group, the services are sorted by name. Each row starts with the glyph of the state of the service, and a row in a group shows the short name of the service. svcview cuts a name that is too long for the list with `…`. When the list has more lines than the pane, it scrolls to keep the selected row in view. When the selected row is the first row of its group, and the pane has room for more than one line, the line of the group shows too. In a group with a status command, a row shows [the summary of the status](#in-the-list-and-the-detail-pane) after the short name. The list takes 40 percent of the width. |
-| The detail pane | The selected service. Its title is the full name of the service. The pane shows the state, the PID, the uptime, and the last exit. In a group with a status command, it also shows the age of the status, and the [fields and the events](#in-the-list-and-the-detail-pane) of the last output or the [failure](#failures) of the last run. |
+| The list | One row for each service that has a plist in `~/Library/LaunchAgents`, in [the groups of the config file](#groups), and then in the group `Other`. Each group starts with a line with its name, and an empty line separates two groups. In each group, the services are sorted by name. Each row starts with the glyph of the state of the service, and a row in a group shows the short name of the service. svcview cuts a name that is too long for the list with `…`. When the list has more lines than the pane, it scrolls to keep the selected row in view. When the selected row is the first row of its group, and the pane has room for more than one line, the line of the group shows too. In a group with a status command, a row shows [the summary of the status](#in-the-list-and-the-detail-pane) after the short name. The list takes 40 percent of the width. At start, the list has [the focus](#the-focus-and-the-scroll). |
+| The detail pane | The selected service. Its title is the full name of the service. The pane shows the state, the PID, the uptime, and the last exit. In a group with a status command, it also shows the age of the status, and the [fields and the events](#in-the-list-and-the-detail-pane) of the last output or the [failure](#failures) of the last run. When the detail pane has [the focus](#the-focus-and-the-scroll), `↑` and `↓` scroll it. |
 | The help line | `? help` |
 
 The name of a service is the `Label` of its plist. svcview gets the state, the PID, and the last exit of each
@@ -93,6 +93,8 @@ service from `launchctl list`, and the uptime from `ps`.
 | A [failure](#failures) of the status command: `status error`, `status timeout`, or `status invalid` | Red, in place of the summary |
 | The bar of a field with a `progress` | A blue `▰` for each done cell, and a dim `▱` for each other cell. Dim is the faint attribute of the terminal, in its default color. |
 | The `●` of an event of the level `info`, `warn`, or `error` | The default color, yellow, or red, as the summary of the same level |
+| The border of the pane with [the focus](#the-focus-and-the-scroll) | Blue lines and corners. The title keeps the default color. |
+| The border of the other pane | Dim lines and corners. The title keeps the default color. |
 
 svcview uses the 16 colors of the ANSI palette, so the theme of the terminal sets the real colors. Each state has a
 glyph of a different shape, so the screen shows the state without color too.
@@ -106,6 +108,22 @@ glyph of a different shape, so the screen shows the state without color too.
 | `last exit` | The exit code of the last run, or the name of the signal that ended it, for example `SIGKILL`. |
 | `Status` | The age of the status, for example `Status 1s ago`, in a group with a [status command](#the-status-command). The line shows after the first run of the status command of the service ends. After a valid output, the lines under `Status` show [each field](#in-the-list-and-the-detail-pane) of the output with its name and its value, and a bar of 10 cells under the value of a field with a `progress`. After a [failure](#failures), the lines under `Status` tell why the run failed. |
 | `Events` | The [events](#in-the-list-and-the-detail-pane) of the last output, after the fields: for each event, the hours and minutes of its `at`, a `●` in the color of its `level`, and its `text`. The line `Events` shows only when the output has events. |
+
+### The focus and the scroll
+
+One of the two panes has the focus: the list at start. `tab` moves the focus to the other pane. The border of the
+pane with the focus is blue, and the border of the other pane is dim. When the list has the focus, `↑` and `↓` select
+a service. When the detail pane has the focus, `↑` and `↓` scroll it one line. The scroll stops at the first line, and
+at the line that puts the last line of the text at the bottom of the pane. A text that fits in the pane does not move.
+The selected service stays the same while the detail pane scrolls. While the help shows, `tab`, `↑`, and `↓` change
+nothing, and the focus stays where it is.
+
+A service that becomes selected shows its detail pane from the first line. svcview does not keep the scroll of a
+service, so a service that is selected again shows from the first line too. When the text of the detail pane gets
+shorter, or the terminal changes its size, the scroll moves back so that the last line of the text is at the bottom of
+the pane or above it. A refresh, and a run that gives a text of the same length, keep the scroll where it is. A read
+that fails shows no service in the detail pane, so the next read that succeeds shows the selected service from the
+first line.
 
 ### Refresh
 
@@ -121,7 +139,8 @@ and no rows. When `ps` fails, no service shows an uptime.
 
 | Key | Action |
 | --- | --- |
-| `↑` `↓` | Select a service. The keys move one row at a time in the order of the list, also from one group to the next. |
+| `↑` `↓` | Select a service. The keys move one row at a time in the order of the list, also from one group to the next. When the detail pane has [the focus](#the-focus-and-the-scroll), scroll it one line. |
+| `tab` | Move the focus to the other pane. |
 | `?` | Show the help, which lists all keys, or hide it. |
 | `esc` | Hide the help. |
 | `q` or `ctrl+c` | Quit. |
@@ -340,8 +359,8 @@ Events
 ```
 
 Each control character in the name or the value of a field, or in the text of an event, shows as `�`. Thus an output
-cannot send an escape sequence to the terminal. The detail pane does not scroll: it shows the lines that fit in the
-pane, and cuts each line at the width of the pane with `…`.
+cannot send an escape sequence to the terminal. When the detail pane has [the focus](#the-focus-and-the-scroll), `↑`
+and `↓` scroll it to the lines that do not fit in the pane. It cuts each line at the width of the pane with `…`.
 
 #### Failures
 
@@ -389,8 +408,9 @@ closes, and on `SIGTERM`. Thus no process that the command starts runs longer th
 of `sh -c 'sleep 30 &'`. A process that leaves the process group, for example with `setsid`, does not stop.
 
 svcview keeps the last 20 lines of stderr and the first 20 lines of an output that is not valid, and a maximum of
-4096 bytes of each line. The detail pane does not scroll: it shows the lines that fit in the pane, and cuts each
-line at the width of the pane with `…`. Each control character in a line shows as `�`.
+4096 bytes of each line. When the detail pane has [the focus](#the-focus-and-the-scroll), `↑` and `↓` scroll it to
+the lines that do not fit in the pane. It cuts each line at the width of the pane with `…`. Each control character in
+a line shows as `�`.
 
 #### A fast status command
 

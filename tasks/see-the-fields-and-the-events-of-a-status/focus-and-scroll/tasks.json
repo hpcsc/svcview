@@ -74,7 +74,7 @@
     },
     {
       "n": 4,
-      "done": false,
+      "done": true,
       "title": "Describe the focus and the scroll in docs/cli.md",
       "language": "Markdown",
       "testable": false,
