@@ -89,3 +89,45 @@
 - Observed: task 2,3,4 — see-the-launchd-services-in-a-list-detail-pane
 - Learning: Each change to the layout of the screen (a pane, a line, a height) rewrites every golden file in internal/tui/testdata and the same lines of screen.go and screen_test.go, so an audit fix to the code of an earlier task cannot fold into its commit: clerk fixup mark needs --onto, and the fix of a task before the layout change becomes a commit of its own. In detail-pane, the selection (task 2) came before the detail pane and the help line (tasks 3 and 4), and two fixes of the selection became their own commits.
 - Apply when: Planning a deliverable with more than one task in internal/tui, where one task adds a pane, a line or a view to the screen.
+
+## A check that another user can write a file must read the macOS ACL
+- Type: constraint
+- Recorded: 2026-11-23
+- Observed: task 2 — put-the-services-in-groups-with-a-config-file-config-file
+- Learning: The mode bits and the owner do not show a macOS ACL: chmod +a "everyone allow write" leaves the mode 0644, and internal/config.Read still reads the file. On Linux the mode check covers a POSIX ACL, because a write entry for another user sets the group write bit through the ACL mask. x/sys/unix has no Getattrlist on darwin, so the check needs a raw getattrlist call or a parse of ls -le, and only a Mac can test it.
+- Apply when: Planning US-003 or any task that refuses a config file, or any other file, that another user can write, before a setting of the config can hold a command.
+
+## A word of the subtest name is in every t.TempDir path
+- Type: recurring-finding
+- Recorded: 2026-11-23
+- Observed: task 1 — put-the-services-in-groups-with-a-config-file-config-file
+- Learning: Go names the folder of t.TempDir after the test, so require.ErrorContains(t, err, "refresh") passes in a subtest whose name holds refresh when the error names the path. Check a text that the path cannot hold, for example the setting in quotes (`"refresh"`).
+- Apply when: A Go test checks that an error, which also names a file in t.TempDir, holds a word that the name of the test holds too.
+
+## Join the lines of the screen before an e2e test checks a long error
+- Type: pattern
+- Recorded: 2026-11-23
+- Observed: task 3 — put-the-services-in-groups-with-a-config-file-config-file
+- Learning: openCli gives svcview 160 columns, and an error that names a path under the macOS TMPDIR continues on the next line, so toContain(path) fails on a Mac and passes in Docker. Check (await session.text()).replaceAll('\n', ''), as e2e/tests/config.test.ts does.
+- Apply when: An e2e test checks the text of an error that svcview prints and that names a file in a scratch folder.
+
+## internal/config is the precedent for a setting and for the check of the config file
+- Type: convention
+- Recorded: 2026-11-23
+- Observed: task 1,2 — put-the-services-in-groups-with-a-config-file-config-file
+- Learning: A task that adds a setting reads it in (*Settings).set of internal/config/config.go from yaml.Node values, with an error that gives the line and the setting in quotes, and tests it with a config.yaml in t.TempDir. The check of the mode and the owner with fstat on the open file is in config.Read. Tasks of this kind were planned as low certainty and went green on the first try.
+- Apply when: Planning or assessing a task that adds a setting to config.yaml, for example groups, status or actions, or that changes the check of the config file.
+
+## A fix whose fold conflicts gets a commit of its own after the last task that changed its lines
+- Type: convention
+- Recorded: 2026-11-23
+- Observed: task 1,2 — put-the-services-in-groups-with-a-config-file-config-file
+- Learning: When a later task rewrites the lines of an earlier one, as task 2 rewrote config.Read and its tests, clerk fixup replay of an audit fix into the earlier task conflicts. Do not fold the fix into the later task: commit it on its own at the end, with a message that names the commit it fixes, so git blame gives the right reason.
+- Apply when: clerk fixup replay reports a conflict, or a breakdown has two tasks that change the same new function and its tests.
+
+## Pass --integrate to clerk land when the request asks to land on main
+- Type: constraint
+- Recorded: 2026-11-23
+- Observed: put-the-services-in-groups-with-a-config-file-config-file
+- Learning: Bare clerk land reads only the integrate setting of the repo (integrate_source default), not the --integrate of the request, so it archives the breakdown and does not integrate. The run is then at the learn step, and clerk land refuses again; the branch then needs git merge --ff-only in the main checkout.
+- Apply when: A run whose request says --integrate, or land it on main, reaches the land step.
