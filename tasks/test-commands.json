@@ -1,0 +1,4 @@
+{
+  "default": "task test:unit && task test:e2e",
+  "Go": "task test:unit"
+}
