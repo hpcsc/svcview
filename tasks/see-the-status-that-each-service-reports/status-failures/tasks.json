@@ -1,0 +1,93 @@
+{
+  "story": "The screen shows why a status command failed",
+  "story_id": "launchd-tui/US-003",
+  "tasks_file": "tasks/see-the-status-that-each-service-reports/status-failures/tasks.md",
+  "tasks": [
+    {
+      "n": 1,
+      "done": false,
+      "title": "Show a status command that exits with a code other than 0",
+      "language": "Go",
+      "testable": true,
+      "certainty": "medium",
+      "blast_radius": "low",
+      "patterns_to_follow": [
+        "internal/launchd/launchctl_list.go:24-41",
+        "internal/tui/screen.go:251-269",
+        "internal/tui/screen.go:310-319"
+      ],
+      "depends_on": [],
+      "affected_files": [
+        "internal/status/command.go",
+        "internal/status/command_test.go",
+        "internal/tui/screen.go",
+        "internal/tui/screen_test.go",
+        "internal/tui/testdata/",
+        "e2e/tests/status.test.ts"
+      ]
+    },
+    {
+      "n": 2,
+      "done": false,
+      "title": "Stop a status command that runs longer than its timeout, with each process that it started",
+      "language": "Go",
+      "testable": true,
+      "certainty": "low",
+      "blast_radius": "high",
+      "patterns_to_follow": [
+        "internal/launchd/launchctl_list.go:24-41",
+        "task:1"
+      ],
+      "depends_on": [1],
+      "affected_files": [
+        "internal/status/command.go",
+        "internal/status/command_test.go",
+        "internal/tui/screen.go",
+        "internal/tui/screen_test.go",
+        "internal/tui/testdata/",
+        "e2e/tests/status.test.ts"
+      ]
+    },
+    {
+      "n": 3,
+      "done": false,
+      "title": "Show an output that is not a JSON object of version 1",
+      "language": "Go",
+      "testable": true,
+      "certainty": "high",
+      "blast_radius": "low",
+      "patterns_to_follow": [
+        "internal/launchd/launchctl_list.go:43-72",
+        "internal/tui/screen.go:251-269",
+        "task:1"
+      ],
+      "depends_on": [1],
+      "affected_files": [
+        "internal/status/output.go",
+        "internal/status/command.go",
+        "internal/status/command_test.go",
+        "internal/tui/screen.go",
+        "internal/tui/screen_test.go",
+        "internal/tui/testdata/",
+        "e2e/tests/status.test.ts"
+      ]
+    },
+    {
+      "n": 4,
+      "done": false,
+      "title": "Describe the failures of a status command in docs/cli.md",
+      "language": "Markdown",
+      "testable": false,
+      "certainty": "high",
+      "blast_radius": "low",
+      "patterns_to_follow": [
+        "docs/cli.md:72-111"
+      ],
+      "depends_on": [2, 3],
+      "affected_files": [
+        "docs/cli.md"
+      ]
+    }
+  ],
+  "design_file": "tasks/see-the-status-that-each-service-reports/status-failures/design.yaml"
+}

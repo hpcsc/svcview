@@ -1,0 +1,58 @@
+design: planned
+types:
+  - name: Settings
+    package: internal/config
+    change: changed
+    does: the settings of svcview, read from config.yaml in the config folder
+    owns:
+      - svcview refuses a config.yaml whose ACL has one or more entries, whatever each entry allows or denies, and the error names the file and chmod -N
+      - svcview refuses a config.yaml whose ACL it cannot read, and the error names the file
+      - the ACL that svcview checks is that of the open file that it reads, after the check of the owner and the mode, also when config.yaml is a symbolic link
+      - an ACL with no entries gives no rights, and svcview reads that file
+    fields: [Refresh, Groups]
+    methods: [GroupOf]
+  - name: Group
+    package: internal/config
+    change: changed
+    does: a named set of services from the config file, the services whose names its match matches
+    owns:
+      - a group has no status command, or one from its setting status
+      - an error in status stops svcview at start, and the error names the file and the group
+      - a group stays comparable, so its status command is a pointer
+    fields: [Name, match, Status]
+    methods: [ShortName]
+  - name: Command
+    package: internal/status
+    change: new
+    does: the status command of a group, as the config file sets it
+    owns:
+      - the command is a list of one or more texts, the program first and then its arguments, and the program is not empty
+      - each text is a Go template that uses only the template values Name, Env with a name after it, StdoutPath, StderrPath and PlistPath
+      - every and timeout are Go durations more than 0, 2s and 1s by default
+    fields: [arguments, Every, Timeout]
+    methods: []
+functions:
+  - config.Read(folder, uid, aclEntries) (Settings, error)
+  - config.ACLEntries(file) (int, error)
+  - status.NewCommand(arguments, every, timeout) (Command, error)
+words:
+  - concept: the access control list of a file on macOS, whose entries allow or deny rights to users and groups
+    word: ACL
+    not: [permissions, rights, extended attributes, xattr, security]
+  - concept: one rule of an ACL, for one user or group
+    word: entry
+    not: [ace, rule, item]
+  - concept: the program and its arguments that svcview runs to get the status of a service
+    word: status command
+    not: [probe, check, health check, script, hook]
+  - concept: a value of a service that a text of a status command can use, such as {{.Env.WORKER_STATUS_FILE}}
+    word: template value
+    not: [variable, placeholder, parameter, field]
+  - concept: the time between two runs of a status command, from the setting status.every
+    word: every
+    not: [interval, period, refresh, poll]
+  - concept: the time after which svcview stops a run of a status command, from the setting status.timeout
+    word: timeout
+    not: [deadline, limit, expiry]
+dependencies:
+  - internal/config -> internal/status

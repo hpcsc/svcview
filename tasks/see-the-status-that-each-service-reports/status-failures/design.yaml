@@ -1,0 +1,68 @@
+design: planned
+types:
+  - name: Command
+    package: internal/status
+    change: changed
+    does: the status command of a group, as the config file sets it
+    owns:
+      - a run whose program exits with a code other than 0, or cannot start, is a status error with the exit code, the signal or the reason, and the last 20 lines of stderr, also when the output is valid
+      - Run starts the program in a process group of its own, and at the timeout, or when its context ends, it stops that process group
+      - Run sends a signal only to the process group that it started, never to the group of svcview and never to each process of the user
+      - a run longer than the timeout is a status timeout with the command line
+      - an output that is not a JSON object of version 1, or that is larger than 1 MiB, is a status invalid with the parse error and the first 20 lines of the output
+    fields: [arguments, Every, Timeout]
+    methods: [Run]
+  - name: Failure
+    package: internal/status
+    change: changed
+    does: why a run gave no output
+    owns:
+      - each failure has a kind, a text and the lines that the detail pane shows under the text
+      - the lines are the last 20 lines of stderr for a status error, and the first 20 lines of the output for a status invalid
+    fields: [Kind, Text, Lines]
+    methods: []
+  - name: FailureKind
+    package: internal/status
+    change: new
+    does: the kind of a failure, error, timeout, invalid, or a template value that the service does not have
+    owns:
+      - the names of the kinds do not clash with the levels info, warn and error
+    fields: []
+    methods: []
+  - name: lastLines
+    package: internal/status
+    change: new
+    does: the last lines of what a program writes, with no more than a fixed number of lines in memory
+    owns:
+      - it keeps no more than the last 20 lines, whatever the program writes
+    fields: []
+    methods: [Write, Lines]
+  - name: Screen
+    package: internal/tui
+    change: changed
+    does: the Bubble Tea model of the screen of svcview
+    owns:
+      - the row shows status error, status timeout or status invalid in red in place of the summary
+      - under the line Status, the detail pane shows the text of the failure and then its lines, with each control character as the replacement character
+    fields: []
+    methods: [Init, Update, View]
+words:
+  - concept: a run whose program exits with a code other than 0, or cannot start
+    word: status error
+    not: [crash, exit failure, command error]
+  - concept: a run that lasts longer than status.timeout
+    word: status timeout
+    not: [hang, expiry, deadline exceeded]
+  - concept: an output that is not a JSON object of version 1, or that is larger than 1 MiB
+    word: status invalid
+    not: [malformed, bad output, parse failure]
+  - concept: the program and its arguments after svcview applies the template values
+    word: command line
+    not: [argv, invocation, shell line]
+  - concept: why an output is not a JSON object of version 1
+    word: parse error
+    not: [validation error, decode error, reason]
+  - concept: the program of a status command and each process that it starts, which svcview stops together
+    word: process group
+    not: [process tree, children, job]
+dependencies: []

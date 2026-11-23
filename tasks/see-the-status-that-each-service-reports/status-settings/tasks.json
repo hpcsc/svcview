@@ -1,0 +1,92 @@
+{
+  "story": "svcview reads the status command of each group from a config file that only its user can write",
+  "story_id": "launchd-tui/US-003",
+  "tasks_file": "tasks/see-the-status-that-each-service-reports/status-settings/tasks.md",
+  "tasks": [
+    {
+      "n": 1,
+      "done": false,
+      "title": "Read the ACL of an open file on macOS",
+      "language": "Go",
+      "testable": true,
+      "certainty": "low",
+      "blast_radius": "high",
+      "patterns_to_follow": [
+        "internal/config/config.go:38-45",
+        "internal/config/config_test.go:248-266"
+      ],
+      "depends_on": [],
+      "affected_files": [
+        "internal/config/acl_darwin.go",
+        "internal/config/acl_other.go",
+        "internal/config/acl_test.go",
+        "go.mod"
+      ]
+    },
+    {
+      "n": 2,
+      "done": false,
+      "title": "Refuse a config file that has an ACL",
+      "language": "Go",
+      "testable": true,
+      "certainty": "medium",
+      "blast_radius": "high",
+      "patterns_to_follow": [
+        "internal/config/config.go:27-54",
+        "internal/config/config_test.go:212-266",
+        "internal/cli/root.go:52-66",
+        "e2e/tests/config.test.ts:47-58",
+        "docs/e2e-tests.md:143-203",
+        "task:1"
+      ],
+      "depends_on": [1],
+      "affected_files": [
+        "internal/config/config.go",
+        "internal/config/config_test.go",
+        "internal/cli/root.go",
+        "e2e/tests/config.test.ts",
+        "docs/e2e-tests.md"
+      ]
+    },
+    {
+      "n": 3,
+      "done": false,
+      "title": "Read the status command of a group",
+      "language": "Go",
+      "testable": true,
+      "certainty": "medium",
+      "blast_radius": "low",
+      "patterns_to_follow": [
+        "internal/config/group.go:34-66",
+        "internal/config/config.go:98-105",
+        "internal/config/config_test.go:348-432",
+        "e2e/tests/config.test.ts:16-28"
+      ],
+      "depends_on": [2],
+      "affected_files": [
+        "internal/status/command.go",
+        "internal/status/command_test.go",
+        "internal/config/group.go",
+        "internal/config/config_test.go",
+        "e2e/tests/config.test.ts"
+      ]
+    },
+    {
+      "n": 4,
+      "done": false,
+      "title": "Describe the refusal of a config file with an ACL in docs/cli.md",
+      "language": "Markdown",
+      "testable": false,
+      "certainty": "high",
+      "blast_radius": "low",
+      "patterns_to_follow": [
+        "docs/cli.md:170-212"
+      ],
+      "depends_on": [2],
+      "affected_files": [
+        "docs/cli.md"
+      ]
+    }
+  ],
+  "design_file": "tasks/see-the-status-that-each-service-reports/status-settings/design.yaml"
+}

@@ -1,0 +1,148 @@
+design: planned
+types:
+  - name: Service
+    package: internal/service
+    change: changed
+    does: a launchd service of the user, as svcview shows it
+    owns:
+      - Env holds the EnvironmentVariables of the plist, and a variable that the plist does not have is not a key of it
+      - an empty StdoutPath, StderrPath or PlistPath means that the service has none
+    fields: [Name, State, LastExit, PID, Uptime, Env, StdoutPath, StderrPath, PlistPath]
+    methods: []
+  - name: Domain
+    package: internal/launchd
+    change: changed
+    does: the gui domain of the user, which gives its services
+    owns:
+      - each service gets the EnvironmentVariables, the StandardOutPath and the StandardErrorPath of its plist, and the path of the plist file
+      - a property of the plist of a type that svcview does not read leaves out only that value, and the service stays
+      - a plist is read again only when its modification time changes
+    fields: []
+    methods: [Services, String]
+  - name: Command
+    package: internal/status
+    change: changed
+    does: the status command of a group, as the config file sets it
+    owns:
+      - Run applies the template values of the service to each text, and a value that the service does not have gives a failure that names it, with no program run
+      - Run runs the program with its arguments and no shell
+      - Run stops the program at the timeout, and reads no more than 1 MiB of its stdout
+      - Run needs nothing of the screen
+    fields: [arguments, Every, Timeout]
+    methods: [Run]
+  - name: Result
+    package: internal/status
+    change: new
+    does: what one run of a status command gives
+    owns:
+      - a result has an output, a failure, or neither, and the time at which its run ended
+    fields: [Ended, Output, Failure]
+    methods: []
+  - name: Failure
+    package: internal/status
+    change: new
+    does: why a run gave no output, in one line
+    owns:
+      - a template value that the service does not have gives the text the plist has no X, or the service has no plist
+    fields: [Text]
+    methods: []
+  - name: Output
+    package: internal/status
+    change: new
+    does: the JSON object of version 1 that a status command prints
+    owns:
+      - version must be 1
+      - at is an RFC 3339 time, or missing
+      - level is info, warn or error, and info when missing
+      - fields and events keep their order and the shape of version 1
+      - a property that svcview does not know changes nothing
+    fields: [At, Summary, Level, Fields, Events]
+    methods: []
+  - name: Level
+    package: internal/status
+    change: new
+    does: the level of an output or of an event, info, warn or error
+    owns:
+      - the zero level is info
+    fields: []
+    methods: []
+  - name: Field
+    package: internal/status
+    change: new
+    does: a name and a value that an output gives for the detail pane, with an optional progress
+    owns: []
+    fields: [Name, Value, Progress]
+    methods: []
+  - name: Event
+    package: internal/status
+    change: new
+    does: one line that an output gives for the detail pane, with its time, its level and its text
+    owns: []
+    fields: [At, Level, Text]
+    methods: []
+  - name: values
+    package: internal/status
+    change: new
+    does: the template values of one service, which the texts of a status command use
+    owns:
+      - a value that the service does not have is an error that names it, not an empty text
+    fields: [Name, Env]
+    methods: [StdoutPath, StderrPath, PlistPath]
+  - name: Screen
+    package: internal/tui
+    change: changed
+    does: the Bubble Tea model of the screen of svcview
+    owns:
+      - when the first read ends, each service of a group with a status command gets a run, whatever its state
+      - each group starts a run for each of its services every status.every, and a service gets no second run while its run runs
+      - when svcview quits, each status command that still runs stops
+      - the row shows the summary of the last output after the short name, in the default color, yellow or red for info, warn or error, and the text of a failure in red
+      - the detail pane shows Status with the age of at, or of the last run when the output has no at
+    fields: []
+    methods: [Init, Update, View]
+  - name: statusRead
+    package: internal/tui
+    change: new
+    does: the result of one run of the status command of one service, as a message of the screen
+    owns: []
+    fields: [name, result]
+    methods: []
+  - name: statusTick
+    package: internal/tui
+    change: new
+    does: the time to start the next runs of the services of one group, as a message of the screen
+    owns: []
+    fields: [group]
+    methods: []
+functions:
+  - status.Command.Run(ctx, service) Result
+  - tui.NewScreen(domain, read, runStatus, settings) Screen
+words:
+  - concept: one start of the status command of one service, until it ends
+    word: run
+    not: [execution, invocation, poll, check, probe]
+  - concept: what a status command prints on stdout
+    word: output
+    not: [response, payload, report, reply]
+  - concept: what one run gives, an output or a failure, with the time at which it ended
+    word: result
+    not: [outcome, response, report]
+  - concept: why a run gave no output
+    word: failure
+    not: [problem, fault, error message]
+  - concept: the line that an output gives for the row of its service
+    word: summary
+    not: [headline, title, message]
+  - concept: info, warn or error, which sets the color of a summary
+    word: level
+    not: [severity, priority, kind]
+  - concept: the time since at, or since the last run ended
+    word: age
+    not: [staleness, freshness, elapsed]
+  - concept: the values of EnvironmentVariables of a plist
+    word: environment
+    not: [env vars, variables, settings]
+dependencies:
+  - internal/status -> internal/service
+  - internal/tui -> internal/status
+  - internal/cli -> internal/status

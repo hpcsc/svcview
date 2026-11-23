@@ -1,0 +1,139 @@
+{
+  "story": "The row of each service shows the summary that its status command reports",
+  "story_id": "launchd-tui/US-003",
+  "tasks_file": "tasks/see-the-status-that-each-service-reports/status-summary/tasks.md",
+  "tasks": [
+    {
+      "n": 1,
+      "done": false,
+      "title": "Read the environment and the log paths of each service from its plist",
+      "language": "Go",
+      "testable": true,
+      "certainty": "high",
+      "blast_radius": "low",
+      "patterns_to_follow": [
+        "internal/launchd/plist.go:15-27",
+        "internal/launchd/plist_folder.go:15-45",
+        "internal/launchd/domain.go:20-45",
+        "internal/launchd/domain_test.go:130-152",
+        "internal/launchd/domain_test.go:598-660"
+      ],
+      "depends_on": [],
+      "affected_files": [
+        "internal/service/service.go",
+        "internal/launchd/plist.go",
+        "internal/launchd/plist_folder.go",
+        "internal/launchd/domain.go",
+        "internal/launchd/domain_test.go",
+        "internal/launchd/testdata/environment.plist"
+      ]
+    },
+    {
+      "n": 2,
+      "done": false,
+      "title": "Run the status command of a service with the template values of its plist",
+      "language": "Go",
+      "testable": true,
+      "certainty": "medium",
+      "blast_radius": "high",
+      "patterns_to_follow": [
+        "internal/launchd/launchctl_list.go:24-41",
+        "internal/launchd/launchctl_list.go:43-72",
+        "internal/launchd/domain_test.go:59-84"
+      ],
+      "depends_on": [1],
+      "affected_files": [
+        "internal/status/command.go",
+        "internal/status/output.go",
+        "internal/status/command_test.go"
+      ]
+    },
+    {
+      "n": 3,
+      "done": false,
+      "title": "Show the summary of each status in the row, in the color of its level",
+      "language": "Go",
+      "testable": true,
+      "certainty": "medium",
+      "blast_radius": "low",
+      "patterns_to_follow": [
+        "internal/tui/screen.go:107-115",
+        "internal/tui/screen.go:251-277",
+        "internal/tui/screen.go:310-319",
+        "internal/tui/screen.go:345-352",
+        "internal/tui/screen_test.go:32-66",
+        "e2e/tests/config.test.ts:99-109",
+        "e2e/testUtils.ts:33-50"
+      ],
+      "depends_on": [2],
+      "affected_files": [
+        "internal/tui/screen.go",
+        "internal/tui/screen_test.go",
+        "internal/tui/testdata/",
+        "internal/cli/root.go",
+        "e2e/tests/status.test.ts"
+      ]
+    },
+    {
+      "n": 4,
+      "done": false,
+      "title": "Show the age of the status in the detail pane",
+      "language": "Go",
+      "testable": true,
+      "certainty": "medium",
+      "blast_radius": "low",
+      "patterns_to_follow": [
+        "internal/tui/screen.go:279-308",
+        "internal/tui/screen_test.go:183-203",
+        "task:3"
+      ],
+      "depends_on": [3],
+      "affected_files": [
+        "internal/tui/screen.go",
+        "internal/tui/screen_test.go",
+        "internal/tui/testdata/"
+      ]
+    },
+    {
+      "n": 5,
+      "done": false,
+      "title": "Run the status command of each service every status.every, one run at a time",
+      "language": "Go",
+      "testable": true,
+      "certainty": "medium",
+      "blast_radius": "low",
+      "patterns_to_follow": [
+        "internal/tui/screen.go:90-96",
+        "internal/tui/screen_test.go:183-203",
+        "internal/tui/screen_test.go:566-584",
+        "internal/cli/root.go:52-66",
+        "task:3"
+      ],
+      "depends_on": [3, 4],
+      "affected_files": [
+        "internal/tui/screen.go",
+        "internal/tui/screen_test.go",
+        "internal/cli/root.go",
+        "e2e/tests/status.test.ts"
+      ]
+    },
+    {
+      "n": 6,
+      "done": false,
+      "title": "Describe the status command in docs/cli.md",
+      "language": "Markdown",
+      "testable": false,
+      "certainty": "high",
+      "blast_radius": "low",
+      "patterns_to_follow": [
+        "docs/cli.md:35-111",
+        "docs/cli.md:112-188"
+      ],
+      "depends_on": [5],
+      "affected_files": [
+        "docs/cli.md"
+      ]
+    }
+  ],
+  "design_file": "tasks/see-the-status-that-each-service-reports/status-summary/design.yaml"
+}
