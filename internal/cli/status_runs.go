@@ -43,6 +43,6 @@ func (r *statusRuns) stop() {
 	r.lock.Lock()
 	r.cancel()
 	r.lock.Unlock()
-	// os/exec kills the program of a run in a goroutine of its own, so stop must wait for each run to end.
+	// status.Command.Run stops the process group of a run in a goroutine of its own, so stop must wait for each run to end.
 	r.notEnded.Wait()
 }
