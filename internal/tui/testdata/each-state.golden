@@ -1,12 +1,12 @@
 ╭ svcview ──────────────────────────────────────────────────────────── gui/501 ╮
 │  [32m●[m 1 running   [33m◐[m 1 loaded   [90m○[m 1 not loaded                                   │
 ╰──────────────────────────────────────────────────────────────────────────────╯
-╭ Services ────────────────────╮
-│ Other                        │
-│ [34m▌[m[32m●[m[100m com.example.a-running    [m │
-│  [33m◐[m com.example.b-loaded      │
-│  [90m○[m com.example.c-not-loaded  │
-│                              │
-│                              │
-│                              │
-╰──────────────────────────────╯
+╭ Services ────────────────────╮╭ com.example.a-running ───────────────────────╮
+│ Other                        ││ [32m●[m running     PID -                          │
+│ [34m▌[m[32m●[m[100m com.example.a-running    [m ││ up -          last exit 0                    │
+│  [33m◐[m com.example.b-loaded      ││                                              │
+│  [90m○[m com.example.c-not-loaded  ││                                              │
+│                              ││                                              │
+│                              ││                                              │
+│                              ││                                              │
+╰──────────────────────────────╯╰──────────────────────────────────────────────╯

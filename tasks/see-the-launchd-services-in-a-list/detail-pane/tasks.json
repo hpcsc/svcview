@@ -46,7 +46,7 @@
     },
     {
       "n": 3,
-      "done": false,
+      "done": true,
       "title": "Show the selected service in the detail pane",
       "language": "Go",
       "testable": true,

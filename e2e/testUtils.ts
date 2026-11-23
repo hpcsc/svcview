@@ -50,10 +50,11 @@ export function addPlist(home: string, name: string): void {
 export interface ListedService {
   name: string
   pid?: number
+  status?: number
 }
 
 export function setLaunchctlList(home: string, services: ListedService[]): void {
-  const rows = services.map((service) => `${service.pid ?? '-'}\t0\t${service.name}\n`)
+  const rows = services.map((service) => `${service.pid ?? '-'}\t${service.status ?? 0}\t${service.name}\n`)
   setLaunchctlOutput(home, `PID\tStatus\tLabel\n${rows.join('')}`)
 }
 

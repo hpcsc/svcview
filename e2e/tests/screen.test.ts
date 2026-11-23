@@ -93,6 +93,28 @@ describe('the screen', () => {
     expect(await session.text()).toContain('  ○ com.example.a')
   })
 
+  it('shows the name, the PID, the uptime and the last exit of the selected service in the detail pane, and the next service after ↓', async () => {
+    const home = homeWithPlists(['com.example.a-running', 'com.example.b-killed'])
+    setLaunchctlList(home, [
+      { name: 'com.example.a-running', pid: 4122 },
+      { name: 'com.example.b-killed', pid: 4123, status: -9 },
+    ])
+    const session = await openCli(scratchDir(), [], { HOME: home })
+
+    await session.waitForText('PID 4122')
+    const screen = await session.text()
+    expect(screen).toContain('╭ com.example.a-running ─')
+    expect(screen).toContain('● running     PID 4122')
+    expect(screen).toContain('up 3h12m      last exit 0')
+
+    await session.press('down')
+
+    await session.waitForText('╭ com.example.b-killed ─')
+    const after = await session.text()
+    expect(after).toContain('PID 4123')
+    expect(after).toContain('last exit SIGKILL')
+  })
+
   it('counts the services in each state in the header', async () => {
     const home = homeWithPlists([
       'com.example.a-running',

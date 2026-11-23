@@ -87,7 +87,7 @@ The screen tests start svcview with no command in the pseudo-terminal of `openCl
 | --- | --- |
 | `homeWithPlists(names)` | Makes a scratch home folder. For each name, it writes `<name>.plist` to `Library/LaunchAgents`, with the name as its `Label`. It also writes an output of `launchctl list` that shows no names, so each service is `not loaded`. |
 | `addPlist(home, name)` | Writes one more plist to a home folder, for example while the screen is open. |
-| `setLaunchctlList(home, services)` | Writes the output of `launchctl list` that the fake `launchctl` prints for this home folder. A service with a `pid` is `running`, and a service with no `pid` is `loaded`. A test can call it again while the screen is open. |
+| `setLaunchctlList(home, services)` | Writes the output of `launchctl list` that the fake `launchctl` prints for this home folder. A service with a `pid` is `running`, and a service with no `pid` is `loaded`. The `status` of a service is its `Status` column, 0 when it has none, and a negative `status` is a signal. A test can call it again while the screen is open. |
 | `setLaunchctlOutput(home, output)` | Writes any text as the output of `launchctl list`, for example a header line that svcview does not know. |
 
 ```ts
@@ -127,7 +127,18 @@ sequenceDiagram
   of the file while the screen is open.
 - The fake must stay executable in git (mode `100755`): the Docker image copies the mode with the file.
 
-A test that passes its own `PATH` to `openCli` replaces the `PATH` with the fake. Keep `e2e/fakes` first in it.
+### The fake ps
+
+svcview runs `ps -o pid=,etime= -p <PID>,<PID>` at each refresh to get the uptime of each `running` service. The
+Docker image has no `ps`, and the real `ps` on a Mac knows nothing of the PIDs of the fake `launchctl`. So
+`e2e/fakes` also holds a fake `ps`:
+
+- For `-o pid=,etime= -p <PID>,<PID>`, the fake prints one line for each PID that it gets, with the elapsed time
+  `03:12:07`. The detail pane shows it as `up 3h12m`.
+- For any other arguments, the fake writes an error to stderr and exits with 64.
+- The fake must stay executable in git (mode `100755`), as the fake `launchctl` must.
+
+A test that passes its own `PATH` to `openCli` replaces the `PATH` with the fakes. Keep `e2e/fakes` first in it.
 
 ## Where the tests run
 

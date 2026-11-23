@@ -153,21 +153,21 @@ of the detail pane is the full name of the selected service. The pane shows the 
 uptime, and the last exit. A signal that ended the last run shows as its name. A last exit other than 0 is red.
 
 **Acceptance Criteria:**
-- [ ] The list and the detail pane stand side by side, and the list takes 40 percent of the width.
-- [ ] The title of the detail pane is the full name of the selected service, also when the list cuts the name
+- [x] The list and the detail pane stand side by side, and the list takes 40 percent of the width.
+- [x] The title of the detail pane is the full name of the selected service, also when the list cuts the name
       with `…`.
-- [ ] The pane shows the state with its glyph, the PID, the uptime in the form `up 3h12m`, and `last exit` with its
+- [x] The pane shows the state with its glyph, the PID, the uptime in the form `up 3h12m`, and `last exit` with its
       value, as in "The Screen" of the proposal.
-- [ ] A service with no PID shows no PID value, and a service with no uptime shows no uptime value.
-- [ ] When a signal ended the last run, the `last exit` value is the name of the signal, for example `SIGKILL`,
+- [x] A service with no PID shows no PID value, and a service with no uptime shows no uptime value.
+- [x] When a signal ended the last run, the `last exit` value is the name of the signal, for example `SIGKILL`,
       and not a number.
-- [ ] A last exit other than 0 makes the `last exit` value red, and the glyph in the list stays red.
-- [ ] With no rows, the detail pane shows no service.
-- [ ] The e2e tests have a fake `ps`, an executable file in the repository, that prints a fixed elapsed time for
+- [x] A last exit other than 0 makes the `last exit` value red, and the glyph in the list stays red.
+- [x] With no rows, the detail pane shows no service.
+- [x] The e2e tests have a fake `ps`, an executable file in the repository, that prints a fixed elapsed time for
       each PID that it gets. Each screen test starts svcview with it first on `PATH`.
-- [ ] An e2e test sees the name, the PID, the uptime and the last exit of a running service in the detail pane, sees
+- [x] An e2e test sees the name, the PID, the uptime and the last exit of a running service in the detail pane, sees
       the name of a signal for a service whose last run a signal ended, and sees the title change after `↓`.
-- [ ] `docs/e2e-tests.md` describes the fake `ps`.
+- [x] `docs/e2e-tests.md` describes the fake `ps`.
 
 **Affected Files/Modules:**
 - `internal/tui/screen.go` — the detail pane, and the two panes side by side

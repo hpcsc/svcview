@@ -18,7 +18,7 @@ func (b box) textWidth() int {
 	return max(b.width-4, 0)
 }
 
-func (b box) render() string {
+func (b box) render() []string {
 	lines := []string{b.top()}
 	for i := range b.height - 2 {
 		text := ""
@@ -27,15 +27,17 @@ func (b box) render() string {
 		}
 		lines = append(lines, "│ "+text+strings.Repeat(" ", b.textWidth()-ansi.StringWidth(text))+" │")
 	}
-	lines = append(lines, "╰"+strings.Repeat("─", max(b.width-2, 0))+"╯")
-	return strings.Join(lines, "\n")
+	return append(lines, "╰"+strings.Repeat("─", max(b.width-2, 0))+"╯")
 }
 
 func (b box) top() string {
-	left := " " + b.title + " "
 	right := ""
 	if b.right != "" {
 		right = " " + b.right + " "
+	}
+	left := ""
+	if b.title != "" {
+		left = " " + ansi.Truncate(b.title, max(b.width-4-ansi.StringWidth(right), 0), "…") + " "
 	}
 	rule := max(b.width-2-ansi.StringWidth(left)-ansi.StringWidth(right), 0)
 	return "╭" + left + strings.Repeat("─", rule) + right + "╮"

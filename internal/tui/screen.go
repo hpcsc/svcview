@@ -3,6 +3,7 @@ package tui
 import (
 	"fmt"
 	"slices"
+	"strconv"
 	"strings"
 	"time"
 	"unicode"
@@ -16,6 +17,7 @@ const (
 	headerHeight = 3
 	refreshEvery = 2 * time.Second
 	accent       = ansi.Blue
+	detailColumn = 14
 )
 
 type refresh struct{}
@@ -99,12 +101,16 @@ func (s Screen) selectedAfterRead() string {
 }
 
 func (s Screen) selectedAfterMove(step int) string {
-	rows := s.rows()
-	at := slices.IndexFunc(rows, func(svc service.Service) bool { return svc.Name == s.selected })
+	at := s.selectedAt()
 	if at < 0 {
 		return s.selected
 	}
+	rows := s.rows()
 	return rows[min(max(at+step, 0), len(rows)-1)].Name
+}
+
+func (s Screen) selectedAt() int {
+	return slices.IndexFunc(s.rows(), func(svc service.Service) bool { return svc.Name == s.selected })
 }
 
 func (s Screen) content() string {
@@ -114,7 +120,17 @@ func (s Screen) content() string {
 	header := box{title: "svcview", right: s.domain, width: s.width, height: headerHeight, text: s.headerText()}
 	list := box{title: "Services", width: s.width * 40 / 100, height: s.height - headerHeight}
 	list.text = s.listText(list.textWidth())
-	return header.render() + "\n" + list.render()
+	detail := box{width: s.width - list.width, height: list.height}
+	if at := s.selectedAt(); at >= 0 {
+		svc := s.rows()[at]
+		detail.title, detail.text = s.printable(svc.Name), s.detailText(svc)
+	}
+	lines := header.render()
+	detailLines := detail.render()
+	for i, line := range list.render() {
+		lines = append(lines, line+detailLines[i])
+	}
+	return strings.Join(lines, "\n")
 }
 
 func (s Screen) headerText() []string {
@@ -161,6 +177,48 @@ func (s Screen) selectedRow(svc service.Service, width int) string {
 	return ansi.NewStyle().ForegroundColor(accent).Styled("▌") +
 		s.rowGlyph(svc) +
 		ansi.NewStyle().BackgroundColor(ansi.BrightBlack).Styled(name)
+}
+
+func (s Screen) detailText(svc service.Service) []string {
+	pid, uptime := "-", "-"
+	if svc.PID != 0 {
+		pid = strconv.Itoa(svc.PID)
+	}
+	if svc.Uptime != nil {
+		uptime = s.uptimeText(*svc.Uptime)
+	}
+	return []string{
+		s.detailColumns(s.stateGlyph(svc.State)+" "+svc.State.String(), "PID "+pid),
+		s.detailColumns("up "+uptime, "last exit "+s.lastExitText(svc.LastExit)),
+	}
+}
+
+func (s Screen) detailColumns(left, right string) string {
+	return left + strings.Repeat(" ", max(detailColumn-ansi.StringWidth(left), 1)) + right
+}
+
+func (s Screen) uptimeText(uptime time.Duration) string {
+	switch {
+	case uptime < time.Minute:
+		return fmt.Sprintf("%ds", int(uptime.Seconds()))
+	case uptime < time.Hour:
+		return fmt.Sprintf("%dm%ds", int(uptime.Minutes()), int(uptime.Seconds())%60)
+	case uptime < 24*time.Hour:
+		return fmt.Sprintf("%dh%dm", int(uptime.Hours()), int(uptime.Minutes())%60)
+	default:
+		return fmt.Sprintf("%dd%dh", int(uptime.Hours())/24, int(uptime.Hours())%24)
+	}
+}
+
+func (s Screen) lastExitText(exit service.LastExit) string {
+	text := exit.Signal
+	if text == "" {
+		text = strconv.Itoa(exit.Code)
+	}
+	if exit.Failed() {
+		return ansi.NewStyle().ForegroundColor(ansi.Red).Styled(text)
+	}
+	return text
 }
 
 func (s Screen) stateGlyph(state service.State) string {

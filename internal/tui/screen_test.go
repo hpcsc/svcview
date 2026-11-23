@@ -225,6 +225,20 @@ func TestScreen(t *testing.T) {
 			require.Equal(t, "│"+strings.Repeat(" ", 78)+"│", lines[1])
 		})
 
+		t.Run("keeps its top border as wide as the terminal, and cuts svcview with … when the domain leaves too little room for it", func(t *testing.T) {
+			widths := map[int]int{}
+			for width := 13; width <= 30; width++ {
+				header, _, _ := strings.Cut(open(t, "gui/501", servicesNamed(), width, 12).View().Content, "\n")
+				widths[width] = ansi.StringWidth(header)
+			}
+			header, _, _ := strings.Cut(open(t, "gui/501", servicesNamed(), 19, 12).View().Content, "\n")
+
+			for width := 13; width <= 30; width++ {
+				require.Equal(t, width, widths[width], "terminal of %d columns", width)
+			}
+			require.Equal(t, "╭ svcvi…  gui/501 ╮", header)
+		})
+
 		t.Run("shows no counts before the first read ends", func(t *testing.T) {
 			var screen tea.Model = tui.NewScreen("gui/501", servicesNamed("com.example.worker"))
 			screen, _ = screen.Update(tea.WindowSizeMsg{Width: 80, Height: 12})
@@ -241,14 +255,15 @@ func TestScreen(t *testing.T) {
 			requireGolden(t, "sorted", screen)
 		})
 
-		t.Run("takes 40 percent of the width, rounded down", func(t *testing.T) {
-			widths := map[int]int{}
+		t.Run("takes 40 percent of the width, rounded down, and the detail pane beside it takes the rest", func(t *testing.T) {
+			widths := map[int][2]int{}
 			for _, width := range []int{100, 99} {
 				lines := strings.Split(open(t, "gui/501", servicesNamed(), width, 12).View().Content, "\n")
-				widths[width] = ansi.StringWidth(lines[3])
+				list, detail, _ := strings.Cut(lines[3], "╮")
+				widths[width] = [2]int{ansi.StringWidth(list + "╮"), ansi.StringWidth(detail)}
 			}
 
-			require.Equal(t, map[int]int{100: 40, 99: 39}, widths)
+			require.Equal(t, map[int][2]int{100: {40, 60}, 99: {39, 60}}, widths)
 		})
 
 		t.Run("keeps the top border as wide as the pane when the title fills it", func(t *testing.T) {
@@ -258,7 +273,7 @@ func TestScreen(t *testing.T) {
 			for _, line := range lines[3:] {
 				widths = append(widths, ansi.StringWidth(line))
 			}
-			require.Equal(t, []int{12, 12, 12, 12}, widths)
+			require.Equal(t, []int{30, 30, 30, 30}, widths)
 		})
 
 		t.Run("shows each control character in a name as �, so the name cannot add a line or send a sequence to the terminal", func(t *testing.T) {
@@ -382,6 +397,20 @@ func TestScreen(t *testing.T) {
 			})
 		})
 
+		t.Run("shows the new PID, uptime and last exit of the selected service in the detail pane at the next read", func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				read := changingAt(100*time.Millisecond,
+					readGiving(service.Service{Name: "com.example.worker", State: service.Running, PID: 4122, Uptime: new(time.Hour)}),
+					readGiving(service.Service{Name: "com.example.worker", State: service.Running, PID: 4123, Uptime: new(5 * time.Second), LastExit: service.LastExit{Signal: "SIGKILL"}}))
+
+				screen := runFor(t, tui.NewScreen("gui/501", read), 2100*time.Millisecond)
+
+				content := ansi.Strip(screen.View().Content)
+				require.Contains(t, content, "● running     PID 4123")
+				require.Contains(t, content, "up 5s         last exit SIGKILL")
+			})
+		})
+
 		t.Run("after a read that gives an error, the next read that succeeds shows the rows again", func(t *testing.T) {
 			synctest.Test(t, func(t *testing.T) {
 				failing := func() ([]service.Service, error) {
@@ -415,6 +444,123 @@ func TestScreen(t *testing.T) {
 				require.Equal(t, int32(1), mostAtOnce.Load())
 				require.GreaterOrEqual(t, reads.Load(), int32(3))
 			})
+		})
+	})
+
+	t.Run("detail pane", func(t *testing.T) {
+		t.Run("shows the state with its glyph, the PID, the uptime and the last exit of the selected service, under its name", func(t *testing.T) {
+			screen := open(t, "gui/501", readGiving(
+				service.Service{Name: "com.example.worker", State: service.Running, PID: 4122, Uptime: new(3*time.Hour + 12*time.Minute + 7*time.Second)},
+			), 80, 12)
+
+			requireGolden(t, "detail", screen)
+		})
+
+		t.Run("the title is the full name of the selected service, also when the list cuts the name with …", func(t *testing.T) {
+			screen := open(t, "gui/501", servicesNamed("com.example.a-name-that-is-too-long-for-the-list"), 100, 12)
+
+			lines := strings.Split(ansi.Strip(screen.View().Content), "\n")
+
+			require.Contains(t, lines[3], "╭ com.example.a-name-that-is-too-long-for-the-list ─")
+			require.Contains(t, lines[5], "▌○ com.example.a-name-that-is-too-l… │")
+		})
+
+		t.Run("cuts a title that is longer than the pane and ends it with …", func(t *testing.T) {
+			screen := open(t, "gui/501", servicesNamed("com.example.a-name-that-is-too-long-for-the-list"), 60, 12)
+
+			lines := strings.Split(ansi.Strip(screen.View().Content), "\n")
+
+			require.Equal(t, "╭ Services ────────────╮╭ com.example.a-name-that-is-too-… ╮", lines[3])
+		})
+
+		t.Run("shows the service that ↓ selects", func(t *testing.T) {
+			screen := open(t, "gui/501", readGiving(
+				service.Service{Name: "com.example.a", State: service.Running, PID: 4122},
+				service.Service{Name: "com.example.b", State: service.Running, PID: 4123},
+			), 80, 12)
+
+			screen = pressKeys(screen, down)
+
+			content := ansi.Strip(screen.View().Content)
+			require.Contains(t, content, "╭ com.example.b ─")
+			require.Contains(t, content, "PID 4123")
+			require.NotContains(t, content, "PID 4122")
+		})
+
+		t.Run("shows the uptime in its two largest units, and an uptime of 0 as 0s", func(t *testing.T) {
+			for uptime, text := range map[time.Duration]string{
+				0:                               "up 0s ",
+				7 * time.Second:                 "up 7s ",
+				59 * time.Second:                "up 59s ",
+				time.Minute:                     "up 1m0s ",
+				3*time.Minute + 12*time.Second:  "up 3m12s ",
+				59*time.Minute + 59*time.Second: "up 59m59s ",
+				time.Hour:                       "up 1h0m ",
+				3*time.Hour + 12*time.Minute + 7*time.Second:   "up 3h12m ",
+				23*time.Hour + 59*time.Minute + 59*time.Second: "up 23h59m ",
+				24 * time.Hour: "up 1d0h ",
+				4*24*time.Hour + 9*time.Hour + 16*time.Minute:    "up 4d9h ",
+				400*24*time.Hour + 23*time.Hour + 59*time.Minute: "up 400d23h ",
+			} {
+				screen := open(t, "gui/501", readGiving(service.Service{Name: "com.example.worker", State: service.Running, PID: 4122, Uptime: &uptime}), 100, 12)
+
+				require.Contains(t, ansi.Strip(screen.View().Content), "│ "+text, uptime)
+			}
+		})
+
+		t.Run("a service with no PID and no uptime shows - for each", func(t *testing.T) {
+			screen := open(t, "gui/501", readGiving(service.Service{Name: "com.example.worker", State: service.Loaded}), 80, 12)
+
+			content := ansi.Strip(screen.View().Content)
+			require.Contains(t, content, "◐ loaded      PID -")
+			require.Contains(t, content, "up -          last exit 0")
+		})
+
+		t.Run("shows the name of the signal that ended the last run, not a number", func(t *testing.T) {
+			screen := open(t, "gui/501", readGiving(
+				service.Service{Name: "com.example.worker", State: service.Running, PID: 4122, LastExit: service.LastExit{Signal: "SIGKILL"}},
+			), 80, 12)
+
+			require.Contains(t, ansi.Strip(screen.View().Content), "last exit SIGKILL")
+		})
+
+		t.Run("draws a last exit other than 0 red, and keeps the glyph in the list red", func(t *testing.T) {
+			screen := open(t, "gui/501", readGiving(
+				service.Service{Name: "com.example.worker", State: service.Loaded, LastExit: service.LastExit{Code: 78}},
+			), 80, 12)
+
+			requireGolden(t, "detail-last-exit", screen)
+		})
+
+		t.Run("with no rows, shows no service", func(t *testing.T) {
+			screen := open(t, "gui/501", servicesNamed(), 80, 12)
+
+			lines := strings.Split(ansi.Strip(screen.View().Content), "\n")
+			_, detail, _ := strings.Cut(lines[3], "╮")
+			require.Equal(t, "╭"+strings.Repeat("─", 46)+"╮", detail)
+			require.NotContains(t, lines[4], "PID")
+		})
+
+		t.Run("when the read gives an error, shows no service", func(t *testing.T) {
+			failing := func() ([]service.Service, error) {
+				return []service.Service{{Name: "com.example.worker", State: service.Running, PID: 4122}}, errors.New("exit status 3")
+			}
+
+			screen := open(t, "gui/501", failing, 80, 12)
+
+			content := screen.View().Content
+			require.Contains(t, content, "exit status 3")
+			require.NotContains(t, content, "com.example.worker")
+			require.NotContains(t, content, "PID")
+		})
+
+		t.Run("shows no service before the first read ends", func(t *testing.T) {
+			var screen tea.Model = tui.NewScreen("gui/501", servicesNamed("com.example.worker"))
+			screen, _ = screen.Update(tea.WindowSizeMsg{Width: 80, Height: 12})
+
+			lines := strings.Split(ansi.Strip(screen.View().Content), "\n")
+			_, detail, _ := strings.Cut(lines[3], "╮")
+			require.Equal(t, "╭"+strings.Repeat("─", 46)+"╮", detail)
 		})
 	})
 
@@ -467,7 +613,7 @@ func TestScreen(t *testing.T) {
 
 			lines := strings.Split(ansi.Strip(screen.View().Content), "\n")
 
-			require.Equal(t, "│ ▌○ com.example.a-na… │", lines[5])
+			require.Contains(t, lines[5], "│ ▌○ com.example.a-na… ││")
 		})
 
 		t.Run("with no rows, no row is selected, and ↑ and ↓ do nothing", func(t *testing.T) {
