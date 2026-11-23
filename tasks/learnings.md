@@ -268,3 +268,11 @@
 - Observed: see-the-fields-and-the-events-of-a-status-fields-and-events
 - Learning: clerk learn index --match with only the packages and nouns of the story does not list the entries about clerk itself. fields-and-events missed 'Run clerk mutants and clerk audit run under mise exec' and 'Pass --integrate to clerk land when the request asks to land on main', and repeated both: its audit lost the mutants lens, and bare clerk land archived the breakdown without the integration. Add clerk, mutants, audit, land, finish and fixup to the terms of the first read.
 - Apply when: The ground step of a run in this repo reads the learnings index.
+
+## A test that a pane does not move needs a pane that can scroll
+- Type: pattern
+- Recorded: 2026-11-23
+- Observed: see-the-fields-and-the-events-of-a-status-focus-and-scroll
+- Learning: The audit found that the subtest 'with the focus on the detail pane, ↑ and ↓ do not change the selected service, and the list does not move' could not fail: its list of 3 services fits in the pane, so listTopInView clamps listTop to 0 whatever the keys do. The fix gives the list 9 services and selects the 4th, so a key that moves listTop changes listRows. The same audit found a test that pressed ↓ and then ↑, which cancel out, so it could not see a scroll. Each fixed test was then checked by hand against the mutant that the finding named.
+- Apply when: A test in internal/tui asserts that the list or the detail pane does not scroll or does not move, or that a key changes nothing.
+
