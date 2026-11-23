@@ -166,15 +166,15 @@ file and says that it is not a regular file. A symbolic link counts with the fil
 of the check of `config.yaml` gives the same result as before.
 
 **Acceptance Criteria:**
-- [ ] A `config.yaml` that is a folder gives an error that names the file and says that it is not a regular file,
+- [x] A `config.yaml` that is a folder gives an error that names the file and says that it is not a regular file,
       and no settings.
-- [ ] A `config.yaml` that is a named pipe with no writer gives the same error at once: `config.Read` returns and
+- [x] A `config.yaml` that is a named pipe with no writer gives the same error at once: `config.Read` returns and
       does not wait for a writer.
-- [ ] A `config.yaml` that is a symbolic link to a folder, or to a named pipe, gives the same error. A symbolic link
+- [x] A `config.yaml` that is a symbolic link to a folder, or to a named pipe, gives the same error. A symbolic link
       to a regular file still counts with the owner, the mode, and the ACL of that file.
-- [ ] Each test of the check of `config.yaml` at `internal/config/config_test.go:200-348` passes, with no change to
+- [x] Each test of the check of `config.yaml` at `internal/config/config_test.go:200-348` passes, with no change to
       what it checks.
-- [ ] The check of an open config file (a regular file, the owner, the mode, and the ACL) and the read of its content
+- [x] The check of an open config file (a regular file, the owner, the mode, and the ACL) and the read of its content
       are in one place in `internal/config`, which any config file can pass; `config.Read` uses it for `config.yaml`.
 
 **Affected Files/Modules:**

@@ -6,6 +6,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"syscall"
 	"testing"
 	"time"
 
@@ -38,6 +39,26 @@ func readSettings(t *testing.T, content string) config.Settings {
 	settings, err := config.Read(folder, os.Getuid(), noACL)
 	require.NoError(t, err)
 	return settings
+}
+
+func readWithin(t *testing.T, deadline time.Duration, folder string) (config.Settings, error) {
+	t.Helper()
+	type result struct {
+		settings config.Settings
+		err      error
+	}
+	done := make(chan result, 1)
+	go func() {
+		settings, err := config.Read(folder, os.Getuid(), noACL)
+		done <- result{settings, err}
+	}()
+	select {
+	case read := <-done:
+		return read.settings, read.err
+	case <-time.After(deadline):
+		require.FailNow(t, "config.Read did not return", "it still waits after %s", deadline)
+		return config.Settings{}, nil
+	}
 }
 
 func groupNames(settings config.Settings) []string {
@@ -206,6 +227,38 @@ func TestSettings(t *testing.T) {
 
 			require.ErrorContains(t, err, path)
 			require.Equal(t, config.Settings{}, settings)
+		})
+
+		t.Run("a config.yaml that is not a regular file gives an error at once that names the file and says that it is not a regular file, and no settings, also through a symbolic link", func(t *testing.T) {
+			for kind, create := range map[string]func(t *testing.T, path string){
+				"a folder": func(t *testing.T, path string) {
+					require.NoError(t, os.Mkdir(path, 0o755))
+				},
+				"a named pipe with no writer": func(t *testing.T, path string) {
+					require.NoError(t, syscall.Mkfifo(path, 0o644))
+				},
+				"a symbolic link to a folder": func(t *testing.T, path string) {
+					require.NoError(t, os.Symlink(t.TempDir(), path))
+				},
+				"a symbolic link to a named pipe with no writer": func(t *testing.T, path string) {
+					pipe := filepath.Join(t.TempDir(), "pipe")
+					require.NoError(t, syscall.Mkfifo(pipe, 0o644))
+					require.NoError(t, os.Symlink(pipe, path))
+				},
+				"a symbolic link to a device": func(t *testing.T, path string) {
+					require.NoError(t, os.Symlink("/dev/null", path))
+				},
+			} {
+				folder := t.TempDir()
+				path := filepath.Join(folder, "config.yaml")
+				create(t, path)
+
+				settings, err := readWithin(t, 2*time.Second, folder)
+
+				require.ErrorContains(t, err, path, kind)
+				require.ErrorContains(t, err, "is not a regular file", kind)
+				require.Equal(t, config.Settings{}, settings, kind)
+			}
 		})
 
 		t.Run("a config.yaml that svcview cannot read gives an error that names the file, and no settings", func(t *testing.T) {

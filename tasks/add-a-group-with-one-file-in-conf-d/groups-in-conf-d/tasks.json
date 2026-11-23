@@ -5,7 +5,7 @@
   "tasks": [
     {
       "n": 1,
-      "done": false,
+      "done": true,
       "title": "Refuse a config file that is not a regular file",
       "language": "Go",
       "testable": true,

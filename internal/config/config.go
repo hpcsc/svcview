@@ -28,32 +28,9 @@ type Settings struct {
 func Read(folder string, uid int, aclEntries func(*os.File) (int, error)) (Settings, error) {
 	settings := Settings{Refresh: 2 * time.Second}
 	path := filepath.Join(folder, fileName)
-	file, err := os.Open(path)
-	if errors.Is(err, fs.ErrNotExist) {
-		return settings, nil
-	}
+	content, err := readConfigFile(path, uid, aclEntries)
 	if err != nil {
-		return Settings{}, fmt.Errorf("read the config file: %w", err)
-	}
-	defer file.Close()
-	info, err := file.Stat()
-	if err != nil {
-		return Settings{}, fmt.Errorf("read the config file: %w", err)
-	}
-	owner := info.Sys().(*syscall.Stat_t).Uid
-	if owner != uint32(uid) || info.Mode().Perm()&writeByAnotherUser != 0 {
-		return Settings{}, fmt.Errorf("another user can write the config file %s, so svcview does not read it: the file belongs to user %d and has the mode %s, and it must belong to user %d with no write permission for its group or for other users", path, owner, info.Mode().Perm(), uid)
-	}
-	entries, err := aclEntries(file)
-	if err != nil {
-		return Settings{}, fmt.Errorf("svcview cannot read the ACL of the config file %s, so it does not read the file: %w", path, err)
-	}
-	if entries > 0 {
-		return Settings{}, fmt.Errorf("the config file %s has an ACL, which can let another user write it, so svcview does not read it: /bin/chmod -N %s removes the ACL", path, path)
-	}
-	content, err := io.ReadAll(file)
-	if err != nil {
-		return Settings{}, fmt.Errorf("read the config file: %w", err)
+		return Settings{}, err
 	}
 	if err := settings.read(content); err != nil {
 		return Settings{}, fmt.Errorf("the config file %s: %w", path, err)
@@ -148,6 +125,40 @@ func Folder(home, xdgConfigHome string) string {
 		return filepath.Join(xdgConfigHome, "svcview")
 	}
 	return filepath.Join(home, ".config", "svcview")
+}
+
+func readConfigFile(path string, uid int, aclEntries func(*os.File) (int, error)) ([]byte, error) {
+	file, err := os.OpenFile(path, os.O_RDONLY|syscall.O_NONBLOCK, 0)
+	if errors.Is(err, fs.ErrNotExist) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("read the config file: %w", err)
+	}
+	defer file.Close()
+	info, err := file.Stat()
+	if err != nil {
+		return nil, fmt.Errorf("read the config file: %w", err)
+	}
+	if !info.Mode().IsRegular() {
+		return nil, fmt.Errorf("the config file %s is not a regular file, so svcview does not read it: it has the mode %s", path, info.Mode())
+	}
+	owner := info.Sys().(*syscall.Stat_t).Uid
+	if owner != uint32(uid) || info.Mode().Perm()&writeByAnotherUser != 0 {
+		return nil, fmt.Errorf("another user can write the config file %s, so svcview does not read it: the file belongs to user %d and has the mode %s, and it must belong to user %d with no write permission for its group or for other users", path, owner, info.Mode().Perm(), uid)
+	}
+	entries, err := aclEntries(file)
+	if err != nil {
+		return nil, fmt.Errorf("svcview cannot read the ACL of the config file %s, so it does not read the file: %w", path, err)
+	}
+	if entries > 0 {
+		return nil, fmt.Errorf("the config file %s has an ACL, which can let another user write it, so svcview does not read it: /bin/chmod -N %s removes the ACL", path, path)
+	}
+	content, err := io.ReadAll(file)
+	if err != nil {
+		return nil, fmt.Errorf("read the config file: %w", err)
+	}
+	return content, nil
 }
 
 func readDuration(value *yaml.Node, setting string) (time.Duration, error) {
