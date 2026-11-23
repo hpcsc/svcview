@@ -52,16 +52,16 @@ func parseLaunchctlList(output string) (launchctlList, error) {
 		if len(columns) != 3 {
 			return launchctlList{}, fmt.Errorf("launchctl list printed the row %q, which does not have the 3 columns PID, Status and Label", row)
 		}
-		pid, status, name := columns[0], columns[1], columns[2]
+		pid, exit, name := columns[0], columns[1], columns[2]
 		state := service.Running
 		if pid == "-" {
 			state = service.Loaded
 		}
-		code, err := strconv.ParseInt(status, 10, 32)
+		number, err := strconv.ParseInt(exit, 10, 32)
 		if err != nil {
 			return launchctlList{}, fmt.Errorf("launchctl list printed the row %q, whose Status is not an exit code or the negative number of a signal", row)
 		}
-		l.services[name] = service.Service{Name: name, State: state, LastExit: lastExit(int(code))}
+		l.services[name] = service.Service{Name: name, State: state, LastExit: lastExit(int(number))}
 	}
 	return l, nil
 }
@@ -81,11 +81,11 @@ var macOSSignals = [...]string{
 	30: "SIGUSR1", 31: "SIGUSR2",
 }
 
-func lastExit(status int) service.LastExit {
-	if status >= 0 {
-		return service.LastExit{Code: status}
+func lastExit(number int) service.LastExit {
+	if number >= 0 {
+		return service.LastExit{Code: number}
 	}
-	signal := -status
+	signal := -number
 	if signal < len(macOSSignals) {
 		return service.LastExit{Signal: macOSSignals[signal]}
 	}

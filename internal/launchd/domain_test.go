@@ -46,7 +46,7 @@ func copyFixture(t *testing.T, path, fixture string) {
 	require.NoError(t, os.WriteFile(path, data, 0o644))
 }
 
-func writeFixture(t *testing.T, path, fixture string, modTime time.Time) {
+func copyFixtureModifiedAt(t *testing.T, path, fixture string, modTime time.Time) {
 	t.Helper()
 	copyFixture(t, path, fixture)
 	require.NoError(t, os.Chtimes(path, modTime, modTime))
@@ -335,7 +335,7 @@ func TestDomain(t *testing.T) {
 			domain := launchd.NewDomain(home, 501)
 			_, err := domain.Services()
 			require.NoError(t, err)
-			writeFixture(t, filepath.Join(home, "Library", "LaunchAgents", "com.example.binary.plist"), "binary.plist", modTime)
+			copyFixtureModifiedAt(t, filepath.Join(home, "Library", "LaunchAgents", "com.example.binary.plist"), "binary.plist", modTime)
 
 			services, err := domain.Services()
 
@@ -361,11 +361,11 @@ func TestDomain(t *testing.T) {
 			fakeLaunchctlList(t, "launchctl-list-no-services.txt")
 			home := homeWith(t, nil)
 			path := filepath.Join(home, "Library", "LaunchAgents", "com.example.plist")
-			writeFixture(t, path, "xml.plist", modTime)
+			copyFixtureModifiedAt(t, path, "xml.plist", modTime)
 			domain := launchd.NewDomain(home, 501)
 			_, err := domain.Services()
 			require.NoError(t, err)
-			writeFixture(t, path, "binary.plist", modTime.Add(time.Second))
+			copyFixtureModifiedAt(t, path, "binary.plist", modTime.Add(time.Second))
 
 			services, err := domain.Services()
 
@@ -377,11 +377,11 @@ func TestDomain(t *testing.T) {
 			fakeLaunchctlList(t, "launchctl-list-no-services.txt")
 			home := homeWith(t, nil)
 			path := filepath.Join(home, "Library", "LaunchAgents", "com.example.plist")
-			writeFixture(t, path, "xml.plist", modTime)
+			copyFixtureModifiedAt(t, path, "xml.plist", modTime)
 			domain := launchd.NewDomain(home, 501)
 			_, err := domain.Services()
 			require.NoError(t, err)
-			writeFixture(t, path, "binary.plist", modTime)
+			copyFixtureModifiedAt(t, path, "binary.plist", modTime)
 
 			services, err := domain.Services()
 
@@ -393,11 +393,11 @@ func TestDomain(t *testing.T) {
 			fakeLaunchctlList(t, "launchctl-list-no-services.txt")
 			home := homeWith(t, nil)
 			path := filepath.Join(home, "Library", "LaunchAgents", "com.example.plist")
-			writeFixture(t, path, "not-a-plist.txt", modTime)
+			copyFixtureModifiedAt(t, path, "not-a-plist.txt", modTime)
 			domain := launchd.NewDomain(home, 501)
 			_, err := domain.Services()
 			require.NoError(t, err)
-			writeFixture(t, path, "xml.plist", modTime)
+			copyFixtureModifiedAt(t, path, "xml.plist", modTime)
 
 			services, err := domain.Services()
 
@@ -412,7 +412,7 @@ func TestDomain(t *testing.T) {
 			fakeLaunchctlList(t, "launchctl-list-no-services.txt")
 			home := homeWith(t, nil)
 			path := filepath.Join(home, "Library", "LaunchAgents", "com.example.plist")
-			writeFixture(t, path, "xml.plist", modTime)
+			copyFixtureModifiedAt(t, path, "xml.plist", modTime)
 			require.NoError(t, os.Chmod(path, 0o000))
 			domain := launchd.NewDomain(home, 501)
 			unreadable, err := domain.Services()
