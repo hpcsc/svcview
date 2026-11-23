@@ -169,12 +169,21 @@ writes, so svcview accepts the owner.
 The terminal has 160 columns, and an error that names a long path continues on the next line. A test that checks
 the error removes the line breaks from the screen text first.
 
+svcview also refuses a `config.yaml` that has an ACL. The test of this refusal gives the file an ACL entry with
+`/bin/chmod +a`, and removes the ACL with `/bin/chmod -N`. Only macOS has these ACLs and these options of `chmod`.
+The Docker image runs Linux, so the test skips there, and only `task test:e2e:local` on a Mac runs it. The test
+runs `/bin/chmod` and not `chmod`, because a Mac can find the GNU `chmod` of Homebrew first on `PATH`, and the GNU
+`chmod` has no `+a` and no `-N`.
+
 ## Where the tests run
 
 | Command | Where | What it needs |
 | --- | --- | --- |
 | `task test:e2e` | Docker | Docker |
 | `task test:e2e:local` | This machine | Node |
+
+The test of a `config.yaml` with an ACL runs only with `task test:e2e:local` on a Mac. In Docker it skips, because
+Linux has no ACLs of macOS ([the config file](#the-config-file)).
 
 Both ways build the CLI with the tag `v0.1.0`. They set
 two environment variables for the tests: `EXECUTABLE`, the path of the binary, and `BUILD_TAG`, the tag.

@@ -1,3 +1,4 @@
+import { execFileSync } from 'node:child_process'
 import { join } from 'node:path'
 import { describe, expect, it, onTestFinished, vi } from 'vitest'
 import { addPlist, buildTag, homeWithPlists, openCli, runCli, scratchDir, writeConfig } from '../testUtils'
@@ -56,6 +57,28 @@ describe('the config file', () => {
     expect(printed).toContain('another user can write')
     expect(printed).not.toContain('com.example.worker')
   })
+
+  it.skipIf(process.platform !== 'darwin')(
+    'on macOS, a config.yaml with the mode 0644 and an ACL entry stops svcview with the exit code 1 and an error that names the file, before the screen opens, and opens the screen after chmod -N',
+    async () => {
+      const home = homeWithPlists(['com.example.worker'])
+      const path = writeConfig(join(home, '.config', 'svcview'), 'refresh: 5s\n')
+      execFileSync('/bin/chmod', ['+a', 'everyone allow write', path])
+
+      const refused = await openCli(scratchDir(), [], { HOME: home })
+
+      await refused.waitForText('EXIT:1')
+      const printed = (await refused.text()).replaceAll('\n', '')
+      expect(printed).toContain(path)
+      expect(printed).toContain('chmod -N')
+      expect(printed).not.toContain('com.example.worker')
+
+      execFileSync('/bin/chmod', ['-N', path])
+      const opened = await openCli(scratchDir(), [], { HOME: home })
+
+      await opened.waitForText('com.example.worker')
+    },
+  )
 
   it('a valid config.yaml opens the screen', async () => {
     const home = homeWithPlists(['com.example.worker'])

@@ -24,7 +24,7 @@ type Settings struct {
 	Groups  []Group
 }
 
-func Read(folder string, uid int) (Settings, error) {
+func Read(folder string, uid int, aclEntries func(*os.File) (int, error)) (Settings, error) {
 	settings := Settings{Refresh: 2 * time.Second}
 	path := filepath.Join(folder, fileName)
 	file, err := os.Open(path)
@@ -42,6 +42,13 @@ func Read(folder string, uid int) (Settings, error) {
 	owner := info.Sys().(*syscall.Stat_t).Uid
 	if owner != uint32(uid) || info.Mode().Perm()&writeByAnotherUser != 0 {
 		return Settings{}, fmt.Errorf("another user can write the config file %s, so svcview does not read it: the file belongs to user %d and has the mode %s, and it must belong to user %d with no write permission for its group or for other users", path, owner, info.Mode().Perm(), uid)
+	}
+	entries, err := aclEntries(file)
+	if err != nil {
+		return Settings{}, fmt.Errorf("svcview cannot read the ACL of the config file %s, so it does not read the file: %w", path, err)
+	}
+	if entries > 0 {
+		return Settings{}, fmt.Errorf("the config file %s has an ACL, which can let another user write it, so svcview does not read it: /bin/chmod -N %s removes the ACL", path, path)
 	}
 	content, err := io.ReadAll(file)
 	if err != nil {

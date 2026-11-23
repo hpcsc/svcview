@@ -3,6 +3,7 @@
 package config_test
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"testing"
@@ -11,6 +12,16 @@ import (
 	"github.com/hpcsc/svcview/internal/config"
 	"github.com/stretchr/testify/require"
 )
+
+func noACL(*os.File) (int, error) {
+	return 0, nil
+}
+
+func aclWithEntries(count int) func(*os.File) (int, error) {
+	return func(*os.File) (int, error) {
+		return count, nil
+	}
+}
 
 func folderWith(t *testing.T, content string) (folder, path string) {
 	t.Helper()
@@ -23,7 +34,7 @@ func folderWith(t *testing.T, content string) (folder, path string) {
 func readSettings(t *testing.T, content string) config.Settings {
 	t.Helper()
 	folder, _ := folderWith(t, content)
-	settings, err := config.Read(folder, os.Getuid())
+	settings, err := config.Read(folder, os.Getuid(), noACL)
 	require.NoError(t, err)
 	return settings
 }
@@ -61,14 +72,14 @@ func TestSettings(t *testing.T) {
 
 	t.Run("read", func(t *testing.T) {
 		t.Run("with no config.yaml in the config folder, the refresh is 2s", func(t *testing.T) {
-			settings, err := config.Read(t.TempDir(), os.Getuid())
+			settings, err := config.Read(t.TempDir(), os.Getuid(), noACL)
 
 			require.NoError(t, err)
 			require.Equal(t, config.Settings{Refresh: 2 * time.Second}, settings)
 		})
 
 		t.Run("with no config folder, the refresh is 2s", func(t *testing.T) {
-			settings, err := config.Read(filepath.Join(t.TempDir(), "svcview"), os.Getuid())
+			settings, err := config.Read(filepath.Join(t.TempDir(), "svcview"), os.Getuid(), noACL)
 
 			require.NoError(t, err)
 			require.Equal(t, config.Settings{Refresh: 2 * time.Second}, settings)
@@ -78,7 +89,7 @@ func TestSettings(t *testing.T) {
 			for _, content := range []string{"", "\n\n", "# refresh: 5s\n", "---\n", "~\n"} {
 				folder, _ := folderWith(t, content)
 
-				settings, err := config.Read(folder, os.Getuid())
+				settings, err := config.Read(folder, os.Getuid(), noACL)
 
 				require.NoError(t, err, content)
 				require.Equal(t, config.Settings{Refresh: 2 * time.Second}, settings, content)
@@ -97,7 +108,7 @@ func TestSettings(t *testing.T) {
 			} {
 				folder, _ := folderWith(t, content)
 
-				settings, err := config.Read(folder, os.Getuid())
+				settings, err := config.Read(folder, os.Getuid(), noACL)
 
 				require.NoError(t, err, content)
 				require.Equal(t, config.Settings{Refresh: refresh}, settings, content)
@@ -108,7 +119,7 @@ func TestSettings(t *testing.T) {
 			for _, content := range []string{"refresh: fast\n", "refresh: 5\n", "refresh: [5s]\n", "refresh:\n", "refresh: ''\n"} {
 				folder, path := folderWith(t, content)
 
-				settings, err := config.Read(folder, os.Getuid())
+				settings, err := config.Read(folder, os.Getuid(), noACL)
 
 				require.ErrorContains(t, err, path, content)
 				require.ErrorContains(t, err, `"refresh"`, content)
@@ -120,7 +131,7 @@ func TestSettings(t *testing.T) {
 			for _, content := range []string{"refresh: 0s\n", "refresh: 0\n", "refresh: -5s\n"} {
 				folder, path := folderWith(t, content)
 
-				settings, err := config.Read(folder, os.Getuid())
+				settings, err := config.Read(folder, os.Getuid(), noACL)
 
 				require.ErrorContains(t, err, path, content)
 				require.ErrorContains(t, err, `"refresh"`, content)
@@ -135,7 +146,7 @@ func TestSettings(t *testing.T) {
 			} {
 				folder, path := folderWith(t, content)
 
-				settings, err := config.Read(folder, os.Getuid())
+				settings, err := config.Read(folder, os.Getuid(), noACL)
 
 				require.ErrorContains(t, err, path, content)
 				require.ErrorContains(t, err, setting, content)
@@ -146,7 +157,7 @@ func TestSettings(t *testing.T) {
 		t.Run("a setting that svcview does not know in a second YAML document gives an error that names the file and the setting", func(t *testing.T) {
 			folder, path := folderWith(t, "refresh: 5s\n---\ncolour: blue\n")
 
-			settings, err := config.Read(folder, os.Getuid())
+			settings, err := config.Read(folder, os.Getuid(), noACL)
 
 			require.ErrorContains(t, err, path)
 			require.ErrorContains(t, err, `"colour"`)
@@ -157,7 +168,7 @@ func TestSettings(t *testing.T) {
 			for _, content := range []string{"refresh: 5s\nrefresh: 6s\n", "refresh: 5s\n---\nrefresh: 6s\n"} {
 				folder, path := folderWith(t, content)
 
-				settings, err := config.Read(folder, os.Getuid())
+				settings, err := config.Read(folder, os.Getuid(), noACL)
 
 				require.ErrorContains(t, err, path, content)
 				require.ErrorContains(t, err, `"refresh"`, content)
@@ -168,7 +179,7 @@ func TestSettings(t *testing.T) {
 		t.Run("a config.yaml that is not valid YAML gives an error that names the file, and no settings", func(t *testing.T) {
 			folder, path := folderWith(t, "refresh: [5s\n")
 
-			settings, err := config.Read(folder, os.Getuid())
+			settings, err := config.Read(folder, os.Getuid(), noACL)
 
 			require.ErrorContains(t, err, path)
 			require.Equal(t, config.Settings{}, settings)
@@ -178,7 +189,7 @@ func TestSettings(t *testing.T) {
 			for _, content := range []string{"- refresh: 5s\n", "5s\n", "refresh: 5s\n---\n- refresh: 5s\n"} {
 				folder, path := folderWith(t, content)
 
-				settings, err := config.Read(folder, os.Getuid())
+				settings, err := config.Read(folder, os.Getuid(), noACL)
 
 				require.ErrorContains(t, err, path, content)
 				require.Equal(t, config.Settings{}, settings, content)
@@ -190,7 +201,7 @@ func TestSettings(t *testing.T) {
 			path := filepath.Join(folder, "config.yaml")
 			require.NoError(t, os.Mkdir(path, 0o755))
 
-			settings, err := config.Read(folder, os.Getuid())
+			settings, err := config.Read(folder, os.Getuid(), noACL)
 
 			require.ErrorContains(t, err, path)
 			require.Equal(t, config.Settings{}, settings)
@@ -203,7 +214,7 @@ func TestSettings(t *testing.T) {
 			folder, path := folderWith(t, "refresh: 5s\n")
 			require.NoError(t, os.Chmod(path, 0o000))
 
-			settings, err := config.Read(folder, os.Getuid())
+			settings, err := config.Read(folder, os.Getuid(), noACL)
 
 			require.ErrorContains(t, err, path)
 			require.Equal(t, config.Settings{}, settings)
@@ -214,7 +225,7 @@ func TestSettings(t *testing.T) {
 				folder, path := folderWith(t, "refresh: 5s\n")
 				require.NoError(t, os.Chmod(path, mode))
 
-				settings, err := config.Read(folder, os.Getuid())
+				settings, err := config.Read(folder, os.Getuid(), noACL)
 
 				require.ErrorContains(t, err, path, mode)
 				require.ErrorContains(t, err, "another user can write", mode)
@@ -226,7 +237,7 @@ func TestSettings(t *testing.T) {
 			folder, path := folderWith(t, "refresh: 5s\n")
 			require.NoError(t, os.Chmod(path, 0o600))
 
-			settings, err := config.Read(folder, os.Getuid()+1)
+			settings, err := config.Read(folder, os.Getuid()+1, noACL)
 
 			require.ErrorContains(t, err, path)
 			require.ErrorContains(t, err, "another user can write")
@@ -238,7 +249,7 @@ func TestSettings(t *testing.T) {
 				folder, path := folderWith(t, "refresh: 5s\n")
 				require.NoError(t, os.Chmod(path, mode))
 
-				settings, err := config.Read(folder, os.Getuid())
+				settings, err := config.Read(folder, os.Getuid(), noACL)
 
 				require.NoError(t, err, mode)
 				require.Equal(t, config.Settings{Refresh: 5 * time.Second}, settings, mode)
@@ -253,7 +264,7 @@ func TestSettings(t *testing.T) {
 				folder := t.TempDir()
 				require.NoError(t, os.Symlink(target, filepath.Join(folder, "config.yaml")))
 
-				settings, err := config.Read(folder, os.Getuid())
+				settings, err := config.Read(folder, os.Getuid(), noACL)
 
 				if refused {
 					require.ErrorContains(t, err, "another user can write", mode)
@@ -265,8 +276,78 @@ func TestSettings(t *testing.T) {
 			}
 		})
 
+		t.Run("a config.yaml with one or more ACL entries gives an error that names the file and chmod -N, and no settings, also when the owner and the mode pass", func(t *testing.T) {
+			for _, count := range []int{1, 2} {
+				folder, path := folderWith(t, "refresh: 5s\n")
+
+				settings, err := config.Read(folder, os.Getuid(), aclWithEntries(count))
+
+				require.ErrorContains(t, err, path, count)
+				require.ErrorContains(t, err, "ACL", count)
+				require.ErrorContains(t, err, "chmod -N", count)
+				require.Equal(t, config.Settings{}, settings, count)
+			}
+		})
+
+		t.Run("a config.yaml whose ACL svcview cannot count gives an error that names the file and the cause, and no settings", func(t *testing.T) {
+			folder, path := folderWith(t, "refresh: 5s\n")
+			unreadable := func(*os.File) (int, error) {
+				return 0, errors.New("fgetattrlist: bad file descriptor")
+			}
+
+			settings, err := config.Read(folder, os.Getuid(), unreadable)
+
+			require.ErrorContains(t, err, path)
+			require.ErrorContains(t, err, "fgetattrlist: bad file descriptor")
+			require.Equal(t, config.Settings{}, settings)
+		})
+
+		t.Run("with no config.yaml, svcview counts no ACL, and the settings are the defaults", func(t *testing.T) {
+			settings, err := config.Read(t.TempDir(), os.Getuid(), aclWithEntries(1))
+
+			require.NoError(t, err)
+			require.Equal(t, config.Settings{Refresh: 2 * time.Second}, settings)
+		})
+
+		t.Run("on macOS, a config.yaml with the mode 0644 and an ACL entry gives an error, whatever the entry allows or denies", func(t *testing.T) {
+			skipUnlessMacOS(t)
+			for _, entry := range []string{"everyone allow write", "user:nobody allow append", "everyone deny delete"} {
+				path := configFile(t, entry)
+
+				settings, err := config.Read(filepath.Dir(path), os.Getuid(), config.ACLEntries)
+
+				require.ErrorContains(t, err, path, entry)
+				require.ErrorContains(t, err, "chmod -N", entry)
+				require.Equal(t, config.Settings{}, settings, entry)
+			}
+		})
+
+		t.Run("on macOS, a config.yaml that is a symbolic link counts with the ACL of the file that it links to, not of the link", func(t *testing.T) {
+			skipUnlessMacOS(t)
+			withACL := configFile(t, "everyone allow write")
+			withoutACL := configFile(t)
+			for target, refused := range map[string]bool{withACL: true, withoutACL: false} {
+				folder := t.TempDir()
+				link := filepath.Join(folder, "config.yaml")
+				require.NoError(t, os.Symlink(target, link))
+				if !refused {
+					chmod(t, "-h", "+a", "everyone allow write", link)
+				}
+
+				settings, err := config.Read(folder, os.Getuid(), config.ACLEntries)
+
+				if refused {
+					require.ErrorContains(t, err, "chmod -N", target)
+					require.Equal(t, config.Settings{}, settings, target)
+				} else {
+					require.NoError(t, err, target)
+					require.Equal(t, config.Settings{Refresh: 5 * time.Second}, settings, target)
+				}
+			}
+		})
+
 		t.Run("with no config.yaml, the settings are the defaults for any user", func(t *testing.T) {
-			settings, err := config.Read(t.TempDir(), os.Getuid()+1)
+			settings, err := config.Read(t.TempDir(), os.Getuid()+1, noACL)
 
 			require.NoError(t, err)
 			require.Equal(t, config.Settings{Refresh: 2 * time.Second}, settings)
@@ -290,7 +371,7 @@ func TestSettings(t *testing.T) {
 		t.Run("a setting other than refresh and groups at the top of a file with groups gives an error that names the file and the setting", func(t *testing.T) {
 			folder, path := folderWith(t, "groups:\n  - name: Workers\n    match: worker\nstatus: running\n")
 
-			settings, err := config.Read(folder, os.Getuid())
+			settings, err := config.Read(folder, os.Getuid(), noACL)
 
 			require.ErrorContains(t, err, path)
 			require.ErrorContains(t, err, `"status"`)
@@ -301,7 +382,7 @@ func TestSettings(t *testing.T) {
 			for _, content := range []string{"groups: Workers\n", "groups:\n  name: Workers\n  match: worker\n"} {
 				folder, path := folderWith(t, content)
 
-				settings, err := config.Read(folder, os.Getuid())
+				settings, err := config.Read(folder, os.Getuid(), noACL)
 
 				require.ErrorContains(t, err, path, content)
 				require.ErrorContains(t, err, `"groups"`, content)
@@ -318,7 +399,7 @@ func TestSettings(t *testing.T) {
 			} {
 				folder, path := folderWith(t, content)
 
-				settings, err := config.Read(folder, os.Getuid())
+				settings, err := config.Read(folder, os.Getuid(), noACL)
 
 				require.ErrorContains(t, err, path, content)
 				require.ErrorContains(t, err, "group 2 ", content)
@@ -337,7 +418,7 @@ func TestSettings(t *testing.T) {
 			} {
 				folder, path := folderWith(t, content)
 
-				settings, err := config.Read(folder, os.Getuid())
+				settings, err := config.Read(folder, os.Getuid(), noACL)
 
 				require.ErrorContains(t, err, path, content)
 				require.ErrorContains(t, err, "group 2 has no name", content)
@@ -355,7 +436,7 @@ func TestSettings(t *testing.T) {
 			} {
 				folder, path := folderWith(t, content)
 
-				settings, err := config.Read(folder, os.Getuid())
+				settings, err := config.Read(folder, os.Getuid(), noACL)
 
 				require.ErrorContains(t, err, path, content)
 				require.ErrorContains(t, err, `group "Databases" has no match`, content)
@@ -371,7 +452,7 @@ func TestSettings(t *testing.T) {
 			} {
 				folder, path := folderWith(t, content)
 
-				settings, err := config.Read(folder, os.Getuid())
+				settings, err := config.Read(folder, os.Getuid(), noACL)
 
 				require.ErrorContains(t, err, path, content)
 				require.ErrorContains(t, err, `group "Databases" is not a Go regular expression`, content)
@@ -387,7 +468,7 @@ func TestSettings(t *testing.T) {
 			} {
 				folder, path := folderWith(t, content)
 
-				settings, err := config.Read(folder, os.Getuid())
+				settings, err := config.Read(folder, os.Getuid(), noACL)
 
 				require.ErrorContains(t, err, path, content)
 				require.ErrorContains(t, err, setting, content)
@@ -402,7 +483,7 @@ func TestSettings(t *testing.T) {
 			} {
 				folder, path := folderWith(t, content)
 
-				settings, err := config.Read(folder, os.Getuid())
+				settings, err := config.Read(folder, os.Getuid(), noACL)
 
 				require.ErrorContains(t, err, path, content)
 				require.ErrorContains(t, err, setting, content)
@@ -413,7 +494,7 @@ func TestSettings(t *testing.T) {
 		t.Run("two groups with the same name give an error that names the file and the group, and no settings", func(t *testing.T) {
 			folder, path := folderWith(t, "groups:\n  - name: Databases\n    match: redis\n  - name: Workers\n    match: worker\n  - name: Databases\n    match: postgres\n")
 
-			settings, err := config.Read(folder, os.Getuid())
+			settings, err := config.Read(folder, os.Getuid(), noACL)
 
 			require.ErrorContains(t, err, path)
 			require.ErrorContains(t, err, `group "Databases"`)
@@ -423,7 +504,7 @@ func TestSettings(t *testing.T) {
 		t.Run("a group with the name Other gives an error that names the file and the group, and no settings", func(t *testing.T) {
 			folder, path := folderWith(t, "groups:\n  - name: Workers\n    match: worker\n  - name: Other\n    match: redis\n")
 
-			settings, err := config.Read(folder, os.Getuid())
+			settings, err := config.Read(folder, os.Getuid(), noACL)
 
 			require.ErrorContains(t, err, path)
 			require.ErrorContains(t, err, `"Other"`)
@@ -475,7 +556,7 @@ func TestSettings(t *testing.T) {
 		})
 
 		t.Run("with no groups, each service is in the group Other", func(t *testing.T) {
-			settings, err := config.Read(t.TempDir(), os.Getuid())
+			settings, err := config.Read(t.TempDir(), os.Getuid(), noACL)
 			require.NoError(t, err)
 
 			require.Equal(t, map[string]string{

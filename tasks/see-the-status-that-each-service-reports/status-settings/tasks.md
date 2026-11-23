@@ -206,21 +206,21 @@ write it, and says that `chmod -N` removes the ACL. svcview gives `config.ACLEnt
 the screen.
 
 **Acceptance Criteria:**
-- [ ] With a count of 1 or more, `config.Read` gives an error that names the file and `chmod -N`, and no settings,
+- [x] With a count of 1 or more, `config.Read` gives an error that names the file and `chmod -N`, and no settings,
       also when the owner and the mode pass.
-- [ ] When the count cannot be read, `config.Read` gives an error that names the file, and no settings.
-- [ ] With a count of 0, `config.Read` gives the settings of the file.
-- [ ] With no `config.yaml`, `config.Read` counts no ACL, and the settings are the defaults.
-- [ ] These tests run on each system, with a count that the test gives.
-- [ ] On macOS, with `config.ACLEntries`: a `config.yaml` with the mode `0644` and the entry
+- [x] When the count cannot be read, `config.Read` gives an error that names the file, and no settings.
+- [x] With a count of 0, `config.Read` gives the settings of the file.
+- [x] With no `config.yaml`, `config.Read` counts no ACL, and the settings are the defaults.
+- [x] These tests run on each system, with a count that the test gives.
+- [x] On macOS, with `config.ACLEntries`: a `config.yaml` with the mode `0644` and the entry
       `everyone allow write` is refused; one with `user:nobody allow append` is refused; one with only
       `everyone deny delete` is refused; one whose ACL has no entries gives its settings; a symbolic link to a file
       with an ACL is refused.
-- [ ] `svcview` gives `config.ACLEntries` to `config.Read` before it opens the screen.
-- [ ] e2e test, which runs only on macOS and skips in Docker: a `config.yaml` with the mode `0644` and
+- [x] `svcview` gives `config.ACLEntries` to `config.Read` before it opens the screen.
+- [x] e2e test, which runs only on macOS and skips in Docker: a `config.yaml` with the mode `0644` and
       `/bin/chmod +a "everyone allow write"` stops svcview with `EXIT:1` and an error that names the file, before
       the screen opens. After `/bin/chmod -N`, the same file opens the screen.
-- [ ] `docs/e2e-tests.md` says that the ACL test runs only with `task test:e2e:local` on a Mac, and why.
+- [x] `docs/e2e-tests.md` says that the ACL test runs only with `task test:e2e:local` on a Mac, and why.
 
 **Affected Files/Modules:**
 - `internal/config/config.go` — `Read` takes the count of the ACL entries, and refuses a file with an ACL

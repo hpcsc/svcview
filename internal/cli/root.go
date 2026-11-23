@@ -55,7 +55,7 @@ func showScreen(ctx context.Context, input io.Reader, output io.Writer) error {
 		return err
 	}
 	uid := os.Getuid()
-	settings, err := config.Read(config.Folder(home, os.Getenv("XDG_CONFIG_HOME")), uid)
+	settings, err := config.Read(config.Folder(home, os.Getenv("XDG_CONFIG_HOME")), uid, config.ACLEntries)
 	if err != nil {
 		return err
 	}
