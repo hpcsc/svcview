@@ -128,7 +128,7 @@
     },
     {
       "n": 6,
-      "done": false,
+      "done": true,
       "title": "Describe the status command in docs/cli.md",
       "language": "Markdown",
       "testable": false,

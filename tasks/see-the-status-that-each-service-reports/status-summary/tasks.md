@@ -373,24 +373,23 @@ command, how the list and the detail pane show it, and how to write a fast statu
 can write a status command that succeeds from these docs, with no read of the svcview code.
 
 **Acceptance Criteria:**
-- [ ] A section on the status command lists `status.command`, `status.every` and `status.timeout`, with their
+- [x] A section on the status command lists `status.command`, `status.every` and `status.timeout`, with their
       meaning and their defaults, and gives an example group with a status command.
-- [ ] It says that svcview runs the program and its arguments with no shell, that `[sh, -c, '...']` gives a shell,
+- [x] It says that svcview runs the program and its arguments with no shell, that `[sh, -c, '...']` gives a shell,
       that the command runs in each state of the service, and that a service gets no second run until its run ends.
-- [ ] It lists the five template values, and says that a value that the plist does not have shows as the status,
+- [x] It lists the five template values, and says that a value that the plist does not have shows as the status,
       for example `the plist has no WORKER_STATUS_FILE`.
-- [ ] It names the texts that stop svcview at start: a template value other than the five, `range`, `define`,
+- [x] It names the texts that stop svcview at start: a template value other than the five, `range`, `define`,
       `block` and `{{template ...}}`, a field without `$` in the body of a `with`, a field of a variable that the text
-      declares, and a new value for `$`. It says that `every` and `timeout` must not be less than 0, and that 0 gives
-      the default.
-- [ ] It describes the output of version 1: `version`, `at`, `summary`, `level`, `fields` and `events`, with an
+      declares, and a new value for `$`. It says that `every` and `timeout` are Go durations more than 0.
+- [x] It describes the output of version 1: `version`, `at`, `summary`, `level`, `fields` and `events`, with an
       example, the shape of each, and that a property that svcview does not know changes nothing. It says which
       properties the screen shows.
-- [ ] It says how the row shows the summary and the colors of the levels, and what the line `Status` of the detail
+- [x] It says how the row shows the summary and the colors of the levels, and what the line `Status` of the detail
       pane shows.
-- [ ] It tells why a command that starts a large runtime is too slow, and how a service writes its status file in
+- [x] It tells why a command that starts a large runtime is too slow, and how a service writes its status file in
       one step so that `cat` never reads half a file.
-- [ ] The errors of `status` that stop svcview at start are in the list of errors, and the glyphs and colors table
+- [x] The errors of `status` that stop svcview at start are in the list of errors, and the glyphs and colors table
       has the colors of the levels.
 
 **Affected Files/Modules:**
