@@ -91,16 +91,16 @@ back. The lines and the corners of the border of the pane with the focus are in 
 the corners of the border of the other pane are dim. `?` shows `tab` with its action.
 
 **Acceptance Criteria:**
-- [ ] At start, the border of the list is blue and the border of the detail pane is dim.
-- [ ] `tab` moves the focus to the detail pane: its border is blue, and the border of the list is dim. `tab` again
+- [x] At start, the border of the list is blue and the border of the detail pane is dim.
+- [x] `tab` moves the focus to the detail pane: its border is blue, and the border of the list is dim. `tab` again
       moves the focus back to the list.
-- [ ] The title in the border of each pane keeps the default color, so the full name of the selected service stays
+- [x] The title in the border of each pane keeps the default color, so the full name of the selected service stays
       easy to read. The border of the header and the help line keep their look.
-- [ ] The focus stays where it is at a refresh, at the end of a run, and after `?` shows and hides the help.
-- [ ] While the help shows, `tab` changes nothing, and the border of the help keeps its look.
-- [ ] `tab` moves the focus also when the list has no rows, or shows an error.
-- [ ] `?` shows `tab` and its action, and the golden file of the help shows it.
-- [ ] The golden files of the screen show the border of the list in the accent color and the border of the detail
+- [x] The focus stays where it is at a refresh, at the end of a run, and after `?` shows and hides the help.
+- [x] While the help shows, `tab` changes nothing, and the border of the help keeps its look.
+- [x] `tab` moves the focus also when the list has no rows, or shows an error.
+- [x] `?` shows `tab` and its action, and the golden file of the help shows it.
+- [x] The golden files of the screen show the border of the list in the accent color and the border of the detail
       pane dim, and a new golden file shows the screen after `tab`.
 
 **Affected Files/Modules:**
@@ -225,8 +225,8 @@ detail pane. The Keys table matches the help of the screen.
       other pane, dim.
 - [ ] The table of the parts of the screen says that the list has the focus at start, and that the detail pane
       scrolls when it has the focus.
-- [ ] The text under the failures that says that the detail pane does not scroll says that `↑` and `↓` scroll it when
-      it has the focus.
+- [ ] The two sentences that say that the detail pane does not scroll, at the end of "Failures" and at the end of
+      "In the list and the detail pane", say that `↑` and `↓` scroll it when it has the focus.
 - [ ] It says that a newly selected service shows from the first line of its detail pane.
 
 **Affected Files/Modules:**

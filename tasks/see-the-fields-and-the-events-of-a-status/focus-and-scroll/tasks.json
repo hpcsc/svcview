@@ -1,11 +1,11 @@
 {
-  "story": "The detail pane scrolls with ↑ ↓ when tab gives it the focus",
+  "story": "The detail pane scrolls with \u2191 \u2193 when tab gives it the focus",
   "story_id": "launchd-tui/US-004",
   "tasks_file": "tasks/see-the-fields-and-the-events-of-a-status/focus-and-scroll/tasks.md",
   "tasks": [
     {
       "n": 1,
-      "done": false,
+      "done": true,
       "title": "Move the focus between the list and the detail pane with tab",
       "language": "Go",
       "testable": true,
@@ -28,7 +28,7 @@
     {
       "n": 2,
       "done": false,
-      "title": "Scroll the detail pane with ↑ and ↓ when it has the focus",
+      "title": "Scroll the detail pane with \u2191 and \u2193 when it has the focus",
       "language": "Go",
       "testable": true,
       "certainty": "medium",
@@ -40,7 +40,9 @@
         "e2e/tests/screen.test.ts:86-94",
         "task:1"
       ],
-      "depends_on": [1],
+      "depends_on": [
+        1
+      ],
       "affected_files": [
         "internal/tui/screen.go",
         "internal/tui/screen_test.go",
@@ -62,7 +64,9 @@
         "internal/tui/screen_test.go",
         "task:2"
       ],
-      "depends_on": [2],
+      "depends_on": [
+        2
+      ],
       "affected_files": [
         "internal/tui/screen.go",
         "internal/tui/screen_test.go"
@@ -79,7 +83,9 @@
       "patterns_to_follow": [
         "docs/cli.md:62-116"
       ],
-      "depends_on": [3],
+      "depends_on": [
+        3
+      ],
       "affected_files": [
         "docs/cli.md"
       ]

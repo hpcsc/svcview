@@ -9,6 +9,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"regexp"
 	"slices"
 	"strings"
 	"sync"
@@ -100,7 +101,23 @@ var (
 	down     = tea.KeyPressMsg{Code: tea.KeyDown}
 	question = tea.KeyPressMsg{Code: '?', Text: "?"}
 	escape   = tea.KeyPressMsg{Code: tea.KeyEscape}
+	tab      = tea.KeyPressMsg{Code: tea.KeyTab}
 )
+
+var (
+	blueBorder = "\x1b[34m"
+	dimBorder  = "\x1b[2m"
+	styleAtEnd = regexp.MustCompile(`\x1b\[[0-9;]*m$`)
+)
+
+func borderStyles(screen tea.Model) []string {
+	corners := strings.Split(strings.Split(screen.View().Content, "\n")[3], "╭")
+	var styles []string
+	for _, beforeCorner := range corners[:len(corners)-1] {
+		styles = append(styles, styleAtEnd.FindString(beforeCorner))
+	}
+	return styles
+}
 
 func pressKeys(screen tea.Model, keys ...tea.KeyPressMsg) tea.Model {
 	for _, key := range keys {
@@ -528,7 +545,7 @@ func TestScreen(t *testing.T) {
 
 			screen := open(t, "gui/501", failing, 200, 12)
 
-			lines := strings.Split(screen.View().Content, "\n")
+			lines := strings.Split(ansi.Strip(screen.View().Content), "\n")
 			require.Contains(t, lines[4], "│ launchctl list: exit status 3: Bootstrap failed ")
 			require.Contains(t, lines[5], "│ printed �[2J on stdout ")
 		})
@@ -1914,6 +1931,89 @@ func TestScreen(t *testing.T) {
 
 				require.Equal(t, "com.example.b", selectedName(screen))
 			})
+		})
+	})
+
+	t.Run("focus", func(t *testing.T) {
+		t.Run("at start, the list has the focus: the border of the list is blue, and the border of the detail pane is dim", func(t *testing.T) {
+			screen := open(t, "gui/501", servicesNamed("com.example.a"), 80, 12)
+
+			require.Equal(t, []string{blueBorder, dimBorder}, borderStyles(screen))
+		})
+
+		t.Run("tab moves the focus to the detail pane: its lines and corners are blue, those of the list are dim, and each title keeps the default color", func(t *testing.T) {
+			screen := open(t, "gui/501", readGiving(
+				service.Service{Name: "com.example.worker", State: service.Running, PID: 4122, Uptime: new(3*time.Hour + 12*time.Minute)},
+			), 80, 12)
+
+			screen = pressKeys(screen, tab)
+
+			requireGolden(t, "focus-detail", screen)
+			require.Equal(t, []string{dimBorder, blueBorder}, borderStyles(screen))
+		})
+
+		t.Run("tab again moves the focus back to the list", func(t *testing.T) {
+			screen := open(t, "gui/501", servicesNamed("com.example.a"), 80, 12)
+
+			screen = pressKeys(screen, tab, tab)
+
+			require.Equal(t, []string{blueBorder, dimBorder}, borderStyles(screen))
+		})
+
+		t.Run("a refresh keeps the focus on the detail pane", func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				read := changingAt(100*time.Millisecond, servicesNamed("com.example.a"), servicesNamed("com.example.a", "com.example.added"))
+
+				screen := runFor(t, tui.NewScreen("gui/501", read, nil, refreshEvery2s), 2100*time.Millisecond, tab)
+
+				require.Contains(t, screen.View().Content, "com.example.added")
+				require.Equal(t, []string{dimBorder, blueBorder}, borderStyles(screen))
+			})
+		})
+
+		t.Run("the end of a run keeps the focus on the detail pane", func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				settings := workersWithStatus(t)
+				settings.Groups[0].Status = statusEvery(t, time.Second)
+				run := runsGiving(map[string]status.Result{"com.example.worker.a": summary("busy", status.LevelInfo)})
+
+				screen := runFor(t, tui.NewScreen("gui/501", servicesNamed("com.example.worker.a"), run, settings), 1500*time.Millisecond, tab)
+
+				require.Equal(t, "Status 1m0s ago", detailPane(screen)[2])
+				require.Equal(t, []string{dimBorder, blueBorder}, borderStyles(screen))
+			})
+		})
+
+		t.Run("? and then ? or esc show and hide the help, and the focus stays on the detail pane", func(t *testing.T) {
+			screen := open(t, "gui/501", servicesNamed("com.example.a"), 80, 12)
+			screen = pressKeys(screen, tab)
+
+			require.Equal(t, [][]string{{dimBorder, blueBorder}, {dimBorder, blueBorder}}, [][]string{
+				borderStyles(pressKeys(screen, question, question)),
+				borderStyles(pressKeys(screen, question, escape)),
+			})
+		})
+
+		t.Run("while the help shows, tab changes nothing, and the border of the help keeps the default color", func(t *testing.T) {
+			screen := open(t, "gui/501", servicesNamed("com.example.a"), 80, 12)
+			help := pressKeys(screen, question)
+
+			afterTab := pressKeys(help, tab)
+
+			require.Equal(t, help.View().Content, afterTab.View().Content)
+			require.Equal(t, []string{""}, borderStyles(afterTab))
+			require.Equal(t, []string{blueBorder, dimBorder}, borderStyles(pressKeys(afterTab, escape)))
+		})
+
+		t.Run("tab moves the focus also when the list has no rows, or shows an error", func(t *testing.T) {
+			failing := func() ([]service.Service, error) {
+				return nil, errors.New("launchctl list: exit status 3")
+			}
+
+			noRows := pressKeys(open(t, "gui/501", servicesNamed(), 80, 12), tab)
+			readError := pressKeys(open(t, "gui/501", failing, 80, 12), tab)
+
+			require.Equal(t, [][]string{{dimBorder, blueBorder}, {dimBorder, blueBorder}}, [][]string{borderStyles(noRows), borderStyles(readError)})
 		})
 	})
 

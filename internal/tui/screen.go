@@ -54,6 +54,20 @@ func (r row) shortName() string {
 	return r.group.ShortName(r.service.Name)
 }
 
+type pane int
+
+const (
+	listPane pane = iota
+	detailPane
+)
+
+func (p pane) other() pane {
+	if p == listPane {
+		return detailPane
+	}
+	return listPane
+}
+
 type Screen struct {
 	domain      string
 	read        func() ([]service.Service, error)
@@ -66,6 +80,7 @@ type Screen struct {
 	runNotEnded map[string]bool
 	selected    string
 	listTop     int
+	focus       pane
 	showHelp    bool
 	width       int
 	height      int
@@ -100,6 +115,10 @@ func (s Screen) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			s.showHelp = !s.showHelp
 		case "esc":
 			s.showHelp = false
+		case "tab":
+			if !s.showHelp {
+				s.focus = s.focus.other()
+			}
 		case "up":
 			if !s.showHelp {
 				s.selected = s.selectedAfterMove(-1)
@@ -272,9 +291,9 @@ func (s Screen) paneHeight() int {
 }
 
 func (s Screen) panes() []string {
-	list := box{title: "Services", width: s.width * 40 / 100, height: s.paneHeight()}
+	list := box{title: "Services", width: s.width * 40 / 100, height: s.paneHeight(), borderStyle: s.borderStyle(listPane)}
 	list.text = s.listText(list.textWidth())[s.listTop:]
-	detail := box{width: s.width - list.width, height: list.height}
+	detail := box{width: s.width - list.width, height: list.height, borderStyle: s.borderStyle(detailPane)}
 	if at := s.selectedAt(); at >= 0 {
 		svc := s.rows()[at].service
 		detail.title, detail.text = s.printable(svc.Name), s.detailText(svc)
@@ -287,9 +306,17 @@ func (s Screen) panes() []string {
 	return lines
 }
 
+func (s Screen) borderStyle(p pane) ansi.Style {
+	if p == s.focus {
+		return ansi.NewStyle().ForegroundColor(accent)
+	}
+	return ansi.NewStyle().Faint()
+}
+
 func (s Screen) helpText() []string {
 	return []string{
 		"↑ ↓       select a service",
+		"tab       move the focus to the other pane",
 		"?         show or hide this help",
 		"esc       hide this help",
 		"q ctrl+c  quit",

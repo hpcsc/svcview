@@ -1,14 +1,14 @@
 ╭ svcview ──────────────────────────────────────────────────────────── gui/501 ╮
 │  [32m●[m 0 running   [33m◐[m 0 loaded   [90m○[m 5 not loaded                                   │
 ╰──────────────────────────────────────────────────────────────────────────────╯
-╭ Services ────────────────────╮╭ com.example.worker.a ────────────────────────╮
-│ Workers                      ││ [90m○[m not loaded  PID -                          │
-│ [34m▌[m[90m○[m[100m a     busy · ENG-692     [m ││ up -          last exit 0                    │
-│  [90m○[m bb    [33midle[m                ││ Status 1m0s ago                              │
-│  [90m○[m ccc   [31m3 failed[m            ││                                              │
-│  [90m○[m dddd  [31mthe plist has no W…[m ││                                              │
-│                              ││                                              │
-│ Other                        ││                                              │
-│  [90m○[m com.apple.a               ││                                              │
-╰──────────────────────────────╯╰──────────────────────────────────────────────╯
+[34m╭[m Services [34m────────────────────[m[34m╮[m[2m╭[m com.example.worker.a [2m────────────────────────[m[2m╮[m
+[34m│[m Workers                      [34m│[m[2m│[m [90m○[m not loaded  PID -                          [2m│[m
+[34m│[m [34m▌[m[90m○[m[100m a     busy · ENG-692     [m [34m│[m[2m│[m up -          last exit 0                    [2m│[m
+[34m│[m  [90m○[m bb    [33midle[m                [34m│[m[2m│[m Status 1m0s ago                              [2m│[m
+[34m│[m  [90m○[m ccc   [31m3 failed[m            [34m│[m[2m│[m                                              [2m│[m
+[34m│[m  [90m○[m dddd  [31mthe plist has no W…[m [34m│[m[2m│[m                                              [2m│[m
+[34m│[m                              [34m│[m[2m│[m                                              [2m│[m
+[34m│[m Other                        [34m│[m[2m│[m                                              [2m│[m
+[34m│[m  [90m○[m com.apple.a               [34m│[m[2m│[m                                              [2m│[m
+[34m╰──────────────────────────────╯[m[2m╰──────────────────────────────────────────────╯[m
  ? help
