@@ -27,8 +27,19 @@ func (d *Domain) Services() ([]service.Service, error) {
 		return nil, err
 	}
 	services := make([]service.Service, 0, len(names))
+	var pids []int
 	for _, name := range names {
-		services = append(services, listed.service(name))
+		svc := listed.service(name)
+		services = append(services, svc)
+		if svc.State == service.Running {
+			pids = append(pids, svc.PID)
+		}
+	}
+	uptimes := readUptimes(pids)
+	for i := range services {
+		if uptime, ok := uptimes[services[i].PID]; ok {
+			services[i].Uptime = &uptime
+		}
 	}
 	return services, nil
 }

@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -52,19 +53,78 @@ func copyFixtureModifiedAt(t *testing.T, path, fixture string, modTime time.Time
 	require.NoError(t, os.Chtimes(path, modTime, modTime))
 }
 
-func fakeLaunchctl(t *testing.T, script string) {
+var sharedFakes string
+
+// macOS checks each new executable file at its first run, which costs about 0.3 s, so the tests share one copy of each fake.
+func TestMain(m *testing.M) {
+	folder, err := os.MkdirTemp("", "svcview-fakes-")
+	if err != nil {
+		panic(err)
+	}
+	scripts := map[string]string{
+		"launchctl": "#!/bin/sh\n" +
+			"[ \"$*\" = list ] || exit 64\n" +
+			"exec cat \"$FAKE_LAUNCHCTL_LIST\"\n",
+		"ps": "#!/bin/sh\n" +
+			"printf '%s\\n' \"$*\" >> \"$FAKE_PS_CALLS\"\n" +
+			"[ $# -eq 4 ] && [ \"$1 $2 $3\" = '-o pid=,etime= -p' ] || exit 64\n" +
+			"exec cat \"$FAKE_PS_OUTPUT\"\n",
+	}
+	for name, script := range scripts {
+		if err := os.WriteFile(filepath.Join(folder, name), []byte(script), 0o755); err != nil {
+			panic(err)
+		}
+	}
+	sharedFakes = folder
+	code := m.Run()
+	_ = os.RemoveAll(folder)
+	os.Exit(code)
+}
+
+func putFirstOnPath(t *testing.T, folder string) {
+	t.Helper()
+	t.Setenv("PATH", folder+string(os.PathListSeparator)+os.Getenv("PATH"))
+}
+
+func fakeProgram(t *testing.T, name, content string) {
 	t.Helper()
 	folder := t.TempDir()
-	require.NoError(t, os.WriteFile(filepath.Join(folder, "launchctl"), []byte("#!/bin/sh\n"+script), 0o755))
-	t.Setenv("PATH", folder+string(os.PathListSeparator)+os.Getenv("PATH"))
+	require.NoError(t, os.WriteFile(filepath.Join(folder, name), []byte(content), 0o755))
+	putFirstOnPath(t, folder)
+}
+
+func fakeLaunchctl(t *testing.T, script string) {
+	t.Helper()
+	fakeProgram(t, "launchctl", "#!/bin/sh\n"+script)
 }
 
 func fakeLaunchctlList(t *testing.T, fixture string) string {
 	t.Helper()
 	output := filepath.Join(t.TempDir(), "launchctl-list.txt")
 	copyFixture(t, output, fixture)
-	fakeLaunchctl(t, "[ \"$*\" = list ] || exit 64\nexec cat '"+output+"'\n")
+	t.Setenv("FAKE_LAUNCHCTL_LIST", output)
+	putFirstOnPath(t, sharedFakes)
 	return output
+}
+
+func fakePs(t *testing.T, fixture string) (calls string) {
+	t.Helper()
+	folder := t.TempDir()
+	output := filepath.Join(folder, "ps-output.txt")
+	copyFixture(t, output, fixture)
+	calls = filepath.Join(folder, "ps-calls.txt")
+	t.Setenv("FAKE_PS_OUTPUT", output)
+	t.Setenv("FAKE_PS_CALLS", calls)
+	putFirstOnPath(t, sharedFakes)
+	return calls
+}
+
+func uptimeByName(services []service.Service) map[string]*time.Duration {
+	uptimes := map[string]*time.Duration{}
+	for _, svc := range services {
+		uptimes[svc.Name] = svc.Uptime
+	}
+	return uptimes
 }
 
 func TestDomain(t *testing.T) {
@@ -181,12 +241,13 @@ func TestDomain(t *testing.T) {
 		t.Run("a name that launchctl list shows with a PID is running, a name with - as the PID is loaded, and a name that it does not show is not loaded", func(t *testing.T) {
 			home := homeWithPlists(t, "com.example.running", "com.example.loaded", "com.example.not-loaded")
 			fakeLaunchctlList(t, "launchctl-list-each-state.txt")
+			fakePs(t, "ps-no-lines.txt")
 
 			services, err := launchd.NewDomain(home, 501).Services()
 
 			require.NoError(t, err)
 			require.ElementsMatch(t, []service.Service{
-				{Name: "com.example.running", State: service.Running},
+				{Name: "com.example.running", State: service.Running, PID: 4122},
 				{Name: "com.example.loaded", State: service.Loaded},
 				{Name: "com.example.not-loaded", State: service.NotLoaded},
 			}, services)
@@ -195,11 +256,12 @@ func TestDomain(t *testing.T) {
 		t.Run("a name that launchctl list shows, but that no plist has, gives no service", func(t *testing.T) {
 			home := homeWithPlists(t, "com.example.running")
 			fakeLaunchctlList(t, "launchctl-list-each-state.txt")
+			fakePs(t, "ps-no-lines.txt")
 
 			services, err := launchd.NewDomain(home, 501).Services()
 
 			require.NoError(t, err)
-			require.Equal(t, []service.Service{{Name: "com.example.running", State: service.Running}}, services)
+			require.Equal(t, []service.Service{{Name: "com.example.running", State: service.Running, PID: 4122}}, services)
 		})
 
 		t.Run("a Status of 0 is a last exit of 0, a positive Status is that exit code, and a negative Status is the signal of that number as macOS numbers signals", func(t *testing.T) {
@@ -215,6 +277,7 @@ func TestDomain(t *testing.T) {
 				"com.example.smallest-status",
 			)
 			fakeLaunchctlList(t, "launchctl-list-last-exits.txt")
+			fakePs(t, "ps-no-lines.txt")
 
 			services, err := launchd.NewDomain(home, 501).Services()
 
@@ -223,7 +286,7 @@ func TestDomain(t *testing.T) {
 				{Name: "com.example.exit-0", State: service.Loaded},
 				{Name: "com.example.exit-78", State: service.Loaded, LastExit: service.LastExit{Code: 78}},
 				{Name: "com.example.hangup", State: service.Loaded, LastExit: service.LastExit{Signal: "SIGHUP"}},
-				{Name: "com.example.killed", State: service.Running, LastExit: service.LastExit{Signal: "SIGKILL"}},
+				{Name: "com.example.killed", State: service.Running, LastExit: service.LastExit{Signal: "SIGKILL"}, PID: 4122},
 				{Name: "com.example.bus-error", State: service.Loaded, LastExit: service.LastExit{Signal: "SIGBUS"}},
 				{Name: "com.example.terminated", State: service.Loaded, LastExit: service.LastExit{Signal: "SIGTERM"}},
 				{Name: "com.example.user-2", State: service.Loaded, LastExit: service.LastExit{Signal: "SIGUSR2"}},
@@ -275,11 +338,12 @@ func TestDomain(t *testing.T) {
 		t.Run("the name is the rest of the row after the PID and the Status, so a tab in a name stays in it", func(t *testing.T) {
 			home := homeWithPlists(t, "com.example.with\ttab")
 			fakeLaunchctlList(t, "launchctl-list-name-with-tab.txt")
+			fakePs(t, "ps-no-lines.txt")
 
 			services, err := launchd.NewDomain(home, 501).Services()
 
 			require.NoError(t, err)
-			require.Equal(t, []service.Service{{Name: "com.example.with\ttab", State: service.Running}}, services)
+			require.Equal(t, []service.Service{{Name: "com.example.with\ttab", State: service.Running, PID: 4122}}, services)
 		})
 
 		t.Run("an output whose header line is not PID, Status, Label gives an error that names the header line, and no services", func(t *testing.T) {
@@ -322,6 +386,180 @@ func TestDomain(t *testing.T) {
 			services, err := launchd.NewDomain(home, 501).Services()
 
 			require.ErrorContains(t, err, `"-\tcom.example.loaded"`)
+			require.Empty(t, services)
+		})
+
+		t.Run("a running service has the PID that launchctl list shows for it and the uptime that ps reports for that PID, and a loaded or not loaded service has no PID and no uptime", func(t *testing.T) {
+			home := homeWithPlists(t, "com.example.first", "com.example.second", "com.example.loaded", "com.example.not-loaded")
+			fakeLaunchctlList(t, "launchctl-list-two-running.txt")
+			fakePs(t, "ps-two-pids.txt")
+
+			services, err := launchd.NewDomain(home, 501).Services()
+
+			require.NoError(t, err)
+			require.ElementsMatch(t, []service.Service{
+				{Name: "com.example.first", State: service.Running, PID: 4122, Uptime: new(3*time.Minute + 12*time.Second)},
+				{Name: "com.example.second", State: service.Running, LastExit: service.LastExit{Signal: "SIGKILL"}, PID: 4123, Uptime: new(time.Hour + 3*time.Minute + 12*time.Second)},
+				{Name: "com.example.loaded", State: service.Loaded},
+				{Name: "com.example.not-loaded", State: service.NotLoaded},
+			}, services)
+		})
+
+		t.Run("runs ps one time, with the PIDs of all running services", func(t *testing.T) {
+			home := homeWithPlists(t, "com.example.first", "com.example.second", "com.example.loaded")
+			fakeLaunchctlList(t, "launchctl-list-two-running.txt")
+			calls := fakePs(t, "ps-two-pids.txt")
+
+			_, err := launchd.NewDomain(home, 501).Services()
+
+			require.NoError(t, err)
+			data, err := os.ReadFile(calls)
+			require.NoError(t, err)
+			pids, found := strings.CutPrefix(string(data), "-o pid=,etime= -p ")
+			require.True(t, found, string(data))
+			require.ElementsMatch(t, []string{"4122", "4123"}, strings.Split(strings.TrimSuffix(pids, "\n"), ","))
+		})
+
+		t.Run("does not run ps when no service is running", func(t *testing.T) {
+			home := homeWithPlists(t, "com.example.loaded", "com.example.not-loaded")
+			fakeLaunchctlList(t, "launchctl-list-two-running.txt")
+			calls := fakePs(t, "ps-two-pids.txt")
+
+			services, err := launchd.NewDomain(home, 501).Services()
+
+			require.NoError(t, err)
+			require.ElementsMatch(t, []service.Service{
+				{Name: "com.example.loaded", State: service.Loaded},
+				{Name: "com.example.not-loaded", State: service.NotLoaded},
+			}, services)
+			require.NoFileExists(t, calls)
+		})
+
+		t.Run("each form of the elapsed time that ps prints, [[dd-]hh:]mm:ss, gives the uptime it reads as, and 00:00 gives an uptime of 0", func(t *testing.T) {
+			home := homeWithPlists(t, "com.example.101", "com.example.102", "com.example.103", "com.example.104", "com.example.105", "com.example.106")
+			fakeLaunchctlList(t, "launchctl-list-running-101-to-107.txt")
+			fakePs(t, "ps-each-elapsed-form.txt")
+
+			services, err := launchd.NewDomain(home, 501).Services()
+
+			require.NoError(t, err)
+			require.Equal(t, map[string]*time.Duration{
+				"com.example.101": new(7 * time.Second),
+				"com.example.102": new(3*time.Minute + 12*time.Second),
+				"com.example.103": new(time.Hour + 3*time.Minute + 12*time.Second),
+				"com.example.104": new(4*24*time.Hour + 9*time.Hour + 16*time.Minute + 32*time.Second),
+				"com.example.105": new(24*time.Hour + time.Second),
+				"com.example.106": new(time.Duration(0)),
+			}, uptimeByName(services))
+		})
+
+		t.Run("a PID that ps does not report gives its service no uptime, and the other services keep theirs", func(t *testing.T) {
+			home := homeWithPlists(t, "com.example.first", "com.example.second")
+			fakeLaunchctlList(t, "launchctl-list-two-running.txt")
+			fakePs(t, "ps-one-pid.txt")
+
+			services, err := launchd.NewDomain(home, 501).Services()
+
+			require.NoError(t, err)
+			require.Equal(t, map[string]*time.Duration{
+				"com.example.first":  nil,
+				"com.example.second": new(time.Hour + 3*time.Minute + 12*time.Second),
+			}, uptimeByName(services))
+		})
+
+		t.Run("a line of ps that is not a PID and an elapsed time gives no uptime, and the other lines keep theirs", func(t *testing.T) {
+			home := homeWithPlists(t,
+				"com.example.101", "com.example.102", "com.example.103", "com.example.104",
+				"com.example.105", "com.example.106", "com.example.107", "com.example.loaded")
+			fakeLaunchctlList(t, "launchctl-list-running-101-to-107.txt")
+			fakePs(t, "ps-lines-in-other-forms.txt")
+
+			services, err := launchd.NewDomain(home, 501).Services()
+
+			require.NoError(t, err)
+			require.Equal(t, map[string]*time.Duration{
+				"com.example.101":    new(3*time.Minute + 12*time.Second),
+				"com.example.102":    nil,
+				"com.example.103":    nil,
+				"com.example.104":    nil,
+				"com.example.105":    nil,
+				"com.example.106":    nil,
+				"com.example.107":    nil,
+				"com.example.loaded": nil,
+			}, uptimeByName(services))
+		})
+
+		t.Run("when ps exits with a code other than 0, no service has an uptime, and the read still gives the services with their state and last exit", func(t *testing.T) {
+			home := homeWithPlists(t, "com.example.first", "com.example.second")
+			fakeLaunchctlList(t, "launchctl-list-two-running.txt")
+			fakeProgram(t, "ps", "#!/bin/sh\necho ' 4122       03:12'\nexit 2\n")
+
+			services, err := launchd.NewDomain(home, 501).Services()
+
+			require.NoError(t, err)
+			require.ElementsMatch(t, []service.Service{
+				{Name: "com.example.first", State: service.Running, PID: 4122},
+				{Name: "com.example.second", State: service.Running, LastExit: service.LastExit{Signal: "SIGKILL"}, PID: 4123},
+			}, services)
+		})
+
+		t.Run("when ps cannot start, no service has an uptime, and the read still gives the services with their state and last exit", func(t *testing.T) {
+			home := homeWithPlists(t, "com.example.first", "com.example.second")
+			fakeLaunchctlList(t, "launchctl-list-two-running.txt")
+			fakeProgram(t, "ps", "#!/no/such/interpreter\n")
+
+			services, err := launchd.NewDomain(home, 501).Services()
+
+			require.NoError(t, err)
+			require.ElementsMatch(t, []service.Service{
+				{Name: "com.example.first", State: service.Running, PID: 4122},
+				{Name: "com.example.second", State: service.Running, LastExit: service.LastExit{Signal: "SIGKILL"}, PID: 4123},
+			}, services)
+		})
+
+		t.Run("when ps does not end within its deadline, no service has an uptime, and the read still gives the services, also when a child of ps keeps the output open", func(t *testing.T) {
+			home := homeWithPlists(t, "com.example.first", "com.example.second")
+			fakeLaunchctlList(t, "launchctl-list-two-running.txt")
+			fakeProgram(t, "ps", "#!/bin/sh\nsleep 60\necho never\n")
+			started := time.Now()
+
+			services, err := launchd.NewDomain(home, 501).Services()
+
+			require.NoError(t, err)
+			require.ElementsMatch(t, []service.Service{
+				{Name: "com.example.first", State: service.Running, PID: 4122},
+				{Name: "com.example.second", State: service.Running, LastExit: service.LastExit{Signal: "SIGKILL"}, PID: 4123},
+			}, services)
+			require.Less(t, time.Since(started), 10*time.Second)
+		})
+
+		t.Run("a PID that is not a number gives an error that names the row, and no services", func(t *testing.T) {
+			home := homeWithPlists(t, "com.example.running")
+			fakeLaunchctlList(t, "launchctl-list-pid-not-a-number.txt")
+
+			services, err := launchd.NewDomain(home, 501).Services()
+
+			require.ErrorContains(t, err, `"x4122\t0\tcom.example.running"`)
+			require.Empty(t, services)
+		})
+
+		t.Run("a PID of 0 gives an error that names the row, and no services", func(t *testing.T) {
+			home := homeWithPlists(t, "com.example.running")
+			fakeLaunchctlList(t, "launchctl-list-pid-zero.txt")
+
+			services, err := launchd.NewDomain(home, 501).Services()
+
+			require.ErrorContains(t, err, `"0\t0\tcom.example.running"`)
+			require.Empty(t, services)
+		})
+
+		t.Run("a PID that is too large for an int gives an error that names the row, and no services", func(t *testing.T) {
+			home := homeWithPlists(t, "com.example.running")
+			fakeLaunchctlList(t, "launchctl-list-pid-too-large.txt")
+
+			services, err := launchd.NewDomain(home, 501).Services()
+
+			require.ErrorContains(t, err, `"99999999999999999999\t0\tcom.example.running"`)
 			require.Empty(t, services)
 		})
 	})
@@ -429,6 +667,7 @@ func TestDomain(t *testing.T) {
 		t.Run("each read runs launchctl list again, so a service that starts after a read is running at the next read", func(t *testing.T) {
 			home := homeWithPlists(t, "com.example.running")
 			output := fakeLaunchctlList(t, "launchctl-list-no-services.txt")
+			fakePs(t, "ps-no-lines.txt")
 			domain := launchd.NewDomain(home, 501)
 			before, err := domain.Services()
 			require.NoError(t, err)
@@ -438,7 +677,7 @@ func TestDomain(t *testing.T) {
 
 			require.NoError(t, err)
 			require.Equal(t, []service.Service{{Name: "com.example.running", State: service.NotLoaded}}, before)
-			require.Equal(t, []service.Service{{Name: "com.example.running", State: service.Running}}, after)
+			require.Equal(t, []service.Service{{Name: "com.example.running", State: service.Running, PID: 4122}}, after)
 		})
 
 		t.Run("after an output with an unknown header line, the next read whose output is valid gives the services again", func(t *testing.T) {

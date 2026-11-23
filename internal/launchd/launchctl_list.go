@@ -53,15 +53,20 @@ func parseLaunchctlList(output string) (launchctlList, error) {
 			return launchctlList{}, fmt.Errorf("launchctl list printed the row %q, which does not have the 3 columns PID, Status and Label", row)
 		}
 		pid, exit, name := columns[0], columns[1], columns[2]
-		state := service.Running
-		if pid == "-" {
-			state = service.Loaded
+		svc := service.Service{Name: name, State: service.Loaded}
+		if pid != "-" {
+			number, err := strconv.Atoi(pid)
+			if err != nil || number <= 0 {
+				return launchctlList{}, fmt.Errorf("launchctl list printed the row %q, whose PID is not - or a positive number", row)
+			}
+			svc.State, svc.PID = service.Running, number
 		}
 		number, err := strconv.ParseInt(exit, 10, 32)
 		if err != nil {
 			return launchctlList{}, fmt.Errorf("launchctl list printed the row %q, whose Status is not an exit code or the negative number of a signal", row)
 		}
-		l.services[name] = service.Service{Name: name, State: state, LastExit: lastExit(int(number))}
+		svc.LastExit = lastExit(int(number))
+		l.services[name] = svc
 	}
 	return l, nil
 }

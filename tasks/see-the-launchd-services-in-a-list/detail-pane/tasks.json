@@ -5,7 +5,7 @@
   "tasks": [
     {
       "n": 1,
-      "done": false,
+      "done": true,
       "title": "Read the PID and the uptime of each running service",
       "language": "Go",
       "testable": true,
@@ -57,7 +57,10 @@
         "task:2",
         "docs/proposal-launchd-tui.md:70-108"
       ],
-      "depends_on": [1, 2],
+      "depends_on": [
+        1,
+        2
+      ],
       "affected_files": [
         "internal/tui/screen.go",
         "internal/tui/box.go",
@@ -80,7 +83,9 @@
       "patterns_to_follow": [
         "task:2"
       ],
-      "depends_on": [2],
+      "depends_on": [
+        2
+      ],
       "affected_files": [
         "internal/tui/screen.go",
         "internal/tui/screen_test.go",
@@ -99,7 +104,10 @@
       "patterns_to_follow": [
         "docs/cli.md:35-56"
       ],
-      "depends_on": [3, 4],
+      "depends_on": [
+        3,
+        4
+      ],
       "affected_files": [
         "docs/cli.md"
       ]

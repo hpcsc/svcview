@@ -78,14 +78,14 @@ one time for the PIDs of all running services, and gives each running service th
 for its PID as its uptime.
 
 **Acceptance Criteria:**
-- [ ] A `running` service has the PID that `launchctl list` shows for it, and the uptime that `ps` reports for that
+- [x] A `running` service has the PID that `launchctl list` shows for it, and the uptime that `ps` reports for that
       PID. A `loaded` or `not loaded` service has no PID and no uptime.
-- [ ] A read runs `ps` one time for all the PIDs, and does not run `ps` when no service is `running`.
-- [ ] Each form of elapsed time that `ps` prints, `[[dd-]hh:]mm:ss`, gives the right uptime.
-- [ ] A PID that `ps` does not report gives its service no uptime, and the other services keep theirs.
-- [ ] When `ps` cannot start or fails, no service has an uptime, and the read still gives the services with their
+- [x] A read runs `ps` one time for all the PIDs, and does not run `ps` when no service is `running`.
+- [x] Each form of elapsed time that `ps` prints, `[[dd-]hh:]mm:ss`, gives the right uptime.
+- [x] A PID that `ps` does not report gives its service no uptime, and the other services keep theirs.
+- [x] When `ps` cannot start or fails, no service has an uptime, and the read still gives the services with their
       state and last exit.
-- [ ] A row of `launchctl list` whose PID is not `-` or a positive number gives an error that names the row, and no
+- [x] A row of `launchctl list` whose PID is not `-` or a positive number gives an error that names the row, and no
       services.
 
 **Affected Files/Modules:**

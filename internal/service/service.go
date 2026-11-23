@@ -1,5 +1,7 @@
 package service
 
+import "time"
+
 type State int
 
 const (
@@ -32,4 +34,6 @@ type Service struct {
 	Name     string
 	State    State
 	LastExit LastExit
+	PID      int
+	Uptime   *time.Duration
 }
