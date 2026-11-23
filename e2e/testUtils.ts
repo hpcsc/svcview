@@ -30,9 +30,13 @@ export function scratchDir(): string {
   return dir
 }
 
-export function addPlist(home: string, name: string): void {
+export function addPlist(home: string, name: string, environment: Record<string, string> = {}): void {
   const folder = join(home, 'Library', 'LaunchAgents')
   mkdirSync(folder, { recursive: true })
+  const variables = Object.entries(environment)
+    .map(([variable, value]) => `\t\t<key>${variable}</key>\n\t\t<string>${value}</string>\n`)
+    .join('')
+  const environmentVariables = variables ? `\t<key>EnvironmentVariables</key>\n\t<dict>\n${variables}\t</dict>\n` : ''
   writeFileSync(
     join(folder, `${name}.plist`),
     `<?xml version="1.0" encoding="UTF-8"?>
@@ -41,7 +45,7 @@ export function addPlist(home: string, name: string): void {
 <dict>
 	<key>Label</key>
 	<string>${name}</string>
-</dict>
+${environmentVariables}</dict>
 </plist>
 `,
   )

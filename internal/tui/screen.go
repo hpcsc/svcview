@@ -13,6 +13,7 @@ import (
 	"github.com/charmbracelet/x/ansi"
 	"github.com/hpcsc/svcview/internal/config"
 	"github.com/hpcsc/svcview/internal/service"
+	"github.com/hpcsc/svcview/internal/status"
 )
 
 const (
@@ -27,6 +28,11 @@ type refresh struct{}
 type servicesRead struct {
 	rows []row
 	err  error
+}
+
+type statusRead struct {
+	name   string
+	result status.Result
 }
 
 type row struct {
@@ -46,10 +52,12 @@ func (r row) shortName() string {
 type Screen struct {
 	domain     string
 	read       func() ([]service.Service, error)
+	runStatus  func(status.Command, service.Service) status.Result
 	settings   config.Settings
 	groupOrder []config.Group
 	lastRead   servicesRead
 	hasRead    bool
+	statuses   map[string]status.Result
 	selected   string
 	listTop    int
 	showHelp   bool
@@ -57,8 +65,15 @@ type Screen struct {
 	height     int
 }
 
-func NewScreen(domain string, read func() ([]service.Service, error), settings config.Settings) Screen {
-	return Screen{domain: domain, read: read, settings: settings, groupOrder: slices.Concat(settings.Groups, []config.Group{config.Other})}
+func NewScreen(domain string, read func() ([]service.Service, error), runStatus func(status.Command, service.Service) status.Result, settings config.Settings) Screen {
+	return Screen{
+		domain:     domain,
+		read:       read,
+		runStatus:  runStatus,
+		settings:   settings,
+		groupOrder: slices.Concat(settings.Groups, []config.Group{config.Other}),
+		statuses:   map[string]status.Result{},
+	}
 }
 
 func (s Screen) Init() tea.Cmd {
@@ -88,9 +103,15 @@ func (s Screen) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		}
 	case servicesRead:
+		firstRead := !s.hasRead
 		s.lastRead, s.hasRead = msg, true
 		s.selected = s.selectedAfterRead()
 		cmd = tea.Tick(s.settings.Refresh, func(time.Time) tea.Msg { return refresh{} })
+		if firstRead {
+			cmd = tea.Batch(cmd, s.runStatuses())
+		}
+	case statusRead:
+		s.statuses[msg.name] = msg.result
 	case refresh:
 		return s, s.readServices
 	}
@@ -112,6 +133,23 @@ func (s Screen) readServices() tea.Msg {
 	}
 	slices.SortFunc(rows, row.compare)
 	return servicesRead{rows: rows, err: err}
+}
+
+func (s Screen) runStatuses() tea.Cmd {
+	var runs []tea.Cmd
+	for _, r := range s.rows() {
+		if r.group.Status != nil {
+			runs = append(runs, s.runStatusOf(r))
+		}
+	}
+	return tea.Batch(runs...)
+}
+
+func (s Screen) runStatusOf(r row) tea.Cmd {
+	run, command, svc := s.runStatus, *r.group.Status, r.service
+	return func() tea.Msg {
+		return statusRead{name: svc.Name, result: run(command, svc)}
+	}
 }
 
 func (s Screen) rowOf(svc service.Service) row {
@@ -257,23 +295,75 @@ func (s Screen) listText(width int) []string {
 		return text
 	}
 	var text []string
+	nameWidths := s.nameWidths()
 	for at, r := range s.rows() {
 		text = append(text, s.linesAbove(at)...)
+		name, statusText, color := s.rowText(r, nameWidths[r.groupIndex])
 		if r.service.Name == s.selected {
-			text = append(text, s.selectedRow(r, width))
+			text = append(text, s.selectedRow(r, name, statusText, color, width))
 			continue
 		}
-		text = append(text, " "+s.rowGlyph(r.service)+" "+s.printable(r.shortName()))
+		text = append(text, " "+s.rowGlyph(r.service)+name+s.textStyle(color, nil).Styled(statusText))
 	}
 	return text
 }
 
-func (s Screen) selectedRow(r row, width int) string {
-	name := " " + s.printable(r.shortName())
-	name += strings.Repeat(" ", max(width-2-ansi.StringWidth(name), 0))
-	return ansi.NewStyle().ForegroundColor(accent).Styled("▌") +
-		s.rowGlyph(r.service) +
-		ansi.NewStyle().BackgroundColor(ansi.BrightBlack).Styled(name)
+func (s Screen) nameWidths() map[int]int {
+	widths := map[int]int{}
+	for _, r := range s.rows() {
+		widths[r.groupIndex] = max(widths[r.groupIndex], ansi.StringWidth(s.printable(r.shortName())))
+	}
+	return widths
+}
+
+func (s Screen) rowText(r row, nameWidth int) (name, statusText string, color ansi.Color) {
+	shortName := s.printable(r.shortName())
+	statusText, color = s.statusText(r.service.Name)
+	if statusText == "" {
+		return " " + shortName, "", nil
+	}
+	return " " + shortName + strings.Repeat(" ", nameWidth-ansi.StringWidth(shortName)+2), statusText, color
+}
+
+func (s Screen) statusText(name string) (string, ansi.Color) {
+	result := s.statuses[name]
+	switch {
+	case result.Failure != nil:
+		return s.printable(result.Failure.Text), ansi.Red
+	case result.Output != nil:
+		return s.printable(result.Output.Summary), s.levelColor(result.Output.Level)
+	}
+	return "", nil
+}
+
+func (s Screen) levelColor(level status.Level) ansi.Color {
+	switch level {
+	case status.LevelWarn:
+		return ansi.Yellow
+	case status.LevelError:
+		return ansi.Red
+	}
+	return nil
+}
+
+func (s Screen) textStyle(foreground, background ansi.Color) ansi.Style {
+	style := ansi.NewStyle()
+	if background != nil {
+		style = style.BackgroundColor(background)
+	}
+	if foreground != nil {
+		style = style.ForegroundColor(foreground)
+	}
+	return style
+}
+
+func (s Screen) selectedRow(r row, name, statusText string, color ansi.Color, width int) string {
+	padding := strings.Repeat(" ", max(width-2-ansi.StringWidth(name+statusText), 0))
+	line := s.textStyle(nil, ansi.BrightBlack).Styled(name + statusText + padding)
+	if color != nil {
+		line = s.textStyle(nil, ansi.BrightBlack).Styled(name) + s.textStyle(color, ansi.BrightBlack).Styled(statusText) + s.textStyle(nil, ansi.BrightBlack).Styled(padding)
+	}
+	return ansi.NewStyle().ForegroundColor(accent).Styled("▌") + s.rowGlyph(r.service) + line
 }
 
 func (s Screen) detailText(svc service.Service) []string {

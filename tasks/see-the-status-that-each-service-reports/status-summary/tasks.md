@@ -237,20 +237,20 @@ run ends with a failure, the row shows its text in red, for example `the plist h
 gives the screen the run of the status commands when it opens it.
 
 **Acceptance Criteria:**
-- [ ] After the first read of the services, each service of a group with a status command gets one run, whatever
+- [x] After the first read of the services, each service of a group with a status command gets one run, whatever
       its state. A service of a group with no status command gets no run.
-- [ ] The row shows the `summary` of the last run after the short name, and the summaries of the rows of one group
+- [x] The row shows the `summary` of the last run after the short name, and the summaries of the rows of one group
       start in one column.
-- [ ] The summary has the default color for `info`, yellow for `warn`, and red for `error`.
-- [ ] A run that ends with a failure shows the text of the failure in red in place of the summary.
-- [ ] A row shows nothing after the short name before its first run ends, when the last run gave no output and no
+- [x] The summary has the default color for `info`, yellow for `warn`, and red for `error`.
+- [x] A run that ends with a failure shows the text of the failure in red in place of the summary.
+- [x] A row shows nothing after the short name before its first run ends, when the last run gave no output and no
       failure, and in a group with no status command.
-- [ ] The selected row shows the summary on its background. A summary that is longer than the list pane ends with
+- [x] The selected row shows the summary on its background. A summary that is longer than the list pane ends with
       `…`, and each control character in a summary shows as `�`.
-- [ ] With no group that has a status command, the screen is as before: the golden files of
+- [x] With no group that has a status command, the screen is as before: the golden files of
       `internal/tui/testdata/` do not change.
-- [ ] `svcview` gives the screen the run of the status commands when it opens it.
-- [ ] e2e test: a plist with the environment variable `WORKER_STATUS_FILE`, and a group with
+- [x] `svcview` gives the screen the run of the status commands when it opens it.
+- [x] e2e test: a plist with the environment variable `WORKER_STATUS_FILE`, and a group with
       `status.command: [cat, '{{.Env.WORKER_STATUS_FILE}}']`, shows the `summary` of the file in the row of the
       service. A group whose command uses `{{.Env.MISSING}}` shows `the plist has no MISSING`.
 

@@ -11,6 +11,8 @@ import (
 	"github.com/hpcsc/svcview/internal/cli/version"
 	"github.com/hpcsc/svcview/internal/config"
 	"github.com/hpcsc/svcview/internal/launchd"
+	"github.com/hpcsc/svcview/internal/service"
+	"github.com/hpcsc/svcview/internal/status"
 	"github.com/hpcsc/svcview/internal/tui"
 	"github.com/urfave/cli/v3"
 )
@@ -60,7 +62,10 @@ func showScreen(ctx context.Context, input io.Reader, output io.Writer) error {
 		return err
 	}
 	domain := launchd.NewDomain(home, uid)
-	screen := tui.NewScreen(domain.String(), domain.Services, settings)
+	runStatus := func(command status.Command, svc service.Service) status.Result {
+		return command.Run(ctx, svc)
+	}
+	screen := tui.NewScreen(domain.String(), domain.Services, runStatus, settings)
 	_, err = tea.NewProgram(screen, tea.WithContext(ctx), tea.WithInput(input), tea.WithOutput(output)).Run()
 	return err
 }

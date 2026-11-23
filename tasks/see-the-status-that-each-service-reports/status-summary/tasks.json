@@ -52,7 +52,7 @@
     },
     {
       "n": 3,
-      "done": false,
+      "done": true,
       "title": "Show the summary of each status in the row, in the color of its level",
       "language": "Go",
       "testable": true,
