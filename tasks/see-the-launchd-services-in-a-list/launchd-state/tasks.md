@@ -165,7 +165,7 @@ new glyph at the next refresh.
       fixture so that a service has a PID, its row shows `●` with no key press.
 
 **Affected Files/Modules:**
-- `internal/tui/view.go` — the glyph and its color on each row
+- `internal/tui/screen.go` — the glyph and its color on each row
 - `internal/tui/screen_test.go` — the tests of the glyphs
 - `internal/tui/testdata/` — the golden files
 - `e2e/tests/screen.test.ts` — the glyphs, and a change of state at a refresh
@@ -176,7 +176,7 @@ new glyph at the next refresh.
 
 **Testable:** Yes — through the view of the `Screen` model with a fake list of services, compared with golden files, and in an e2e test.
 
-**Certainty:** medium — `internal/cli/progress/line_test.go:13-60` checks terminal output with escape codes, but no instance sets colors with Lip Gloss styles or fixes the color profile of a test.
+**Certainty:** medium — `internal/cli/progress/line_test.go:13-60` checks terminal output with escape codes, but no instance sets colors with the styles of `github.com/charmbracelet/x/ansi` in a Bubble Tea view.
 
 **Blast radius:** low
 
@@ -198,7 +198,7 @@ each with the glyph of the state in its color.
 - [ ] An e2e test sees the counts for a fixture with services in each state.
 
 **Affected Files/Modules:**
-- `internal/tui/view.go` — the counts in the header
+- `internal/tui/screen.go` — the counts in the header
 - `internal/tui/screen_test.go` — the tests of the counts
 - `internal/tui/testdata/` — the golden files
 - `e2e/tests/screen.test.ts` — the counts
@@ -237,7 +237,7 @@ service whose last exit is other than 0 is red, whatever its state.
 - `internal/launchd/list.go` — the read of the Status column, and the names of the signals of macOS
 - `internal/launchd/domain_test.go` — the tests of the last exit
 - `internal/launchd/testdata/` — rows with a code other than 0 and with a signal
-- `internal/tui/view.go` — the red glyph
+- `internal/tui/screen.go` — the red glyph
 - `internal/tui/screen_test.go` — the tests of the red glyph
 - `internal/tui/testdata/` — the golden files
 

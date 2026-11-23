@@ -33,6 +33,16 @@ types:
       - a negative Status is the signal of that number, named as macOS numbers signals
     fields: []
     methods: [Services, String]
+  - name: list
+    package: internal/launchd
+    change: new
+    does: one output of launchctl list - the service that it shows for each name
+    owns:
+      - a name with a PID is running, a name with - as the PID is loaded, and a name that the list does not show is not loaded
+      - the header line must be PID, Status, Label before a row is read
+      - the Status column is the last exit
+    fields: []
+    methods: [service]
   - name: Screen
     package: internal/tui
     change: changed
