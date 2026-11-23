@@ -366,6 +366,8 @@ func (s Screen) failureRowText(failure *status.Failure) string {
 		return "status error"
 	case status.FailureKindTimeout:
 		return "status timeout"
+	case status.FailureKindInvalid:
+		return "status invalid"
 	}
 	return failure.Text
 }

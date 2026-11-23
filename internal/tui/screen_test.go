@@ -915,6 +915,22 @@ func TestScreen(t *testing.T) {
 			})
 		})
 
+		t.Run("the row shows status invalid in red in place of the summary for a status invalid, and the detail pane shows the parse error and the lines of the output under Status", func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				read := servicesNamed("com.example.worker.a", "com.example.worker.b")
+				run := runsGiving(map[string]status.Result{
+					"com.example.worker.a": {Failure: &status.Failure{Kind: status.FailureKindInvalid, Text: `"/version" is 2, and it must be 1`, Lines: []string{"{", `"version": 2`, "}"}}},
+					"com.example.worker.b": {Failure: &status.Failure{Kind: status.FailureKindTimeout, Text: "sleep 30"}},
+				})
+
+				screen := runSized(t, tui.NewScreen("gui/501", read, run, workersWithStatus(t)), 80, 13, 100*time.Millisecond)
+
+				requireGolden(t, "status-invalid", screen)
+				require.Equal(t, []string{"Workers", "▌○ a  status invalid", "○ b  status timeout"}, listRows(screen)[:3])
+				require.Equal(t, []string{`"/version" is 2, and it must be 1`, "{", `"version": 2`, "}"}, detailPane(screen)[3:7])
+			})
+		})
+
 		t.Run("cuts a summary that is longer than the list pane and ends it with …, and shows each control character in a summary or a failure as �", func(t *testing.T) {
 			synctest.Test(t, func(t *testing.T) {
 				read := servicesNamed("com.example.worker.a", "com.example.worker.b")

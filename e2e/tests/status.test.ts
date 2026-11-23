@@ -69,6 +69,17 @@ describe('the status command', () => {
     await session.waitForText('│ sleep 30 ')
   })
 
+  it('a status command that prints a text that is not JSON shows status invalid in the row, and the parse error and the output in the detail pane', async () => {
+    const home = homeWithPlists(['com.example.worker.01'])
+    writeConfig(join(home, '.config', 'svcview'), workersWithStatusCommand(`[printf, 'busy']`))
+
+    const session = await openCli(scratchDir(), [], { HOME: home })
+
+    await session.waitForText('01  status invalid')
+    await session.waitForText('the output is not valid JSON')
+    await session.waitForText('│ busy ')
+  })
+
   it('a status command whose child process writes a file after 2 s, with a timeout of 10 s, does not write it when svcview quits after the run starts', async () => {
     const home = homeWithPlists(['com.example.worker.01'])
     const marker = join(scratchDir(), 'written')

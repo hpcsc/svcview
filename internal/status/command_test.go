@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -334,53 +335,105 @@ func TestCommand(t *testing.T) {
 			}, normalized(result.Output))
 		})
 
-		t.Run("a stdout that is not a JSON object of version 1 gives a result with no output and no failure", func(t *testing.T) {
-			for _, stdout := range []string{
-				``,
-				"\n",
-				`{}`,
-				`null`,
-				`{"summary":"busy"}`,
-				`{"version":2,"summary":"busy"}`,
-				`{"version":"1","summary":"busy"}`,
-				`{"version":1.5,"summary":"busy"}`,
-				`{"version":null,"summary":"busy"}`,
-				`{"version":1,"level":"debug"}`,
-				`{"version":1,"level":"WARN"}`,
-				`{"version":1,"level":2}`,
-				`{"version":1,"at":"2026-11-23 09:12:00"}`,
-				`{"version":1,"at":"yesterday"}`,
-				`{"version":1,"at":1700000000}`,
-				`{"version":1,"summary":3}`,
-				`{"version":1,"summary":["busy"]}`,
-				`{"version":1,"fields":{"mode":"busy"}}`,
-				`{"version":1,"fields":[{"value":"busy"}]}`,
-				`{"version":1,"fields":[{"name":"mode"}]}`,
-				`{"version":1,"fields":[{"name":"done","value":14}]}`,
-				`{"version":1,"fields":[{"name":"step","value":"review","progress":1.5}]}`,
-				`{"version":1,"fields":[{"name":"step","value":"review","progress":-0.1}]}`,
-				`{"version":1,"fields":[{"name":"step","value":"review","progress":"60%"}]}`,
-				`{"version":1,"fields":["mode"]}`,
-				`{"version":1,"events":[{"level":"info","text":"step review"}]}`,
-				`{"version":1,"events":[{"at":"2026-11-23T09:04:40Z","text":"step review"}]}`,
-				`{"version":1,"events":[{"at":"2026-11-23T09:04:40Z","level":"info"}]}`,
-				`{"version":1,"events":[{"at":"2026-11-23T09:04:40Z","level":"debug","text":"step review"}]}`,
-				`{"version":1,"events":[{"at":"yesterday","level":"info","text":"step review"}]}`,
-				`{"version":1,"events":{"at":"2026-11-23T09:04:40Z","level":"info","text":"step review"}}`,
-				`[{"version":1}]`,
-				`"version 1"`,
-				`1`,
-				`{"version":1}{"version":1}`,
-				`{"version":1} {"version":1}`,
-				`{"version":1} trailing text`,
-				`{"version":1`,
-				`{"version":1,"summary":"busy","summary":"idle"}`,
-				`busy`,
+		t.Run("a stdout that is not a JSON object of version 1 gives a status invalid with a parse error that says why", func(t *testing.T) {
+			rfc3339 := `an RFC 3339 time in a text, such as "2026-11-23T09:12:00Z"`
+			for stdout, parseError := range map[string]string{
+				``:                                  "the output is empty",
+				" \n\t":                             "the output is empty",
+				`null`:                              "the output is a JSON null, not an object",
+				`[{"version":1}]`:                   "the output is a JSON list, not an object",
+				`"version 1"`:                       "the output is a JSON text, not an object",
+				`1`:                                 "the output is a JSON number, not an object",
+				`true`:                              "the output is a JSON boolean, not an object",
+				`false`:                             "the output is a JSON boolean, not an object",
+				`{"version":1}{"version":1}`:        "the output has more text after its JSON object",
+				`{"version":1} {"version":1}`:       "the output has more text after its JSON object",
+				`{"version":1} trailing text`:       "the output has more text after its JSON object",
+				`{"version":1}x`:                    "the output has more text after its JSON object",
+				`{}`:                                `"/version" is missing, and it must be 1`,
+				`{"summary":"busy"}`:                `"/version" is missing, and it must be 1`,
+				`{"version":null,"summary":"busy"}`: `"/version" is missing, and it must be 1`,
+				`{"version":2,"summary":"busy"}`:    `"/version" is 2, and it must be 1`,
+				`{"version":0}`:                     `"/version" is 0, and it must be 1`,
+				`{"version":"1","summary":"busy"}`:  `"/version" must be the number 1`,
+				`{"version":1.5,"summary":"busy"}`:  `"/version" must be the number 1`,
+				`{"version":1,"level":"debug"}`:     `"/level" is "debug", and it must be info, warn or error`,
+				`{"version":1,"level":"WARN"}`:      `"/level" is "WARN", and it must be info, warn or error`,
+				`{"version":1,"level":2}`:           `"/level" must be the text info, warn or error`,
+				`{"version":1,"at":"2026-11-23 09:12:00"}`:                                                 `"/at" must be ` + rfc3339,
+				`{"version":1,"at":"yesterday"}`:                                                           `"/at" must be ` + rfc3339,
+				`{"version":1,"at":1700000000}`:                                                            `"/at" must be ` + rfc3339,
+				`{"version":1,"summary":3}`:                                                                `"/summary" must be a text`,
+				`{"version":1,"summary":["busy"]}`:                                                         `"/summary" must be a text`,
+				`{"version":1,"fields":{"mode":"busy"}}`:                                                   `"/fields" must be a list of objects`,
+				`{"version":1,"fields":["mode"]}`:                                                          `"/fields/0" must be an object`,
+				`{"version":1,"fields":[{"name":"mode","value":"busy"},{"value":"busy"}]}`:                 `"/fields/1/name" is missing`,
+				`{"version":1,"fields":[{"name":"mode","value":"busy"},{"name":"step"}]}`:                  `"/fields/1/value" is missing`,
+				`{"version":1,"fields":[{"name":3,"value":"14"}]}`:                                         `"/fields/0/name" must be a text`,
+				`{"version":1,"fields":[{"name":"done","value":14}]}`:                                      `"/fields/0/value" must be a text`,
+				`{"version":1,"fields":[{"name":"step","value":"review","progress":"60%"}]}`:               `"/fields/0/progress" must be a number`,
+				`{"version":1,"events":{"at":"2026-11-23T09:04:40Z","level":"info","text":"step review"}}`: `"/events" must be a list of objects`,
+				`{"version":1,"events":["step review"]}`:                                                   `"/events/0" must be an object`,
+				`{"version":1,"events":[{"at":"2026-11-23T09:04:40Z","level":"info","text":"a"},{"level":"info","text":"step review"}]}`: `"/events/1/at" is missing`,
+				`{"version":1,"events":[{"at":"2026-11-23T09:04:40Z","text":"step review"}]}`:                                            `"/events/0/level" is missing`,
+				`{"version":1,"events":[{"at":"2026-11-23T09:04:40Z","level":"info"}]}`:                                                  `"/events/0/text" is missing`,
+				`{"version":1,"events":[{"at":"2026-11-23T09:04:40Z","level":"debug","text":"step review"}]}`:                            `"/events/0/level" is "debug", and it must be info, warn or error`,
+				`{"version":1,"events":[{"at":"2026-11-23T09:04:40Z","level":3,"text":"step review"}]}`:                                  `"/events/0/level" must be the text info, warn or error`,
+				`{"version":1,"events":[{"at":"yesterday","level":"info","text":"step review"}]}`:                                        `"/events/0/at" must be ` + rfc3339,
+				`{"version":1,"events":[{"at":"2026-11-23T09:04:40Z","level":"info","text":false}]}`:                                     `"/events/0/text" must be a text`,
 			} {
 				result := printing(t, stdout).Run(context.Background(), worker())
 
-				require.Equal(t, [2]any{(*status.Output)(nil), (*status.Failure)(nil)}, [2]any{result.Output, result.Failure}, stdout)
+				require.NotNil(t, result.Failure, stdout)
+				require.Equal(t, [2]any{status.FailureKindInvalid, parseError}, [2]any{result.Failure.Kind, result.Failure.Text}, stdout)
+				require.Nil(t, result.Output, stdout)
 			}
+		})
+
+		t.Run("a stdout that is not valid JSON gives a status invalid with the error of the JSON parser", func(t *testing.T) {
+			for stdout, reason := range map[string]string{
+				`busy`:         `'b'`,
+				`{"version":1`: "EOF",
+				`{"version":1,"summary":"busy","summary":"idle"}`: `duplicate`,
+			} {
+				result := printing(t, stdout).Run(context.Background(), worker())
+
+				require.NotNil(t, result.Failure, stdout)
+				require.Equal(t, status.FailureKindInvalid, result.Failure.Kind, stdout)
+				require.True(t, strings.HasPrefix(result.Failure.Text, "the output is not valid JSON: "), result.Failure.Text)
+				require.Contains(t, result.Failure.Text, reason, stdout)
+				require.NotContains(t, result.Failure.Text, "jsontext:", stdout)
+			}
+		})
+
+		t.Run("a status invalid has the lines of the output, and keeps only the first 20 lines of an output with more", func(t *testing.T) {
+			var thirty, first20 []string
+			for i := 1; i <= 30; i++ {
+				thirty = append(thirty, "line "+strconv.Itoa(i))
+			}
+			first20 = thirty[:20]
+			for stdout, lines := range map[string][]string{
+				"busy":                            {"busy"},
+				"{\n\"version\": 2\n}\n":          {"{", `"version": 2`, "}"},
+				"first\n\nthird":                  {"first", "", "third"},
+				strings.Join(thirty, "\n") + "\n": first20,
+				strings.Join(thirty[:20], "\n"):   first20,
+			} {
+				result := printing(t, stdout).Run(context.Background(), worker())
+
+				require.NotNil(t, result.Failure, stdout)
+				require.Equal(t, lines, result.Failure.Lines, stdout)
+			}
+		})
+
+		t.Run("a field whose progress is outside 0 to 1 gives an output with that progress", func(t *testing.T) {
+			result := printing(t, `{"version":1,"fields":[{"name":"step","value":"review","progress":1.5},{"name":"done","value":"0","progress":-0.1}]}`).Run(context.Background(), worker())
+
+			require.Nil(t, result.Failure)
+			require.Equal(t, &status.Output{Fields: []status.Field{
+				{Name: "step", Value: "review", Progress: new(1.5)},
+				{Name: "done", Value: "0", Progress: new(-0.1)},
+			}}, result.Output)
 		})
 
 		t.Run("a program that exits with a code other than 0 gives a status error with the exit code and the lines of stderr, also when it prints a JSON object of version 1", func(t *testing.T) {
@@ -628,31 +681,45 @@ func TestCommand(t *testing.T) {
 			require.NoFileExists(t, marker)
 		})
 
-		t.Run("a stdout of 1 MiB gives an output with its summary, and a stdout of 1 byte more gives no output", func(t *testing.T) {
+		t.Run("a stdout of 1 MiB gives an output with its summary, and a stdout of 1 byte more gives a status invalid with the first 4096 bytes of its line", func(t *testing.T) {
 			wrapper := len(`{"version":1,"summary":""}`)
-			for size, valid := range map[int]bool{1 << 20: true, 1<<20 + 1: false} {
+			for _, size := range []int{1 << 20, 1<<20 + 1} {
 				summary := strings.Repeat("a", size-wrapper)
 				file := filepath.Join(t.TempDir(), "status.json")
 				require.NoError(t, os.WriteFile(file, []byte(`{"version":1,"summary":"`+summary+`"}`), 0o644))
 
 				result := newCommand(t, 0, "cat", file).Run(context.Background(), worker())
 
-				if valid {
+				if size == 1<<20 {
 					require.Equal(t, summary, summaryOf(t, result))
-				} else {
-					require.Nil(t, result.Output)
+					continue
 				}
+				require.Equal(t, &status.Failure{
+					Kind:  status.FailureKindInvalid,
+					Text:  "the output is larger than 1 MiB",
+					Lines: []string{(`{"version":1,"summary":"` + summary)[:4096]},
+				}, result.Failure)
+				require.Nil(t, result.Output)
 			}
 		})
 
-		t.Run("a program that prints with no end stops after 1 MiB, before its timeout, with no output", func(t *testing.T) {
+		t.Run("a program that prints with no end stops after 1 MiB, before its timeout, with a status invalid and the first 20 lines of the output", func(t *testing.T) {
 			command := newCommand(t, 10*time.Second, "yes")
 			started := time.Now()
 
 			result := command.Run(context.Background(), worker())
 
+			require.Equal(t, &status.Failure{Kind: status.FailureKindInvalid, Text: "the output is larger than 1 MiB", Lines: slices.Repeat([]string{"y"}, 20)}, result.Failure)
 			require.Nil(t, result.Output)
 			require.Less(t, time.Since(started), 5*time.Second)
+		})
+
+		t.Run("a program that prints more than 1 MiB and then runs longer than the timeout gives a status timeout, not a status invalid", func(t *testing.T) {
+			command := newCommand(t, 300*time.Millisecond, "sh", "-c", `head -c 2000000 /dev/zero; sleep 30`)
+
+			result := command.Run(context.Background(), worker())
+
+			require.Equal(t, &status.Failure{Kind: status.FailureKindTimeout, Text: "sh -c 'head -c 2000000 /dev/zero; sleep 30'"}, result.Failure)
 		})
 
 		t.Run("the result has the time at which the run ended", func(t *testing.T) {

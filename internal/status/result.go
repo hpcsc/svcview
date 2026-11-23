@@ -21,6 +21,7 @@ const (
 	FailureKindTemplateValue FailureKind = iota
 	FailureKindError
 	FailureKindTimeout
+	FailureKindInvalid
 )
 
 type Failure struct {

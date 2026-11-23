@@ -81,12 +81,18 @@ func (c Command) Run(ctx context.Context, svc service.Service) Result {
 	switch exited, ok := errors.AsType[*exec.ExitError](err); {
 	case stopped:
 		result.Failure = &Failure{Kind: FailureKindTimeout, Text: c.commandLineText(line)}
+	case stdout.tooLarge:
+		result.Failure = &Failure{Kind: FailureKindInvalid, Text: "the output is larger than 1 MiB", Lines: stdout.firstLines()}
 	case ok:
 		result.Failure = &Failure{Kind: FailureKindError, Text: c.exitText(exited.ProcessState), Lines: stderr.lines()}
 	case err != nil:
 		result.Failure = &Failure{Kind: FailureKindError, Text: err.Error(), Lines: stderr.lines()}
 	default:
-		result.Output = parseOutput(stdout.data)
+		output, invalid := parseOutput(stdout.data)
+		if invalid != nil {
+			result.Failure = &Failure{Kind: FailureKindInvalid, Text: invalid.Error(), Lines: stdout.firstLines()}
+		}
+		result.Output = output
 	}
 	return result
 }

@@ -179,16 +179,16 @@ with the parse error and the first 20 lines of the output. The row shows `status
 the detail pane shows the parse error and the lines of the output.
 
 **Acceptance Criteria:**
-- [ ] Each output that is not valid gives a status invalid with a parse error that says why: an output that is not
+- [x] Each output that is not valid gives a status invalid with a parse error that says why: an output that is not
       JSON; a JSON value that is not an object; a `version` other than 1, or none; a `level` other than `info`,
       `warn` or `error`; an `at` that is not an RFC 3339 time; a `summary` that is not a text; `fields` or `events`
       whose shape is not that of version 1; a second JSON value after the object; an empty output.
-- [ ] An output larger than 1 MiB gives a status invalid that says that the output is larger than 1 MiB.
-- [ ] svcview keeps only the first 20 lines of an output that is not valid.
-- [ ] The row shows `status invalid` in red in place of the summary.
-- [ ] Under the line `Status`, the detail pane shows the parse error and then the lines of the output. Each control
+- [x] An output larger than 1 MiB gives a status invalid that says that the output is larger than 1 MiB.
+- [x] svcview keeps only the first 20 lines of an output that is not valid.
+- [x] The row shows `status invalid` in red in place of the summary.
+- [x] Under the line `Status`, the detail pane shows the parse error and then the lines of the output. Each control
       character shows as `�`.
-- [ ] e2e test: a status command `[printf, 'busy']` shows `status invalid` in the row, and the parse error and
+- [x] e2e test: a status command `[printf, 'busy']` shows `status invalid` in the row, and the parse error and
       `busy` in the detail pane.
 
 **Affected Files/Modules:**

@@ -52,7 +52,7 @@
     },
     {
       "n": 3,
-      "done": false,
+      "done": true,
       "title": "Show an output that is not a JSON object of version 1",
       "language": "Go",
       "testable": true,
