@@ -21,6 +21,7 @@ const (
 	helpLine        = " ? help"
 	accent          = ansi.Blue
 	detailLeftWidth = 14
+	barCells        = 10
 )
 
 type refresh struct{}
@@ -434,12 +435,21 @@ func (s Screen) fieldLines(fields []status.Field) []string {
 	for _, field := range fields {
 		nameWidth = max(nameWidth, ansi.StringWidth(s.printable(field.Name)))
 	}
+	valueColumn := nameWidth + 2
 	var lines []string
 	for _, field := range fields {
 		name := s.printable(field.Name)
-		lines = append(lines, name+strings.Repeat(" ", nameWidth-ansi.StringWidth(name)+2)+s.printable(field.Value))
+		lines = append(lines, name+strings.Repeat(" ", valueColumn-ansi.StringWidth(name))+s.printable(field.Value))
+		if field.Progress != nil {
+			lines = append(lines, strings.Repeat(" ", valueColumn)+s.bar(*field.Progress))
+		}
 	}
 	return lines
+}
+
+func (s Screen) bar(progress float64) string {
+	done := int(progress * barCells)
+	return ansi.NewStyle().ForegroundColor(accent).Styled(strings.Repeat("▰", done)) + ansi.NewStyle().Faint().Styled(strings.Repeat("▱", barCells-done))
 }
 
 func (s Screen) statusAge(result status.Result) time.Duration {

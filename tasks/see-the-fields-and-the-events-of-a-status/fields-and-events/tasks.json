@@ -50,7 +50,7 @@
     },
     {
       "n": 3,
-      "done": false,
+      "done": true,
       "title": "Show a bar of 10 cells under the value of a field with a progress",
       "language": "Go",
       "testable": true,

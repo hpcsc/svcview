@@ -211,16 +211,16 @@ own that starts in the column of the values. The done cells are `▰` in the acc
 dim `▱`. The number of done cells is the progress times 10, rounded down, so only a progress of 1 fills the bar.
 
 **Acceptance Criteria:**
-- [ ] A field `step` with the value `review · 12m / 20m` and a `progress` of 0.6 shows its value, and on the next
+- [x] A field `step` with the value `review · 12m / 20m` and a `progress` of 0.6 shows its value, and on the next
       line, in the column of the values, 6 `▰` and then 4 `▱`.
-- [ ] A progress of k tenths shows k `▰` and 10 − k `▱`, for each k from 0 to 10.
-- [ ] The number of done cells is rounded down: 0.65 shows 6 `▰`, 0.99 shows 9 `▰`, 0.05 shows no `▰`, and only 1
+- [x] A progress of k tenths shows k `▰` and 10 − k `▱`, for each k from 0 to 10.
+- [x] The number of done cells is rounded down: 0.65 shows 6 `▰`, 0.99 shows 9 `▰`, 0.05 shows no `▰`, and only 1
       shows 10 `▰`.
-- [ ] Each `▰` is in the accent color, blue. Each `▱` is dim: the SGR attribute faint, in the default color of the
+- [x] Each `▰` is in the accent color, blue. Each `▱` is dim: the SGR attribute faint, in the default color of the
       terminal.
-- [ ] A field with no `progress` has no line for a bar, and the field after it follows its value.
-- [ ] A golden file shows the detail pane of a service with the fields of the proposal, with the bar under `step`.
-- [ ] e2e test: a status file with a field whose `progress` is 0.6 shows `▰▰▰▰▰▰▱▱▱▱` on the line under its value.
+- [x] A field with no `progress` has no line for a bar, and the field after it follows its value.
+- [x] A golden file shows the detail pane of a service with the fields of the proposal, with the bar under `step`.
+- [x] e2e test: a status file with a field whose `progress` is 0.6 shows `▰▰▰▰▰▰▱▱▱▱` on the line under its value.
 
 **Affected Files/Modules:**
 - `internal/tui/screen.go` — the bar under the value of a field with a progress

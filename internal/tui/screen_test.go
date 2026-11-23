@@ -269,8 +269,8 @@ func detailPane(screen tea.Model) []string {
 		if strings.HasPrefix(line, "╰") {
 			break
 		}
-		_, text, _ := strings.Cut(line, "││")
-		detail = append(detail, strings.TrimSpace(strings.TrimSuffix(text, "│")))
+		_, text, _ := strings.Cut(line, "││ ")
+		detail = append(detail, strings.TrimRight(strings.TrimSuffix(text, "│"), " "))
 	}
 	return detail
 }
@@ -1218,12 +1218,7 @@ func TestScreen(t *testing.T) {
 
 				screen := runSized(t, tui.NewScreen("gui/501", read, run, workersWithStatus(t)), 80, 12, 100*time.Millisecond)
 
-				var texts []string
-				for _, line := range strings.Split(ansi.Strip(screen.View().Content), "\n")[7:9] {
-					_, text, _ := strings.Cut(line, "││")
-					texts = append(texts, strings.TrimRight(text, " │"))
-				}
-				require.Equal(t, []string{"   busy", "   ENG-692"}, texts)
+				require.Equal(t, []string{"  busy", "  ENG-692", ""}, detailPane(screen)[3:])
 			})
 		})
 
@@ -1291,7 +1286,77 @@ func TestScreen(t *testing.T) {
 			})
 		})
 
-		t.Run("draws the fields under Status, each with its name and its value, with the values in one column", func(t *testing.T) {
+		t.Run("under the value of a field with a progress, shows a bar of 10 cells on a line of its own, in the column of the values", func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				read := servicesNamed("com.example.worker.a")
+				run := runsGiving(map[string]status.Result{
+					"com.example.worker.a": {Output: &status.Output{Fields: []status.Field{
+						{Name: "ticket", Value: "ENG-692"},
+						{Name: "step", Value: "review · 12m / 20m", Progress: new(0.6)},
+					}}},
+				})
+
+				screen := runSized(t, tui.NewScreen("gui/501", read, run, workersWithStatus(t)), 80, 12, 100*time.Millisecond)
+
+				require.Equal(t, []string{"ticket  ENG-692", "step    review · 12m / 20m", "        ▰▰▰▰▰▰▱▱▱▱"}, detailPane(screen)[3:])
+			})
+		})
+
+		t.Run("a field with no progress has no line for a bar, and the field after it follows its value", func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				read := servicesNamed("com.example.worker.a")
+				run := runsGiving(map[string]status.Result{
+					"com.example.worker.a": {Output: &status.Output{Fields: []status.Field{
+						{Name: "mode", Value: "busy"},
+						{Name: "done", Value: "14", Progress: new(1.0)},
+						{Name: "failed", Value: "1"},
+					}}},
+				})
+
+				screen := runSized(t, tui.NewScreen("gui/501", read, run, workersWithStatus(t)), 80, 13, 100*time.Millisecond)
+
+				require.Equal(t, []string{"mode    busy", "done    14", "        ▰▰▰▰▰▰▰▰▰▰", "failed  1"}, detailPane(screen)[3:])
+			})
+		})
+
+		t.Run("the bar shows the progress times 10, rounded down, as ▰, and the rest of its 10 cells as ▱, so only a progress of 1 fills it", func(t *testing.T) {
+			bars := map[float64]string{
+				0.65:     "▰▰▰▰▰▰▱▱▱▱",
+				0.99:     "▰▰▰▰▰▰▰▰▰▱",
+				0.999999: "▰▰▰▰▰▰▰▰▰▱",
+				0.05:     "▱▱▱▱▱▱▱▱▱▱",
+			}
+			for tenths := range 11 {
+				bars[float64(tenths)/10] = strings.Repeat("▰", tenths) + strings.Repeat("▱", 10-tenths)
+			}
+			for progress, bar := range bars {
+				synctest.Test(t, func(t *testing.T) {
+					read := servicesNamed("com.example.worker.a")
+					run := runsGiving(map[string]status.Result{
+						"com.example.worker.a": {Output: &status.Output{Fields: []status.Field{{Name: "step", Value: "review", Progress: &progress}}}},
+					})
+
+					screen := runSized(t, tui.NewScreen("gui/501", read, run, workersWithStatus(t)), 80, 12, 100*time.Millisecond)
+
+					require.Equal(t, "      "+bar, detailPane(screen)[4], progress)
+				})
+			}
+		})
+
+		t.Run("draws each ▰ of a bar in the accent color, blue, and each ▱ dim, in the default color", func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				read := servicesNamed("com.example.worker.a")
+				run := runsGiving(map[string]status.Result{
+					"com.example.worker.a": {Output: &status.Output{Fields: []status.Field{{Name: "step", Value: "review", Progress: new(0.6)}}}},
+				})
+
+				screen := runSized(t, tui.NewScreen("gui/501", read, run, workersWithStatus(t)), 80, 12, 100*time.Millisecond)
+
+				require.Contains(t, screen.View().Content, "      \x1b[34m▰▰▰▰▰▰\x1b[m\x1b[2m▱▱▱▱\x1b[m")
+			})
+		})
+
+		t.Run("draws the fields under Status, and under the value of a field with a progress, its bar of blue ▰ and dim ▱", func(t *testing.T) {
 			synctest.Test(t, func(t *testing.T) {
 				read := readGiving(service.Service{Name: "com.example.worker.01", State: service.Running, PID: 4122, Uptime: new(3*time.Hour + 12*time.Minute)})
 				run := runsGiving(map[string]status.Result{

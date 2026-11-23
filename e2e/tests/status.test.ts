@@ -36,6 +36,24 @@ describe('the status command', () => {
     await session.waitForText('│ ticket  ENG-692 ')
   })
 
+  it('a status file with a field whose progress is 0.6 shows a bar of 6 ▰ and 4 ▱ on the line under its value, in the column of the values', async () => {
+    const home = homeWithPlists([])
+    const statusFile = join(scratchDir(), 'status.json')
+    writeFileSync(
+      statusFile,
+      '{"version":1,"fields":[{"name":"ticket","value":"ENG-692"},{"name":"step","value":"review","progress":0.6}]}\n',
+    )
+    addPlist(home, 'com.example.worker.01', { WORKER_STATUS_FILE: statusFile })
+    writeConfig(join(home, '.config', 'svcview'), workersWithStatusCommand(`[cat, '{{.Env.WORKER_STATUS_FILE}}']`))
+
+    const session = await openCli(scratchDir(), [], { HOME: home })
+    await session.waitForText('▰▰▰▰▰▰▱▱▱▱')
+
+    const lines = (await session.text()).split('\n')
+    const value = lines.findIndex((line) => line.includes('│ step    review '))
+    expect(lines[value + 1]).toContain('│         ▰▰▰▰▰▰▱▱▱▱ ')
+  })
+
   it('a group whose status command uses a variable that the plist does not have shows the plist has no and the name of the variable in the row of the service', async () => {
     const home = homeWithPlists([])
     addPlist(home, 'com.example.worker.01', { WORKER_STATUS_FILE: '/tmp/status.json' })
