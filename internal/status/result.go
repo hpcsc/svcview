@@ -25,6 +25,18 @@ const (
 	FailureKindInvalid
 )
 
+func (k FailureKind) String() string {
+	switch k {
+	case FailureKindError:
+		return "status error"
+	case FailureKindTimeout:
+		return "status timeout"
+	case FailureKindInvalid:
+		return "status invalid"
+	}
+	return "template value"
+}
+
 type Failure struct {
 	Kind  FailureKind
 	Text  string

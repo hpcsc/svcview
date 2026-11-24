@@ -3,6 +3,7 @@
 package status_test
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -29,6 +30,24 @@ func TestResult(t *testing.T) {
 				{Ended: ended, Failure: &status.Failure{Text: "the plist has no WORKER_STATUS_FILE"}},
 			} {
 				require.Equal(t, ended, result.Time())
+			}
+		})
+	})
+}
+
+func TestFailureKind(t *testing.T) {
+	t.Run("word", func(t *testing.T) {
+		t.Run("the failure of each run gives the word that the row of the screen shows for its kind", func(t *testing.T) {
+			for word, command := range map[string]status.Command{
+				"status error":   newCommand(t, 0, "sh", "-c", "exit 3"),
+				"status timeout": newCommand(t, 100*time.Millisecond, "sleep", "30"),
+				"status invalid": printing(t, "busy"),
+				"template value": newCommand(t, 0, "cat", "{{.Env.WORKER_LOG}}"),
+			} {
+				result := command.Run(context.Background(), worker())
+
+				require.NotNil(t, result.Failure, word)
+				require.Equal(t, word, result.Failure.Kind.String(), word)
 			}
 		})
 	})

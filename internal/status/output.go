@@ -19,6 +19,16 @@ const (
 	LevelError
 )
 
+func (l Level) String() string {
+	switch l {
+	case LevelWarn:
+		return "warn"
+	case LevelError:
+		return "error"
+	}
+	return "info"
+}
+
 const (
 	rfc3339Shape = `an RFC 3339 time in a text, such as "2026-11-23T09:12:00Z"`
 	levelWords   = "info, warn or error"

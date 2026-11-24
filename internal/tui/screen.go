@@ -488,15 +488,10 @@ func (s Screen) statusText(name string) (string, ansi.Color) {
 }
 
 func (s Screen) failureRowText(failure *status.Failure) string {
-	switch failure.Kind {
-	case status.FailureKindError:
-		return "status error"
-	case status.FailureKindTimeout:
-		return "status timeout"
-	case status.FailureKindInvalid:
-		return "status invalid"
+	if failure.Kind == status.FailureKindTemplateValue {
+		return failure.Text
 	}
-	return failure.Text
+	return failure.Kind.String()
 }
 
 func (s Screen) levelColor(level status.Level) ansi.Color {
