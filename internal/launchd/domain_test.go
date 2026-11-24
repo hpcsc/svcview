@@ -1005,6 +1005,64 @@ func TestDomain(t *testing.T) {
 		})
 	})
 
+	t.Run("restart", func(t *testing.T) {
+		t.Run("a loaded service and a running service each run launchctl kickstart -k with the service in the gui domain of the uid", func(t *testing.T) {
+			calls := fakeLaunchctlCalls(t)
+			domain := launchd.NewDomain(t.TempDir(), 502)
+
+			loadedErr := domain.Restart(t.Context(), service.Service{Name: "com.example.loaded", State: service.Loaded, PlistPath: "/Users/me/Library/LaunchAgents/com.example.loaded.plist"})
+			runningErr := domain.Restart(t.Context(), service.Service{Name: "com.example.running", State: service.Running, PID: 4122, PlistPath: "/Users/me/Library/LaunchAgents/com.example.running.plist"})
+
+			require.NoError(t, loadedErr)
+			require.NoError(t, runningErr)
+			require.Equal(t, [][]string{
+				{"kickstart", "-k", "gui/502/com.example.loaded"},
+				{"kickstart", "-k", "gui/502/com.example.running"},
+			}, launchctlCalls(t, calls))
+		})
+
+		t.Run("a not loaded service runs no command and gives an error that names the service and says that it is not loaded", func(t *testing.T) {
+			calls := fakeLaunchctlCalls(t)
+
+			err := launchd.NewDomain(t.TempDir(), 501).Restart(t.Context(), service.Service{Name: "com.example.worker", State: service.NotLoaded, PlistPath: "/Users/me/Library/LaunchAgents/com.example.worker.plist"})
+
+			require.ErrorContains(t, err, "com.example.worker is not loaded")
+			require.Empty(t, launchctlCalls(t, calls))
+		})
+
+		t.Run("a name with a space, a quote and a $ reaches launchctl unchanged", func(t *testing.T) {
+			calls := fakeLaunchctlCalls(t)
+
+			err := launchd.NewDomain(t.TempDir(), 501).Restart(t.Context(), service.Service{Name: `com.example.it's "$HOME"`, State: service.Running, PID: 4122})
+
+			require.NoError(t, err)
+			require.Equal(t, [][]string{{"kickstart", "-k", `gui/501/com.example.it's "$HOME"`}}, launchctlCalls(t, calls))
+		})
+
+		t.Run("a launchctl that exits with a code other than 0 gives an error whose text is what it printed", func(t *testing.T) {
+			fakeLaunchctlCalls(t)
+			t.Setenv("FAKE_LAUNCHCTL_STDERR", "Could not kickstart service \"com.example.worker\": 1: Operation not permitted\n")
+			t.Setenv("FAKE_LAUNCHCTL_EXIT", "1")
+
+			err := launchd.NewDomain(t.TempDir(), 501).Restart(t.Context(), service.Service{Name: "com.example.worker", State: service.Running, PID: 4122})
+
+			require.EqualError(t, err, "Could not kickstart service \"com.example.worker\": 1: Operation not permitted")
+		})
+
+		t.Run("a launchctl that does not end before the context of the call ends is killed, and gives an error that names the command", func(t *testing.T) {
+			fakeLaunchctl(t, "sleep 15\necho never\n")
+			ctx, cancel := context.WithTimeout(t.Context(), 500*time.Millisecond)
+			defer cancel()
+			started := time.Now()
+
+			err := launchd.NewDomain(t.TempDir(), 501).Restart(ctx, service.Service{Name: "com.example.worker", State: service.Running, PID: 4122})
+
+			require.ErrorIs(t, err, context.DeadlineExceeded)
+			require.ErrorContains(t, err, "launchctl kickstart -k gui/501/com.example.worker did not end")
+			require.Less(t, time.Since(started), 10*time.Second)
+		})
+	})
+
 	t.Run("text", func(t *testing.T) {
 		t.Run("reads as gui/ and the uid", func(t *testing.T) {
 			require.Equal(t, "gui/501", launchd.NewDomain(t.TempDir(), 501).String())

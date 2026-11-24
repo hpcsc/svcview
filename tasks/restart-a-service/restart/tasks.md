@@ -129,17 +129,17 @@ error that says that the service is not loaded. When launchctl fails or does not
 that a start or a stop gives.
 
 **Acceptance Criteria:**
-- [ ] `Domain.Restart` of a `loaded` and of a `running` service runs `launchctl kickstart -k gui/<uid>/<name>`, with
+- [x] `Domain.Restart` of a `loaded` and of a `running` service runs `launchctl kickstart -k gui/<uid>/<name>`, with
       the uid of the domain and the name of the service, and gives no error when launchctl exits with 0.
-- [ ] `Domain.Restart` of a `not loaded` service runs no command, and gives an error that names the service and says
+- [x] `Domain.Restart` of a `not loaded` service runs no command, and gives an error that names the service and says
       that it is not loaded.
-- [ ] Each restart runs one launchctl command, `kickstart` with `-k`, and never `bootout`, `bootstrap`, `kill`,
+- [x] Each restart runs one launchctl command, `kickstart` with `-k`, and never `bootout`, `bootstrap`, `kill`,
       `load`, `unload`, `enable` or `disable`.
-- [ ] A name with a space, a quote and a `$` reaches launchctl unchanged.
-- [ ] A launchctl that exits with a code other than 0 gives an error whose text is what launchctl printed.
-- [ ] A launchctl that does not end before the context of the call ends is killed, and the error says that
+- [x] A name with a space, a quote and a `$` reaches launchctl unchanged.
+- [x] A launchctl that exits with a code other than 0 gives an error whose text is what launchctl printed.
+- [x] A launchctl that does not end before the context of the call ends is killed, and the error says that
       `launchctl kickstart -k gui/<uid>/<name>` did not end. The test ends the context, and does not wait 30 s.
-- [ ] The tests are in a group `restart` of `TestDomain`, with the fake launchctl that all tests share.
+- [x] The tests are in a group `restart` of `TestDomain`, with the fake launchctl that all tests share.
 
 **Affected Files/Modules:**
 - `internal/launchd/domain.go` — `Restart` of `Domain`

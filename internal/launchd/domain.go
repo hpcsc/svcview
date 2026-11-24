@@ -70,6 +70,13 @@ func (d *Domain) Stop(ctx context.Context, svc service.Service) error {
 	return launchctlCommand{args: []string{"bootout", d.serviceTarget(svc)}}.run(ctx)
 }
 
+func (d *Domain) Restart(ctx context.Context, svc service.Service) error {
+	if svc.State == service.NotLoaded {
+		return fmt.Errorf("%s is not loaded, so svcview cannot restart it", svc.Name)
+	}
+	return launchctlCommand{args: []string{"kickstart", "-k", d.serviceTarget(svc)}}.run(ctx)
+}
+
 func (d *Domain) serviceTarget(svc service.Service) string {
 	return d.String() + "/" + svc.Name
 }
