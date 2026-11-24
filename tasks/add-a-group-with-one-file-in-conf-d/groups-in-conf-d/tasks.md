@@ -327,13 +327,13 @@ the first group. The check is in the one place where the groups of each file joi
 Two groups with the same name in one file keep the error that they give today.
 
 **Acceptance Criteria:**
-- [ ] A group of a file of `conf.d` whose name a group of `config.yaml` has gives an error that names the file of
+- [x] A group of a file of `conf.d` whose name a group of `config.yaml` has gives an error that names the file of
       `conf.d`, the group, and `config.yaml`, and no settings.
-- [ ] A group of a file of `conf.d` whose name a group of an earlier file of `conf.d` has gives an error that names
+- [x] A group of a file of `conf.d` whose name a group of an earlier file of `conf.d` has gives an error that names
       the later file, the group, and the earlier file, and no settings.
-- [ ] Two names that differ only in case, in two files, are two groups.
-- [ ] Two groups with the same name in one file give the error at `config_test.go:630-638`, with the line of each.
-- [ ] e2e: a group `Workers` in `config.yaml` and a group `Workers` in `conf.d/worker.yaml` stop svcview with
+- [x] Two names that differ only in case, in two files, are two groups.
+- [x] Two groups with the same name in one file give the error at `config_test.go:630-638`, with the line of each.
+- [x] e2e: a group `Workers` in `config.yaml` and a group `Workers` in `conf.d/worker.yaml` stop svcview with
       `EXIT:1` and an error that names `conf.d/worker.yaml` and `group "Workers"`, before the screen opens.
 
 **Affected Files/Modules:**

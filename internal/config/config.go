@@ -29,7 +29,7 @@ type Settings struct {
 
 func Read(folder string, uid int, aclEntries func(*os.File) (int, error)) (Settings, error) {
 	settings := Settings{Refresh: 2 * time.Second}
-	if err := settings.readFile(filepath.Join(folder, fileName), uid, aclEntries, settings.set); err != nil {
+	if err := readConfigFile(filepath.Join(folder, fileName), uid, aclEntries, settings.set); err != nil {
 		return Settings{}, err
 	}
 	paths, err := filesOfConfD(filepath.Join(folder, confD))
@@ -37,19 +37,99 @@ func Read(folder string, uid int, aclEntries func(*os.File) (int, error)) (Setti
 		return Settings{}, err
 	}
 	for _, path := range paths {
-		if err := settings.readFile(path, uid, aclEntries, settings.setInConfD); err != nil {
+		if err := readConfigFile(path, uid, aclEntries, settings.setInConfD); err != nil {
 			return Settings{}, err
 		}
 	}
 	return settings, nil
 }
 
-func (s *Settings) readFile(path string, uid int, aclEntries func(*os.File) (int, error), set func(name, value *yaml.Node) error) error {
+func (s *Settings) set(path string, name, value *yaml.Node) error {
+	switch name.Value {
+	case "refresh":
+		return s.setRefresh(name, value)
+	case "groups":
+		return s.setGroups(path, name, value)
+	}
+	return fmt.Errorf("line %d: svcview does not know the setting %q", name.Line, name.Value)
+}
+
+func (s *Settings) setInConfD(path string, name, value *yaml.Node) error {
+	if name.Value == "refresh" {
+		return fmt.Errorf("line %d: only %s can set the setting %q", name.Line, fileName, name.Value)
+	}
+	return s.set(path, name, value)
+}
+
+func (s *Settings) setRefresh(name, value *yaml.Node) error {
+	refresh, err := readDuration(value, strconv.Quote(name.Value))
+	if err != nil {
+		return err
+	}
+	s.Refresh = refresh
+	return nil
+}
+
+func (s *Settings) setGroups(path string, name, value *yaml.Node) error {
+	if value.Tag == "!!null" {
+		return nil
+	}
+	if value.Kind != yaml.SequenceNode {
+		return fmt.Errorf("line %d: the setting %q must be a list of groups, each with a name and a match", value.Line, name.Value)
+	}
+	lineOf := map[string]int{}
+	for i, entry := range value.Content {
+		group, err := readGroup(entry, i+1)
+		if err != nil {
+			return err
+		}
+		if line, ok := lineOf[group.Name]; ok {
+			return fmt.Errorf("line %d: the name of group %q is already the name of the group on line %d", entry.Line, group.Name, line)
+		}
+		lineOf[group.Name] = entry.Line
+		group.configFile = path
+		if err := s.join(group, entry.Line); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (s *Settings) join(group Group, line int) error {
+	for _, earlier := range s.Groups {
+		if earlier.Name == group.Name {
+			return fmt.Errorf("line %d: the name of group %q is already the name of a group in the config file %s, and the name of a group must be unique across all config files", line, group.Name, earlier.configFile)
+		}
+	}
+	s.Groups = append(s.Groups, group)
+	return nil
+}
+
+func (s *Settings) GroupOf(serviceName string) Group {
+	for _, group := range s.Groups {
+		if group.matches(serviceName) {
+			return group
+		}
+	}
+	return Other
+}
+
+func Folder(home, xdgConfigHome string) string {
+	if filepath.IsAbs(xdgConfigHome) {
+		return filepath.Join(xdgConfigHome, "svcview")
+	}
+	return filepath.Join(home, ".config", "svcview")
+}
+
+func readConfigFile(path string, uid int, aclEntries func(*os.File) (int, error), set func(path string, name, value *yaml.Node) error) error {
 	file, err := os.OpenFile(path, os.O_RDONLY|syscall.O_NONBLOCK, 0)
 	if errors.Is(err, fs.ErrNotExist) {
 		return nil
 	}
 	if err != nil {
+		if info, statErr := os.Stat(path); statErr == nil && !info.Mode().IsRegular() {
+			return notRegularFile(path, info.Mode())
+		}
 		return fmt.Errorf("read the config file: %w", err)
 	}
 	defer file.Close()
@@ -58,7 +138,7 @@ func (s *Settings) readFile(path string, uid int, aclEntries func(*os.File) (int
 		return fmt.Errorf("read the config file: %w", err)
 	}
 	if !info.Mode().IsRegular() {
-		return fmt.Errorf("the config file %s is not a regular file, so svcview does not read it: it has the mode %s", path, info.Mode())
+		return notRegularFile(path, info.Mode())
 	}
 	owner := info.Sys().(*syscall.Stat_t).Uid
 	if owner != uint32(uid) || info.Mode().Perm()&writeByAnotherUser != 0 {
@@ -75,13 +155,13 @@ func (s *Settings) readFile(path string, uid int, aclEntries func(*os.File) (int
 	if err != nil {
 		return fmt.Errorf("read the config file: %w", err)
 	}
-	if err := s.read(content, set); err != nil {
+	if err := readContent(path, content, set); err != nil {
 		return fmt.Errorf("the config file %s: %w", path, err)
 	}
 	return nil
 }
 
-func (s *Settings) read(content []byte, set func(name, value *yaml.Node) error) error {
+func readContent(path string, content []byte, set func(path string, name, value *yaml.Node) error) error {
 	decoder := yaml.NewDecoder(bytes.NewReader(content))
 	lineOf := map[string]int{}
 	for {
@@ -106,75 +186,15 @@ func (s *Settings) read(content []byte, set func(name, value *yaml.Node) error) 
 				return fmt.Errorf("line %d: the setting %q is already on line %d", name.Line, name.Value, line)
 			}
 			lineOf[name.Value] = name.Line
-			if err := set(name, value); err != nil {
+			if err := set(path, name, value); err != nil {
 				return err
 			}
 		}
 	}
 }
 
-func (s *Settings) set(name, value *yaml.Node) error {
-	switch name.Value {
-	case "refresh":
-		return s.setRefresh(name, value)
-	case "groups":
-		return s.setGroups(name, value)
-	}
-	return fmt.Errorf("line %d: svcview does not know the setting %q", name.Line, name.Value)
-}
-
-func (s *Settings) setInConfD(name, value *yaml.Node) error {
-	if name.Value == "refresh" {
-		return fmt.Errorf("line %d: only %s can set the setting %q", name.Line, fileName, name.Value)
-	}
-	return s.set(name, value)
-}
-
-func (s *Settings) setRefresh(name, value *yaml.Node) error {
-	refresh, err := readDuration(value, strconv.Quote(name.Value))
-	if err != nil {
-		return err
-	}
-	s.Refresh = refresh
-	return nil
-}
-
-func (s *Settings) setGroups(name, value *yaml.Node) error {
-	if value.Tag == "!!null" {
-		return nil
-	}
-	if value.Kind != yaml.SequenceNode {
-		return fmt.Errorf("line %d: the setting %q must be a list of groups, each with a name and a match", value.Line, name.Value)
-	}
-	lineOf := map[string]int{}
-	for i, entry := range value.Content {
-		group, err := readGroup(entry, i+1)
-		if err != nil {
-			return err
-		}
-		if line, ok := lineOf[group.Name]; ok {
-			return fmt.Errorf("line %d: the name of group %q is already the name of the group on line %d", entry.Line, group.Name, line)
-		}
-		lineOf[group.Name] = entry.Line
-		s.Groups = append(s.Groups, group)
-	}
-	return nil
-}
-
-func (s *Settings) GroupOf(serviceName string) Group {
-	for _, group := range s.Groups {
-		if group.matches(serviceName) {
-			return group
-		}
-	}
-	return Other
-}
-
-func Folder(home, xdgConfigHome string) string {
-	if filepath.IsAbs(xdgConfigHome) {
-		return filepath.Join(xdgConfigHome, "svcview")
-	}
-	return filepath.Join(home, ".config", "svcview")
+func notRegularFile(path string, mode fs.FileMode) error {
+	return fmt.Errorf("the config file %s is not a regular file, so svcview does not read it: it has the mode %s", path, mode)
 }
 
 func filesOfConfD(folder string) ([]string, error) {

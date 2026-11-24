@@ -4,6 +4,7 @@ package config_test
 
 import (
 	"errors"
+	"net"
 	"os"
 	"path/filepath"
 	"syscall"
@@ -41,7 +42,7 @@ func readSettings(t *testing.T, content string) config.Settings {
 	return settings
 }
 
-func confDWith(t *testing.T, content string) (folder, path string) {
+func folderWithConfD(t *testing.T, content string) (folder, path string) {
 	t.Helper()
 	folder = t.TempDir()
 	return folder, writeConfD(t, folder, "worker.yaml", content)
@@ -81,6 +82,16 @@ var notRegularFiles = map[string]func(t *testing.T, path string){
 	},
 	"a symbolic link to a device": func(t *testing.T, path string) {
 		require.NoError(t, os.Symlink("/dev/null", path))
+	},
+	"a symbolic link to a socket": func(t *testing.T, path string) {
+		folder, err := os.MkdirTemp("/tmp", "svcview-")
+		require.NoError(t, err)
+		t.Cleanup(func() { _ = os.RemoveAll(folder) })
+		socket := filepath.Join(folder, "socket")
+		listener, err := net.Listen("unix", socket)
+		require.NoError(t, err)
+		t.Cleanup(func() { _ = listener.Close() })
+		require.NoError(t, os.Symlink(socket, path))
 	},
 }
 
@@ -259,17 +270,6 @@ func TestSettings(t *testing.T) {
 				require.ErrorContains(t, err, path, content)
 				require.Equal(t, config.Settings{}, settings, content)
 			}
-		})
-
-		t.Run("a config.yaml that is a folder gives an error that names the file, and no settings", func(t *testing.T) {
-			folder := t.TempDir()
-			path := filepath.Join(folder, "config.yaml")
-			require.NoError(t, os.Mkdir(path, 0o755))
-
-			settings, err := config.Read(folder, os.Getuid(), noACL)
-
-			require.ErrorContains(t, err, path)
-			require.Equal(t, config.Settings{}, settings)
 		})
 
 		t.Run("a config.yaml that is not a regular file gives an error at once that names the file and says that it is not a regular file, and no settings, also through a symbolic link", func(t *testing.T) {
@@ -705,16 +705,6 @@ func TestSettings(t *testing.T) {
 			}
 		})
 
-		t.Run("two groups with the same name give an error that names the file and the group, and no settings", func(t *testing.T) {
-			folder, path := folderWith(t, "groups:\n  - name: Databases\n    match: redis\n  - name: Workers\n    match: worker\n  - name: Databases\n    match: postgres\n")
-
-			settings, err := config.Read(folder, os.Getuid(), noACL)
-
-			require.ErrorContains(t, err, path)
-			require.ErrorContains(t, err, `group "Databases"`)
-			require.Equal(t, config.Settings{}, settings)
-		})
-
 		t.Run("a group with the name Other gives an error that names the file and the group, and no settings", func(t *testing.T) {
 			folder, path := folderWith(t, "groups:\n  - name: Workers\n    match: worker\n  - name: Other\n    match: redis\n")
 
@@ -746,7 +736,7 @@ func TestSettings(t *testing.T) {
 		})
 
 		t.Run("a file of conf.d gives its groups when no config.yaml exists, and the refresh is 2s", func(t *testing.T) {
-			folder, _ := confDWith(t, groupsYAML("Workers", "worker"))
+			folder, _ := folderWithConfD(t, groupsYAML("Workers", "worker"))
 
 			settings, err := config.Read(folder, os.Getuid(), noACL)
 
@@ -770,7 +760,7 @@ func TestSettings(t *testing.T) {
 		})
 
 		t.Run("an entry of conf.d whose name does not end in .yaml, or starts with a dot, is skipped, whatever the entry is", func(t *testing.T) {
-			folder, _ := confDWith(t, groupsYAML("Workers", "worker"))
+			folder, _ := folderWithConfD(t, groupsYAML("Workers", "worker"))
 			confD := filepath.Join(folder, "conf.d")
 			writeConfD(t, folder, "worker.yml", "groups: [\n")
 			writeConfD(t, folder, "jobs.YAML", "colour: blue\n")
@@ -804,7 +794,7 @@ func TestSettings(t *testing.T) {
 		})
 
 		t.Run("an entry of conf.d that is a symbolic link to no file is skipped, and one that is a symbolic link to a file gives the groups of that file", func(t *testing.T) {
-			folder, _ := confDWith(t, groupsYAML("Workers", "worker"))
+			folder, _ := folderWithConfD(t, groupsYAML("Workers", "worker"))
 			confD := filepath.Join(folder, "conf.d")
 			target := filepath.Join(t.TempDir(), "settings.yaml")
 			require.NoError(t, os.WriteFile(target, []byte(groupsYAML("Jobs", "job")), 0o644))
@@ -843,22 +833,31 @@ func TestSettings(t *testing.T) {
 			require.Equal(t, []string{"Databases", "Workers"}, groupNames(settings))
 		})
 
-		t.Run("a conf.d that is a file gives an error that names conf.d, and no settings", func(t *testing.T) {
-			folder, _ := folderWith(t, groupsYAML("Databases", "redis"))
-			confD := filepath.Join(folder, "conf.d")
-			require.NoError(t, os.WriteFile(confD, []byte(groupsYAML("Workers", "worker")), 0o644))
+		t.Run("a conf.d that is a file or a named pipe gives an error at once that names conf.d, and no settings", func(t *testing.T) {
+			for kind, create := range map[string]func(t *testing.T, path string){
+				"a file": func(t *testing.T, path string) {
+					require.NoError(t, os.WriteFile(path, []byte(groupsYAML("Workers", "worker")), 0o644))
+				},
+				"a named pipe with no writer": func(t *testing.T, path string) {
+					require.NoError(t, syscall.Mkfifo(path, 0o644))
+				},
+			} {
+				folder, _ := folderWith(t, groupsYAML("Databases", "redis"))
+				confD := filepath.Join(folder, "conf.d")
+				create(t, confD)
 
-			settings, err := config.Read(folder, os.Getuid(), noACL)
+				settings, err := readWithin(t, 2*time.Second, folder)
 
-			require.ErrorContains(t, err, confD)
-			require.Equal(t, config.Settings{}, settings)
+				require.ErrorContains(t, err, confD, kind)
+				require.Equal(t, config.Settings{}, settings, kind)
+			}
 		})
 
 		t.Run("a conf.d that svcview cannot list gives an error that names conf.d, and no settings", func(t *testing.T) {
 			if os.Geteuid() == 0 {
 				t.Skip("root lists a folder with no read permission")
 			}
-			folder, path := confDWith(t, groupsYAML("Workers", "worker"))
+			folder, path := folderWithConfD(t, groupsYAML("Workers", "worker"))
 			confD := filepath.Dir(path)
 			require.NoError(t, os.Chmod(confD, 0o000))
 			t.Cleanup(func() { _ = os.Chmod(confD, 0o755) })
@@ -873,18 +872,54 @@ func TestSettings(t *testing.T) {
 			if os.Geteuid() == 0 {
 				t.Skip("root reads a file with no read permission")
 			}
-			folder, path := confDWith(t, groupsYAML("Workers", "worker"))
+			folder, path := folderWithConfD(t, groupsYAML("Workers", "worker"))
 			require.NoError(t, os.Chmod(path, 0o000))
 
 			settings, err := config.Read(folder, os.Getuid(), noACL)
 
 			require.ErrorContains(t, err, path)
+			require.True(t, errors.Is(err, os.ErrPermission), err)
 			require.Equal(t, config.Settings{}, settings)
+		})
+
+		t.Run("a config.yaml that is a symbolic link to a file that svcview cannot read gives the error of the open, not that it is not a regular file, and no settings", func(t *testing.T) {
+			if os.Geteuid() == 0 {
+				t.Skip("root reads a file with no read permission")
+			}
+			target := filepath.Join(t.TempDir(), "settings.yaml")
+			require.NoError(t, os.WriteFile(target, []byte("refresh: 5s\n"), 0o600))
+			require.NoError(t, os.Chmod(target, 0o000))
+			folder := t.TempDir()
+			path := filepath.Join(folder, "config.yaml")
+			require.NoError(t, os.Symlink(target, path))
+
+			settings, err := config.Read(folder, os.Getuid(), noACL)
+
+			require.ErrorContains(t, err, path)
+			require.True(t, errors.Is(err, os.ErrPermission), err)
+			require.Equal(t, config.Settings{}, settings)
+		})
+
+		t.Run("a config file that is a symbolic link to itself gives an error that names the file, and no settings", func(t *testing.T) {
+			inConfigYAML := t.TempDir()
+			configYAML := filepath.Join(inConfigYAML, "config.yaml")
+			require.NoError(t, os.Symlink(configYAML, configYAML))
+			inConfD, _ := folderWith(t, groupsYAML("Databases", "redis"))
+			fileOfConfD := filepath.Join(inConfD, "conf.d", "worker.yaml")
+			require.NoError(t, os.Mkdir(filepath.Dir(fileOfConfD), 0o755))
+			require.NoError(t, os.Symlink(fileOfConfD, fileOfConfD))
+
+			for folder, path := range map[string]string{inConfigYAML: configYAML, inConfD: fileOfConfD} {
+				settings, err := config.Read(folder, os.Getuid(), noACL)
+
+				require.ErrorContains(t, err, path, path)
+				require.Equal(t, config.Settings{}, settings, path)
+			}
 		})
 
 		t.Run("a file of conf.d that its group or all users can write gives an error that names the file and says that another user can write it, and no settings", func(t *testing.T) {
 			for _, mode := range []os.FileMode{0o620, 0o602, 0o666, 0o777} {
-				folder, path := confDWith(t, groupsYAML("Workers", "worker"))
+				folder, path := folderWithConfD(t, groupsYAML("Workers", "worker"))
 				require.NoError(t, os.Chmod(path, mode))
 
 				settings, err := config.Read(folder, os.Getuid(), noACL)
@@ -896,7 +931,7 @@ func TestSettings(t *testing.T) {
 		})
 
 		t.Run("a file of conf.d that another user owns gives an error that names the file and says that another user can write it, also when only its owner can write it", func(t *testing.T) {
-			folder, path := confDWith(t, groupsYAML("Workers", "worker"))
+			folder, path := folderWithConfD(t, groupsYAML("Workers", "worker"))
 			require.NoError(t, os.Chmod(path, 0o600))
 
 			settings, err := config.Read(folder, os.Getuid()+1, noACL)
@@ -908,7 +943,7 @@ func TestSettings(t *testing.T) {
 
 		t.Run("a file of conf.d that the user of svcview owns and that only its owner can write gives its groups", func(t *testing.T) {
 			for _, mode := range []os.FileMode{0o644, 0o600, 0o400, 0o755} {
-				folder, path := confDWith(t, groupsYAML("Workers", "worker"))
+				folder, path := folderWithConfD(t, groupsYAML("Workers", "worker"))
 				require.NoError(t, os.Chmod(path, mode))
 
 				settings, err := config.Read(folder, os.Getuid(), noACL)
@@ -941,7 +976,7 @@ func TestSettings(t *testing.T) {
 
 		t.Run("a file of conf.d with one or more ACL entries gives an error that names the file and chmod -N, and no settings, also when the owner and the mode pass", func(t *testing.T) {
 			for _, count := range []int{1, 2} {
-				folder, path := confDWith(t, groupsYAML("Workers", "worker"))
+				folder, path := folderWithConfD(t, groupsYAML("Workers", "worker"))
 
 				settings, err := config.Read(folder, os.Getuid(), aclWithEntries(count))
 
@@ -953,7 +988,7 @@ func TestSettings(t *testing.T) {
 		})
 
 		t.Run("a file of conf.d whose ACL svcview cannot count gives an error that names the file and the cause, and no settings", func(t *testing.T) {
-			folder, path := confDWith(t, groupsYAML("Workers", "worker"))
+			folder, path := folderWithConfD(t, groupsYAML("Workers", "worker"))
 			unreadable := func(*os.File) (int, error) {
 				return 0, errors.New("fgetattrlist: bad file descriptor")
 			}
@@ -967,7 +1002,7 @@ func TestSettings(t *testing.T) {
 
 		t.Run("on macOS, a file of conf.d with the mode 0644 and an ACL entry gives an error that names the file and chmod -N, and so does a symbolic link in conf.d to a file with an ACL entry", func(t *testing.T) {
 			skipUnlessMacOS(t)
-			inConfD, path := confDWith(t, groupsYAML("Workers", "worker"))
+			inConfD, path := folderWithConfD(t, groupsYAML("Workers", "worker"))
 			chmod(t, "+a", "everyone allow write", path)
 			target := configFile(t, "everyone allow write")
 			throughLink := t.TempDir()
@@ -984,21 +1019,15 @@ func TestSettings(t *testing.T) {
 			}
 		})
 
-		t.Run("an error in a setting of a file of conf.d names that file, and gives no settings", func(t *testing.T) {
-			for content, fault := range map[string]string{
-				"colour: blue\n":               `"colour"`,
-				groupsYAML("Databases", "'['"): `group "Databases" is not a Go regular expression`,
-				groupsYAML("Workers", "worker") + "  - name: Workers\n    match: job\n": `group "Workers"`,
-			} {
-				folder, _ := folderWith(t, groupsYAML("Jobs", "job"))
-				path := writeConfD(t, folder, "worker.yaml", content)
+		t.Run("a match in a file of conf.d that is not a Go regular expression gives an error that names that file and the group, and no settings", func(t *testing.T) {
+			folder, _ := folderWith(t, groupsYAML("Jobs", "job"))
+			path := writeConfD(t, folder, "worker.yaml", groupsYAML("Databases", "'['"))
 
-				settings, err := config.Read(folder, os.Getuid(), noACL)
+			settings, err := config.Read(folder, os.Getuid(), noACL)
 
-				require.ErrorContains(t, err, path, content)
-				require.ErrorContains(t, err, fault, content)
-				require.Equal(t, config.Settings{}, settings, content)
-			}
+			require.ErrorContains(t, err, path)
+			require.ErrorContains(t, err, `group "Databases" is not a Go regular expression`)
+			require.Equal(t, config.Settings{}, settings)
 		})
 
 		t.Run("a refresh in a file of conf.d gives an error that names the file and says that only config.yaml can set it, and no settings, with or without a refresh in config.yaml, and with no config.yaml", func(t *testing.T) {
@@ -1022,7 +1051,7 @@ func TestSettings(t *testing.T) {
 				"refresh: fast\n",
 				"refresh: [5s]\n",
 			} {
-				folder, path := confDWith(t, content)
+				folder, path := folderWithConfD(t, content)
 
 				settings, err := config.Read(folder, os.Getuid(), noACL)
 
@@ -1033,13 +1062,62 @@ func TestSettings(t *testing.T) {
 		})
 
 		t.Run("a setting that svcview does not know in a file of conf.d gives the error that it gives in config.yaml, with the name of the file of conf.d", func(t *testing.T) {
-			folder, path := confDWith(t, groupsYAML("Workers", "worker")+"colour: blue\n")
+			folder, path := folderWithConfD(t, groupsYAML("Workers", "worker")+"colour: blue\n")
 
 			settings, err := config.Read(folder, os.Getuid(), noACL)
 
 			require.ErrorContains(t, err, path)
 			require.ErrorContains(t, err, `svcview does not know the setting "colour"`)
 			require.Equal(t, config.Settings{}, settings)
+		})
+
+		t.Run("a group of a file of conf.d whose name a group of config.yaml has gives an error that names the file of conf.d, the group, and config.yaml, and no settings", func(t *testing.T) {
+			folder, configYAML := folderWith(t, groupsYAML("Databases", "redis", "Workers", "worker"))
+			path := writeConfD(t, folder, "worker.yaml", groupsYAML("Jobs", "job", "Workers", "worker"))
+
+			settings, err := config.Read(folder, os.Getuid(), noACL)
+
+			require.ErrorContains(t, err, "the config file "+path+": line 4:")
+			require.ErrorContains(t, err, `group "Workers"`)
+			require.ErrorContains(t, err, "the config file "+configYAML)
+			require.Equal(t, config.Settings{}, settings)
+		})
+
+		t.Run("a group of a file of conf.d whose name a group of an earlier file of conf.d has gives an error that names the later file, the group, and the earlier file, and no settings", func(t *testing.T) {
+			folder, _ := folderWith(t, groupsYAML("Databases", "redis"))
+			later := writeConfD(t, folder, "b.yaml", groupsYAML("Workers", "job"))
+			earlier := writeConfD(t, folder, "a.yaml", groupsYAML("Workers", "worker"))
+
+			settings, err := config.Read(folder, os.Getuid(), noACL)
+
+			require.ErrorContains(t, err, "the config file "+later+": line 2:")
+			require.ErrorContains(t, err, `group "Workers"`)
+			require.ErrorContains(t, err, "the config file "+earlier)
+			require.Equal(t, config.Settings{}, settings)
+		})
+
+		t.Run("two names that differ only in case, in two config files, are two groups", func(t *testing.T) {
+			folder, _ := folderWith(t, groupsYAML("Workers", "worker"))
+			writeConfD(t, folder, "a.yaml", groupsYAML("workers", "job"))
+			writeConfD(t, folder, "b.yaml", groupsYAML("WORKERS", "task"))
+
+			settings, err := config.Read(folder, os.Getuid(), noACL)
+
+			require.NoError(t, err)
+			require.Equal(t, []string{"Workers", "workers", "WORKERS"}, groupNames(settings))
+		})
+
+		t.Run("two groups with the same name in one config file give an error that names the file, the group and the line of each, also in a file of conf.d", func(t *testing.T) {
+			inConfigYAML, configYAML := folderWith(t, groupsYAML("Workers", "worker", "Workers", "job"))
+			inConfD, _ := folderWith(t, groupsYAML("Databases", "redis"))
+			fileOfConfD := writeConfD(t, inConfD, "worker.yaml", groupsYAML("Workers", "worker", "Workers", "job"))
+
+			for folder, path := range map[string]string{inConfigYAML: configYAML, inConfD: fileOfConfD} {
+				settings, err := config.Read(folder, os.Getuid(), noACL)
+
+				require.ErrorContains(t, err, "the config file "+path+": line 4: the name of group \"Workers\" is already the name of the group on line 2", path)
+				require.Equal(t, config.Settings{}, settings, path)
+			}
 		})
 	})
 

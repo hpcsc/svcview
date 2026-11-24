@@ -253,6 +253,21 @@ describe('the files of conf.d', () => {
     expect(printed).not.toContain('com.example.worker')
   })
 
+  it('a group Workers in config.yaml and a group Workers in conf.d/worker.yaml stop svcview with the exit code 1 and an error that names conf.d/worker.yaml and the group, before the screen opens', async () => {
+    const home = homeWithPlists(['com.example.worker'])
+    const configFolder = join(home, '.config', 'svcview')
+    writeConfig(configFolder, 'groups:\n  - name: Workers\n    match: worker\n')
+    const path = writeConfD(configFolder, 'worker.yaml', 'groups:\n  - name: Workers\n    match: worker\n')
+
+    const session = await openCli(scratchDir(), [], { HOME: home })
+
+    await session.waitForText('EXIT:1')
+    const printed = (await session.text()).replaceAll('\n', '')
+    expect(printed).toContain(path)
+    expect(printed).toContain('group "Workers"')
+    expect(printed).not.toContain('com.example.worker')
+  })
+
   it('a file of conf.d that all users can write stops svcview with the exit code 1 and an error that names the file, before the screen opens', async () => {
     const home = homeWithPlists(['com.example.worker'])
     const path = writeConfD(

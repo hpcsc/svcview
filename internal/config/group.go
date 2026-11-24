@@ -12,9 +12,10 @@ import (
 )
 
 type Group struct {
-	Name   string
-	match  *regexp.Regexp
-	Status *status.Command
+	Name       string
+	match      *regexp.Regexp
+	Status     *status.Command
+	configFile string
 }
 
 var Other = Group{Name: "Other"}

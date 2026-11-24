@@ -78,7 +78,7 @@
     },
     {
       "n": 4,
-      "done": false,
+      "done": true,
       "title": "Refuse a group whose name a group of an earlier config file has",
       "language": "Go",
       "testable": true,
