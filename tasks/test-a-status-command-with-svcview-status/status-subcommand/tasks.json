@@ -5,7 +5,7 @@
   "tasks": [
     {
       "n": 1,
-      "done": false,
+      "done": true,
       "title": "Give the template values of a service and the command line that they make",
       "language": "Go",
       "testable": true,

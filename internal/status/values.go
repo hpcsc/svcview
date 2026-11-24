@@ -2,6 +2,8 @@ package status
 
 import (
 	"errors"
+	"maps"
+	"slices"
 	"strconv"
 	"strings"
 	"text/template"
@@ -57,4 +59,34 @@ func (v values) apply(parsed *template.Template) (string, *Failure) {
 		return "", &Failure{Kind: FailureKindTemplateValue, Text: "the plist has no " + name}
 	}
 	return "", &Failure{Kind: FailureKindTemplateValue, Text: err.Error()}
+}
+
+func (v values) list() []TemplateValue {
+	list := []TemplateValue{{Template: "{{.Name}}", Value: v.Name}}
+	for _, name := range slices.Sorted(maps.Keys(v.Env)) {
+		list = append(list, TemplateValue{Template: "{{.Env." + name + "}}", Value: v.Env[name]})
+	}
+	for _, path := range []struct {
+		template string
+		value    func() (string, error)
+	}{
+		{"{{.StdoutPath}}", v.StdoutPath},
+		{"{{.StderrPath}}", v.StderrPath},
+		{"{{.PlistPath}}", v.PlistPath},
+	} {
+		value, err := path.value()
+		failure, _ := errors.AsType[*Failure](err)
+		list = append(list, TemplateValue{Template: path.template, Value: value, Failure: failure})
+	}
+	return list
+}
+
+type TemplateValue struct {
+	Template string
+	Value    string
+	Failure  *Failure
+}
+
+func TemplateValues(svc service.Service) []TemplateValue {
+	return newValues(svc).list()
 }

@@ -97,6 +97,14 @@ func (c Command) Run(ctx context.Context, svc service.Service) Result {
 	return result
 }
 
+func (c Command) CommandLine(svc service.Service) (string, error) {
+	line, failure := c.commandLine(svc)
+	if failure != nil {
+		return "", failure
+	}
+	return c.commandLineText(line), nil
+}
+
 func (c Command) runProgram(ctx context.Context, program *exec.Cmd) (stopped bool, err error) {
 	if ctx.Err() != nil {
 		return true, nil

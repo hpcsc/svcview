@@ -4,6 +4,7 @@ package status_test
 
 import (
 	"context"
+	"errors"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -745,6 +746,49 @@ func TestCommand(t *testing.T) {
 
 				require.NotNil(t, result.Failure, texts)
 				require.WithinRange(t, result.Ended, started, time.Now(), texts)
+			}
+		})
+	})
+
+	t.Run("command line", func(t *testing.T) {
+		t.Run("gives the program and its arguments after the template values, with each text that a shell reads in another way in single quotes", func(t *testing.T) {
+			command := newCommand(t, 0, "sh", "-c", "sleep 30", "--name={{.Name}}", "{{.Env.WORKER_STATUS_FILE}}", "{{.Env.WORKER_QUIET}}", "two words", "it's")
+
+			line, err := command.CommandLine(worker())
+
+			require.NoError(t, err)
+			require.Equal(t, `sh -c 'sleep 30' --name=com.example.worker /Users/me/worker/status.json '' 'two words' 'it'\''s'`, line)
+		})
+
+		t.Run("is the text of the status timeout of a run of the same command for the same service", func(t *testing.T) {
+			command := newCommand(t, 100*time.Millisecond, "sh", "-c", "sleep 30", "{{.Name}}", "{{.PlistPath}}", "$HOME two")
+
+			line, err := command.CommandLine(worker())
+			result := command.Run(context.Background(), worker())
+
+			require.NoError(t, err)
+			require.Equal(t, &status.Failure{Kind: status.FailureKindTimeout, Text: line}, result.Failure)
+		})
+
+		t.Run("a template value that the service does not have gives the failure that a run gives, and no program runs", func(t *testing.T) {
+			for text, failure := range map[string]string{
+				"{{.Env.WORKER_STATUS_FILE}}": "the plist has no WORKER_STATUS_FILE",
+				"{{.StdoutPath}}":             "the plist has no StandardOutPath",
+				"{{.StderrPath}}":             "the plist has no StandardErrorPath",
+				"{{.PlistPath}}":              "the service has no plist",
+			} {
+				marker := filepath.Join(t.TempDir(), "ran")
+				command := newCommand(t, 0, "sh", "-c", `touch "$0"`, marker, text)
+				svc := service.Service{Name: "com.example.worker"}
+
+				line, err := command.CommandLine(svc)
+
+				require.NoFileExists(t, marker, text)
+				require.Empty(t, line, text)
+				commandLineFailure, ok := errors.AsType[*status.Failure](err)
+				require.True(t, ok, text)
+				require.Equal(t, &status.Failure{Kind: status.FailureKindTemplateValue, Text: failure}, commandLineFailure, text)
+				require.Equal(t, command.Run(context.Background(), svc).Failure, commandLineFailure, text)
 			}
 		})
 	})

@@ -140,21 +140,21 @@ command gives its command line for one service: the program and its arguments af
 text that a status timeout shows. A value that the service does not have gives the failure that a run gives.
 
 **Acceptance Criteria:**
-- [ ] `status.TemplateValues` of a service lists `{{.Name}}`, then one `{{.Env.X}}` for each variable of its
+- [x] `status.TemplateValues` of a service lists `{{.Name}}`, then one `{{.Env.X}}` for each variable of its
       environment in the order of the names, then `{{.StdoutPath}}`, `{{.StderrPath}}` and `{{.PlistPath}}`, each with
       the value of the service.
-- [ ] A variable with an empty value gives an empty value, not a failure. A service with no environment lists no
+- [x] A variable with an empty value gives an empty value, not a failure. A service with no environment lists no
       `{{.Env.X}}`.
-- [ ] A service with no `StdoutPath`, no `StderrPath` or no `PlistPath` gives for that value a failure of the kind
+- [x] A service with no `StdoutPath`, no `StderrPath` or no `PlistPath` gives for that value a failure of the kind
       template value, with the text `the plist has no StandardOutPath`, `the plist has no StandardErrorPath` or
       `the service has no plist`: the failure that a run of a text with that value gives.
-- [ ] `Command.CommandLine` of a service gives the command line with each text that a shell reads in another way in
+- [x] `Command.CommandLine` of a service gives the command line with each text that a shell reads in another way in
       single quotes. For a command and a service whose run lasts longer than the timeout, it is the text of the status
       timeout.
-- [ ] `Command.CommandLine` with a template value that the service does not have gives an error that is the failure
+- [x] `Command.CommandLine` with a template value that the service does not have gives an error that is the failure
       that `Command.Run` gives for it, of the kind template value, also for a missing variable (`the plist has no
       WORKER_STATUS_FILE`). It runs no program.
-- [ ] The tests of the list are in `TestTemplateValue`, and the tests of the command line are in `TestCommand`, in a
+- [x] The tests of the list are in `TestTemplateValue`, and the tests of the command line are in `TestCommand`, in a
       group of their own.
 
 **Affected Files/Modules:**
