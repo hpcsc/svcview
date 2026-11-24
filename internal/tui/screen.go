@@ -7,13 +7,13 @@ import (
 	"strconv"
 	"strings"
 	"time"
-	"unicode"
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
 	"github.com/hpcsc/svcview/internal/config"
 	"github.com/hpcsc/svcview/internal/service"
 	"github.com/hpcsc/svcview/internal/status"
+	"github.com/hpcsc/svcview/internal/terminal"
 )
 
 const (
@@ -271,7 +271,7 @@ func (s Screen) linesAbove(at int) []string {
 	if !s.startsGroup(at) {
 		return nil
 	}
-	groupLine := s.printable(s.rows()[at].group.Name)
+	groupLine := terminal.ReplaceControlCharacters(s.rows()[at].group.Name)
 	if at == 0 {
 		return []string{groupLine}
 	}
@@ -310,7 +310,7 @@ func (s Screen) panes() []string {
 	list.text = s.listText(list.textWidth())[s.listTop:]
 	detail := box{width: s.width - list.width, height: list.height, borderStyle: s.borderStyle(detailPane)}
 	if at := s.selectedAt(); at >= 0 {
-		detail.title, detail.text = s.printable(s.rows()[at].service.Name), s.selectedDetailText()[s.detailTop:]
+		detail.title, detail.text = terminal.ReplaceControlCharacters(s.rows()[at].service.Name), s.selectedDetailText()[s.detailTop:]
 	}
 	var lines []string
 	detailLines := detail.render()
@@ -356,7 +356,7 @@ func (s Screen) listText(width int) []string {
 	if s.lastRead.err != nil {
 		var text []string
 		for line := range strings.SplitSeq(s.lastRead.err.Error(), "\n") {
-			text = append(text, strings.Split(ansi.Wrap(s.printable(line), width, ""), "\n")...)
+			text = append(text, strings.Split(ansi.Wrap(terminal.ReplaceControlCharacters(line), width, ""), "\n")...)
 		}
 		return text
 	}
@@ -377,13 +377,13 @@ func (s Screen) listText(width int) []string {
 func (s Screen) nameWidths() map[int]int {
 	widths := map[int]int{}
 	for _, r := range s.rows() {
-		widths[r.groupIndex] = max(widths[r.groupIndex], ansi.StringWidth(s.printable(r.shortName())))
+		widths[r.groupIndex] = max(widths[r.groupIndex], ansi.StringWidth(terminal.ReplaceControlCharacters(r.shortName())))
 	}
 	return widths
 }
 
 func (s Screen) rowText(r row, nameWidth int) (name, statusText string, color ansi.Color) {
-	shortName := s.printable(r.shortName())
+	shortName := terminal.ReplaceControlCharacters(r.shortName())
 	statusText, color = s.statusText(r.service.Name)
 	if statusText == "" {
 		return " " + shortName, "", nil
@@ -395,9 +395,9 @@ func (s Screen) statusText(name string) (string, ansi.Color) {
 	result := s.statuses[name]
 	switch {
 	case result.Failure != nil:
-		return s.printable(s.failureRowText(result.Failure)), ansi.Red
+		return terminal.ReplaceControlCharacters(s.failureRowText(result.Failure)), ansi.Red
 	case result.Output != nil:
-		return s.printable(result.Output.Summary), s.levelColor(result.Output.Level)
+		return terminal.ReplaceControlCharacters(result.Output.Summary), s.levelColor(result.Output.Level)
 	}
 	return "", nil
 }
@@ -467,9 +467,9 @@ func (s Screen) detailText(svc service.Service) []string {
 	if result, ok := s.statuses[svc.Name]; ok {
 		text = append(text, "Status "+s.durationText(s.statusAge(result))+" ago")
 		if result.Failure != nil {
-			text = append(text, s.printable(result.Failure.Text))
+			text = append(text, terminal.ReplaceControlCharacters(result.Failure.Text))
 			for _, line := range result.Failure.Lines {
-				text = append(text, s.printable(line))
+				text = append(text, terminal.ReplaceControlCharacters(line))
 			}
 		}
 		if result.Output != nil {
@@ -483,13 +483,13 @@ func (s Screen) detailText(svc service.Service) []string {
 func (s Screen) fieldLines(fields []status.Field) []string {
 	nameWidth := 0
 	for _, field := range fields {
-		nameWidth = max(nameWidth, ansi.StringWidth(s.printable(field.Name)))
+		nameWidth = max(nameWidth, ansi.StringWidth(terminal.ReplaceControlCharacters(field.Name)))
 	}
 	valueColumn := nameWidth + 2
 	var lines []string
 	for _, field := range fields {
-		name := s.printable(field.Name)
-		lines = append(lines, name+strings.Repeat(" ", valueColumn-ansi.StringWidth(name))+s.printable(field.Value))
+		name := terminal.ReplaceControlCharacters(field.Name)
+		lines = append(lines, name+strings.Repeat(" ", valueColumn-ansi.StringWidth(name))+terminal.ReplaceControlCharacters(field.Value))
 		if field.Progress != nil {
 			lines = append(lines, strings.Repeat(" ", valueColumn)+s.bar(*field.Progress))
 		}
@@ -503,7 +503,7 @@ func (s Screen) eventLines(events []status.Event) []string {
 	}
 	lines := []string{"", "Events"}
 	for _, event := range events {
-		lines = append(lines, event.At.Local().Format("15:04")+" "+s.textStyle(s.levelColor(event.Level), nil).Styled("●")+" "+s.printable(event.Text))
+		lines = append(lines, event.At.Local().Format("15:04")+" "+s.textStyle(s.levelColor(event.Level), nil).Styled("●")+" "+terminal.ReplaceControlCharacters(event.Text))
 	}
 	return lines
 }
@@ -567,13 +567,4 @@ func (s Screen) stateLook(state service.State) (shape string, color ansi.BasicCo
 	default:
 		return "○", ansi.BrightBlack
 	}
-}
-
-func (s Screen) printable(text string) string {
-	return strings.Map(func(r rune) rune {
-		if unicode.IsControl(r) {
-			return '�'
-		}
-		return r
-	}, text)
 }

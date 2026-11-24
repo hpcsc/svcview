@@ -11,6 +11,7 @@ import (
 	"github.com/hpcsc/svcview/internal/cli/version"
 	"github.com/hpcsc/svcview/internal/config"
 	"github.com/hpcsc/svcview/internal/launchd"
+	"github.com/hpcsc/svcview/internal/terminal"
 	"github.com/hpcsc/svcview/internal/tui"
 	"github.com/urfave/cli/v3"
 )
@@ -19,7 +20,7 @@ const releaseRepository = "hpcsc/svcview"
 
 func Run(ctx context.Context) int {
 	if err := newCommand().Run(ctx, os.Args); err != nil {
-		color.Red(err.Error())
+		color.Red("%s", terminal.ReplaceControlCharacters(err.Error()))
 		return 1
 	}
 

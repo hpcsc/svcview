@@ -268,6 +268,18 @@ describe('the files of conf.d', () => {
     expect(printed).not.toContain('com.example.worker')
   })
 
+  it('a control character in the name of a file of conf.d shows as � in the error, so the name cannot send a sequence to the terminal', async () => {
+    const home = homeWithPlists(['com.example.worker'])
+    writeConfD(join(home, '.config', 'svcview'), '\x1b[2Jworker.yaml', 'groups: []\n', 0o666)
+
+    const session = await openCli(scratchDir(), [], { HOME: home })
+
+    await session.waitForText('EXIT:1')
+    const printed = (await session.text()).replaceAll('\n', '')
+    expect(printed).toContain('another user can write the config file')
+    expect(printed).toContain('conf.d/�[2Jworker.yaml')
+  })
+
   it('a file of conf.d that all users can write stops svcview with the exit code 1 and an error that names the file, before the screen opens', async () => {
     const home = homeWithPlists(['com.example.worker'])
     const path = writeConfD(
