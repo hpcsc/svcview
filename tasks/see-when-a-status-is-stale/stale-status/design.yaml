@@ -1,0 +1,46 @@
+design: planned
+types:
+  - name: Result
+    package: internal/status
+    change: changed
+    does: what one run of a status command gives
+    owns:
+      - a result is stale at a time when its output has an at, and the age of that at at that time is more than the given limit
+      - a result whose output has no at, a result with a failure, and a result with no output are never stale
+      - an at exactly as old as the limit, or after the given time, is not stale
+      - a limit of 0 means no check, so no result is stale
+    fields: [Ended, Stdout, Output, Failure]
+    methods: [Time, Stale]
+  - name: Command
+    package: internal/status
+    change: changed
+    does: the status command of a group, as the config file sets it
+    owns:
+      - StaleAfter is the stale_after of the status of the group, more than 0, or 0 when the config file does not set it
+    fields: [templates, Every, Timeout, StaleAfter]
+    methods: [Run, CommandLine]
+  - name: Screen
+    package: internal/tui
+    change: changed
+    does: the Bubble Tea model of the screen of svcview
+    owns:
+      - the row of a service whose last result is stale for the StaleAfter of its group shows the summary dim in the color of its level, then two spaces and the stale mark in the default color
+      - the stale mark is stale and the age of at in its largest whole unit, rounded down, such as stale 3m
+      - the stale mark is drawn at each draw, so it shows with no new run once at gets older than stale_after, and goes away at the end of the first run with a newer at
+      - when the summary, the two spaces and the stale mark do not fit in the list pane, the row cuts the summary with … and keeps the whole stale mark
+      - the detail pane shows the age of at on the line Status, with no stale mark
+    fields: []
+    methods: [Init, Update, View]
+functions:
+  - status.Result.Stale(limit, now) bool
+words:
+  - concept: a status whose output has an at that is older than the stale_after of its group, which svcview no longer trusts
+    word: stale
+    not: [old, expired, outdated, out of date, timed out]
+  - concept: the age of at after which a status of a group is stale, the setting status.stale_after
+    word: stale after
+    not: [ttl, max age, expiry, threshold, freshness]
+  - concept: the text stale and the age of at that the row of a stale status shows after the summary
+    word: stale mark
+    not: [badge, tag, flag, warning, label, marker]
+dependencies: []

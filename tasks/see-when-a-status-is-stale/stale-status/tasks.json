@@ -1,0 +1,117 @@
+{
+  "story": "The row of a service marks a status whose at is older than the stale_after of its group",
+  "story_id": "launchd-tui/US-007",
+  "tasks_file": "tasks/see-when-a-status-is-stale/stale-status/tasks.md",
+  "tasks": [
+    {
+      "n": 1,
+      "done": false,
+      "title": "Judge a result stale when its at is older than an age",
+      "language": "Go",
+      "testable": true,
+      "certainty": "high",
+      "blast_radius": "low",
+      "patterns_to_follow": [
+        "internal/status/result.go:12-17",
+        "internal/status/result_test.go:13-35",
+        "internal/status/output.go:58-64"
+      ],
+      "depends_on": [],
+      "affected_files": [
+        "internal/status/result.go",
+        "internal/status/result_test.go"
+      ]
+    },
+    {
+      "n": 2,
+      "done": false,
+      "title": "Read status.stale_after from the status of a group",
+      "language": "Go",
+      "testable": true,
+      "certainty": "high",
+      "blast_radius": "low",
+      "patterns_to_follow": [
+        "internal/config/group.go:83-115",
+        "internal/config/config.go:219-225",
+        "internal/config/config_test.go:573-588",
+        "internal/config/config_test.go:645-666",
+        "internal/config/config_test.go:680-706",
+        "internal/status/command.go:31-35"
+      ],
+      "depends_on": [],
+      "affected_files": [
+        "internal/status/command.go",
+        "internal/config/group.go",
+        "internal/config/config_test.go"
+      ]
+    },
+    {
+      "n": 3,
+      "done": false,
+      "title": "Show a stale status dim in its row, with stale and the age of at after it",
+      "language": "Go",
+      "testable": true,
+      "certainty": "medium",
+      "blast_radius": "low",
+      "patterns_to_follow": [
+        "internal/tui/screen.go:440-525",
+        "internal/tui/screen.go:596-615",
+        "internal/tui/screen_test.go:803-826",
+        "internal/tui/screen_test.go:930-968",
+        "internal/tui/screen_test.go:1159-1238",
+        "e2e/tests/status.test.ts:7-21",
+        "e2e/tests/status.test.ts:88-101",
+        "task:1",
+        "task:2"
+      ],
+      "depends_on": [1, 2],
+      "affected_files": [
+        "internal/tui/screen.go",
+        "internal/tui/screen_test.go",
+        "internal/tui/testdata/status-stale.golden",
+        "e2e/tests/status.test.ts"
+      ]
+    },
+    {
+      "n": 4,
+      "done": false,
+      "title": "Keep the stale mark in view when the summary is too long for the row",
+      "language": "Go",
+      "testable": true,
+      "certainty": "medium",
+      "blast_radius": "low",
+      "patterns_to_follow": [
+        "internal/tui/box.go:22-33",
+        "internal/tui/screen.go:470-477",
+        "internal/tui/screen.go:518-525",
+        "internal/tui/screen_test.go:1047-1060",
+        "task:3"
+      ],
+      "depends_on": [3],
+      "affected_files": [
+        "internal/tui/screen.go",
+        "internal/tui/screen_test.go"
+      ]
+    },
+    {
+      "n": 5,
+      "done": false,
+      "title": "Describe status.stale_after and the stale mark in docs/cli.md",
+      "language": "Markdown",
+      "testable": false,
+      "certainty": "high",
+      "blast_radius": "low",
+      "patterns_to_follow": [
+        "docs/cli.md:81-101",
+        "docs/cli.md:328-362",
+        "docs/cli.md:423-456",
+        "docs/cli.md:680-686"
+      ],
+      "depends_on": [4],
+      "affected_files": [
+        "docs/cli.md"
+      ]
+    }
+  ],
+  "design_file": "tasks/see-when-a-status-is-stale/stale-status/design.yaml"
+}
