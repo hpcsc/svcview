@@ -139,8 +139,12 @@ svcview runs `ps -o pid=,etime= -p <PID>,<PID>` at each refresh to get the uptim
 Docker image has no `ps`, and the real `ps` on a Mac knows nothing of the PIDs of the fake `launchctl`. So
 `e2e/fakes` also holds a fake `ps`:
 
-- For `-o pid=,etime= -p <PID>,<PID>`, the fake prints one line for each PID that it gets, with the elapsed time
-  `03:12:07`. The detail pane shows it as `up 3h12m`.
+- For `-o pid=,etime= -p <PID>,<PID>`, the fake prints one line for each PID that it gets, with the elapsed time in
+  the file `ps-elapsed.txt` in the home folder. When the file is not there, the elapsed time is `03:12:07`, which the
+  detail pane shows as `up 3h12m`.
+- `setPsElapsed(home, elapsed)` writes `ps-elapsed.txt`, for example `00:05` for a service that a test restarts, which
+  the detail pane shows as `up 5s`. It writes the file to a new name and renames it over the old file, as
+  `setLaunchctlList` does.
 - For any other arguments, the fake writes an error to stderr and exits with 64.
 - The fake must stay executable in git (mode `100755`), as the fake `launchctl` must.
 

@@ -47,7 +47,7 @@
     },
     {
       "n": 3,
-      "done": false,
+      "done": true,
       "title": "Restart the selected service with r after a confirmation",
       "language": "Go",
       "testable": true,

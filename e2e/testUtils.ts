@@ -69,6 +69,12 @@ export function setLaunchctlOutput(home: string, output: string): void {
   renameSync(`${path}.new`, path)
 }
 
+export function setPsElapsed(home: string, elapsed: string): void {
+  const path = join(home, 'ps-elapsed.txt')
+  writeFileSync(`${path}.new`, elapsed)
+  renameSync(`${path}.new`, path)
+}
+
 export function failLaunchctl(home: string, text: string): void {
   writeFileSync(join(home, 'launchctl-failure.txt'), text)
 }

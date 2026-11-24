@@ -48,6 +48,11 @@ type actionEnded struct {
 type confirmation struct {
 	question string
 	service  service.Service
+	action   func(service.Service) error
+}
+
+func newConfirmation(verb string, svc service.Service, action func(service.Service) error) *confirmation {
+	return &confirmation{question: verb + " " + terminal.ReplaceControlCharacters(svc.Name) + "? (y/N)", service: svc, action: action}
 }
 
 type row struct {
@@ -84,6 +89,7 @@ type Screen struct {
 	runStatus      func(status.Command, service.Service) status.Result
 	start          func(service.Service) error
 	stop           func(service.Service) error
+	restart        func(service.Service) error
 	settings       config.Settings
 	groupOrder     []config.Group
 	lastRead       servicesRead
@@ -102,13 +108,14 @@ type Screen struct {
 	height         int
 }
 
-func NewScreen(domain string, read func() ([]service.Service, error), runStatus func(status.Command, service.Service) status.Result, start, stop func(service.Service) error, settings config.Settings) Screen {
+func NewScreen(domain string, read func() ([]service.Service, error), runStatus func(status.Command, service.Service) status.Result, start, stop, restart func(service.Service) error, settings config.Settings) Screen {
 	return Screen{
 		domain:         domain,
 		read:           read,
 		runStatus:      runStatus,
 		start:          start,
 		stop:           stop,
+		restart:        restart,
 		settings:       settings,
 		groupOrder:     slices.Concat(settings.Groups, []config.Group{config.Other}),
 		statuses:       map[string]status.Result{},
@@ -184,12 +191,16 @@ func (s Screen) press(key tea.KeyPressMsg) (Screen, tea.Cmd) {
 			s.focus = listPane
 		}
 	case "s":
-		if svc, ok := s.selectedService(); ok && !s.showHelp && svc.State != service.Running {
+		if svc, ok := s.serviceToActOn(); ok && svc.State != service.Running {
 			return s, s.actionOn(svc, s.start)
 		}
 	case "x":
-		if svc, ok := s.selectedService(); ok && !s.showHelp && svc.State != service.NotLoaded && !s.actionNotEnded[svc.Name] {
-			s.confirmation = &confirmation{question: "Stop " + terminal.ReplaceControlCharacters(svc.Name) + "? (y/N)", service: svc}
+		if svc, ok := s.serviceToActOn(); ok && svc.State != service.NotLoaded {
+			s.confirmation = newConfirmation("Stop", svc, s.stop)
+		}
+	case "r":
+		if svc, ok := s.serviceToActOn(); ok && svc.State != service.NotLoaded {
+			s.confirmation = newConfirmation("Restart", svc, s.restart)
 		}
 	case "up", "k", "down", "j":
 		step := 1
@@ -214,7 +225,7 @@ func (s Screen) answer(key tea.KeyPressMsg) (Screen, tea.Cmd) {
 	case "ctrl+c":
 		return s, tea.Quit
 	case "y":
-		return s, s.actionOn(answered.service, s.stop)
+		return s, s.actionOn(answered.service, answered.action)
 	}
 	return s, nil
 }
@@ -335,6 +346,11 @@ func (s Screen) selectedService() (service.Service, bool) {
 		return service.Service{}, false
 	}
 	return s.rows()[at].service, true
+}
+
+func (s Screen) serviceToActOn() (service.Service, bool) {
+	svc, ok := s.selectedService()
+	return svc, ok && !s.showHelp && !s.actionNotEnded[svc.Name]
 }
 
 func (s Screen) selectedAt() int {

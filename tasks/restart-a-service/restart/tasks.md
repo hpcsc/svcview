@@ -213,26 +213,26 @@ of the restart shows on the message line, as an error of a start or a stop does.
 pane shows the PID and the uptime that the next refresh reads.
 
 **Acceptance Criteria:**
-- [ ] `r` on a `loaded` and on a `running` service shows `Restart <name>? (y/N)` on the message line, with the full
+- [x] `r` on a `loaded` and on a `running` service shows `Restart <name>? (y/N)` on the message line, with the full
       name of the service, and calls nothing yet.
-- [ ] `y` hides the confirmation and calls the restart one time with the service that the confirmation names, also
+- [x] `y` hides the confirmation and calls the restart one time with the service that the confirmation names, also
       when a refresh changed the selected row, or removed the service from the list, while the confirmation showed.
-- [ ] `y` after `r` calls the restart and not the stop, and `y` after `x` calls the stop and not the restart.
-- [ ] Each key other than `y` and `ctrl+c` answers no to the confirmation of `r`, for example `n`, `esc`, `q`, `↓`,
+- [x] `y` after `r` calls the restart and not the stop, and `y` after `x` calls the stop and not the restart.
+- [x] Each key other than `y` and `ctrl+c` answers no to the confirmation of `r`, for example `n`, `esc`, `q`, `↓`,
       `r`, `x` and `s`: it hides the confirmation, calls nothing, and does nothing else. Each key is pressed from its
       own start state. `r` answers no to the confirmation of `x`. `ctrl+c` quits while the confirmation of `r` shows.
-- [ ] `r` shows no confirmation and calls nothing while the help shows, with no rows, while the list shows a read
+- [x] `r` shows no confirmation and calls nothing while the help shows, with no rows, while the list shows a read
       error after a read that selected a service, and while the start, the stop or the restart of the service has
       not ended. `s` and `x` do nothing on a service whose restart has not ended.
-- [ ] The confirmation of `r` shows each control character of the name as `�`.
-- [ ] An error of the restart shows on the message line, as an error of a start or a stop does.
-- [ ] After the restart of a `running` service ends, the detail pane shows the PID and the uptime that the next
+- [x] The confirmation of `r` shows each control character of the name as `�`.
+- [x] An error of the restart shows on the message line, as an error of a start or a stop does.
+- [x] After the restart of a `running` service ends, the detail pane shows the PID and the uptime that the next
       refresh reads, no later than one `refresh` after the restart ends. The end of the restart starts no read.
-- [ ] `tui.NewScreen` takes the restart, and `internal/cli/root.go` gives it the restart of the domain with the
+- [x] `tui.NewScreen` takes the restart, and `internal/cli/root.go` gives it the restart of the domain with the
       context of svcview.
-- [ ] The e2e fake `ps` prints, for each PID, the elapsed time that a helper in `e2e/testUtils.ts` writes in the home
+- [x] The e2e fake `ps` prints, for each PID, the elapsed time that a helper in `e2e/testUtils.ts` writes in the home
       folder, and `03:12:07` when no test wrote one. "The fake ps" in `docs/e2e-tests.md` names the helper.
-- [ ] e2e: `r` and `y` on a `running` and on a `loaded` service record `kickstart -k gui/<uid>/<name>`; `r` and `n`
+- [x] e2e: `r` and `y` on a `running` and on a `loaded` service record `kickstart -k gui/<uid>/<name>`; `r` and `n`
       record nothing. After `r`, `y`, a new output of `launchctl list` with a new PID, and a new elapsed time of the
       fake `ps`, the detail pane shows the new PID and the new uptime at the next refresh, with no key press.
 

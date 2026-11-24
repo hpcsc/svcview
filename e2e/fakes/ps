@@ -3,7 +3,11 @@ if [ $# -ne 4 ] || [ "$1 $2 $3" != '-o pid=,etime= -p' ]; then
   echo "the fake ps answers only -o pid=,etime= -p <PID>,<PID>, not: $*" >&2
   exit 64
 fi
+elapsed=03:12:07
+if [ -f "$HOME/ps-elapsed.txt" ]; then
+  elapsed=$(cat "$HOME/ps-elapsed.txt")
+fi
 IFS=,
 for pid in $4; do
-  printf '%5s    03:12:07\n' "$pid"
+  printf '%5s    %s\n' "$pid" "$elapsed"
 done
