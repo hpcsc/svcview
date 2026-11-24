@@ -198,12 +198,12 @@ service of the user, and a stop ends the process of the service in the middle of
 before. This task changes only the text of the help; Tasks 3 and 5 give the keys their actions.
 
 **Acceptance Criteria:**
-- [ ] The help line shows `s start · x stop · ? help` under the panes and under the help, cut at the width of the
+- [x] The help line shows `s start · x stop · ? help` under the panes and under the help, cut at the width of the
       terminal as before.
-- [ ] `?` shows `s` and `x` with their actions, and each other key with its action as before. The golden file of
+- [x] `?` shows `s` and `x` with their actions, and each other key with its action as before. The golden file of
       the help shows all of its lines, in a terminal that is high enough for them.
-- [ ] Each golden file in `internal/tui/testdata` shows the new help line, and no other line of them changes.
-- [ ] The e2e test of `?` still finds `? help` on the screen.
+- [x] Each golden file in `internal/tui/testdata` shows the new help line, and no other line of them changes.
+- [x] The e2e test of `?` still finds `? help` on the screen.
 
 **Affected Files/Modules:**
 - `internal/tui/screen.go` — the help line and the help

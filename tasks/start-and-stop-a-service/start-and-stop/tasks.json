@@ -27,7 +27,7 @@
     },
     {
       "n": 2,
-      "done": false,
+      "done": true,
       "title": "Show s start and x stop in the help line and in the help",
       "language": "Go",
       "testable": true,

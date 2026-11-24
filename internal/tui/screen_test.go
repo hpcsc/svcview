@@ -2287,7 +2287,7 @@ func TestScreen(t *testing.T) {
 		})
 
 		t.Run("? shows each key of the screen with its action, in place of the panes", func(t *testing.T) {
-			screen := open(t, "gui/501", servicesNamed("com.example.worker"), 80, 12)
+			screen := open(t, "gui/501", servicesNamed("com.example.worker"), 80, 13)
 
 			screen = pressKeys(screen, question)
 
@@ -2335,13 +2335,20 @@ func TestScreen(t *testing.T) {
 			require.NoError(t, runWithInput(t, tui.NewScreen("gui/501", servicesNamed("com.example.worker"), nil, refreshEvery2s), "?q"))
 		})
 
-		t.Run("the help line at the bottom of the screen shows ? help, under the panes and under the help", func(t *testing.T) {
+		t.Run("the help line at the bottom of the screen shows s start, x stop and ? help, under the panes and under the help", func(t *testing.T) {
 			screen := open(t, "gui/501", servicesNamed("com.example.worker"), 80, 12)
 			panes := strings.Split(ansi.Strip(screen.View().Content), "\n")
 			help := strings.Split(ansi.Strip(pressKeys(screen, question).View().Content), "\n")
 
-			require.Equal(t, []string{"╰" + strings.Repeat("─", 30) + "╯╰" + strings.Repeat("─", 46) + "╯", " ? help"}, panes[10:])
-			require.Equal(t, []string{"╰" + strings.Repeat("─", 78) + "╯", " ? help"}, help[10:])
+			require.Equal(t, []string{"╰" + strings.Repeat("─", 30) + "╯╰" + strings.Repeat("─", 46) + "╯", " s start · x stop · ? help"}, panes[10:])
+			require.Equal(t, []string{"╰" + strings.Repeat("─", 78) + "╯", " s start · x stop · ? help"}, help[10:])
+		})
+
+		t.Run("the help line is cut at the width of the terminal", func(t *testing.T) {
+			screen := open(t, "gui/501", servicesNamed("com.example.worker"), 12, 12)
+
+			lines := strings.Split(ansi.Strip(screen.View().Content), "\n")
+			require.Equal(t, " s start · x", lines[len(lines)-1])
 		})
 
 		t.Run("another key does not end the screen", func(t *testing.T) {
