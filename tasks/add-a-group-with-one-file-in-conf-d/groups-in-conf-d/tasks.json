@@ -103,7 +103,7 @@
     },
     {
       "n": 5,
-      "done": false,
+      "done": true,
       "title": "Describe the files of `conf.d` in docs/cli.md",
       "language": "Markdown",
       "testable": false,

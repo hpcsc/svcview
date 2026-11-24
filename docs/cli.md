@@ -70,7 +70,7 @@ This screen has the group `Workers`, with the match `^com\.example\.worker\.` an
 | Part | What it shows |
 | --- | --- |
 | The header | The domain `gui/<uid>` of the user, and the number of services in each state. |
-| The list | One row for each service that has a plist in `~/Library/LaunchAgents`, in [the groups of the config file](#groups), and then in the group `Other`. Each group starts with a line with its name, and an empty line separates two groups. In each group, the services are sorted by name. Each row starts with the glyph of the state of the service, and a row in a group shows the short name of the service. svcview cuts a name that is too long for the list with `…`. When the list has more lines than the pane, it scrolls to keep the selected row in view. When the selected row is the first row of its group, and the pane has room for more than one line, the line of the group shows too. In a group with a status command, a row shows [the summary of the status](#in-the-list-and-the-detail-pane) after the short name. The list takes 40 percent of the width. At start, the list has [the focus](#the-focus-and-the-scroll). |
+| The list | One row for each service that has a plist in `~/Library/LaunchAgents`, in [the groups of the config files](#groups), and then in the group `Other`. Each group starts with a line with its name, and an empty line separates two groups. In each group, the services are sorted by name. Each row starts with the glyph of the state of the service, and a row in a group shows the short name of the service. svcview cuts a name that is too long for the list with `…`. When the list has more lines than the pane, it scrolls to keep the selected row in view. When the selected row is the first row of its group, and the pane has room for more than one line, the line of the group shows too. In a group with a status command, a row shows [the summary of the status](#in-the-list-and-the-detail-pane) after the short name. The list takes 40 percent of the width. At start, the list has [the focus](#the-focus-and-the-scroll). |
 | The detail pane | The selected service. Its title is the full name of the service. The pane shows the state, the PID, the uptime, and the last exit. In a group with a status command, it also shows the age of the status, and the [fields and the events](#in-the-list-and-the-detail-pane) of the last output or the [failure](#failures) of the last run. When the detail pane has [the focus](#the-focus-and-the-scroll), `↑` and `↓` scroll it. |
 | The help line | `? help` |
 
@@ -147,16 +147,29 @@ and no rows. When `ps` fails, no service shows an uptime.
 
 ## The config file
 
-Before svcview opens the screen, it reads `config.yaml` in the config folder:
+Before svcview opens the screen, it reads the config files in the config folder:
 
 | `XDG_CONFIG_HOME` | The config folder |
 | --- | --- |
 | An absolute path | `$XDG_CONFIG_HOME/svcview/` |
 | Not set, empty, or a relative path | `~/.config/svcview/` |
 
-svcview reads the file only at start, so a change to the file takes effect at the next start. With no
-`config.yaml`, each setting has its default. `svcview version`, `svcview update`, and the help do not read the
-file.
+svcview reads `config.yaml` first. Then it reads each file in `conf.d/` of the config folder whose name ends in
+`.yaml`, in the byte order of the names. This order is the file order. Byte order compares the names character by
+character, so `10-jobs.yaml` comes before `2-workers.yaml`, and `Workers.yaml` comes before `jobs.yaml`.
+
+svcview skips each other entry of `conf.d`:
+
+- A name that starts with a dot, for example `.worker.yaml` or the `._worker.yaml` that macOS writes on some
+  volumes.
+- A name that does not end in `.yaml` in lower case, for example `worker.yml`, `worker.YAML`, or `worker.yaml.off`.
+
+A symbolic link counts as the file that it points to, and a symbolic link to no file counts as no file. svcview reads
+no folder inside `conf.d`. With no `conf.d`, svcview reads only `config.yaml`. With no `config.yaml`, each setting
+has its default, and svcview reads the files of `conf.d` all the same.
+
+svcview reads the config files only at start, so a change to a config file, a new file, or a deleted file takes
+effect at the next start. `svcview version`, `svcview update`, and the help do not read the files.
 
 ```yaml
 # ~/.config/svcview/config.yaml
@@ -172,8 +185,58 @@ groups:
 
 | Setting | What it does | Default |
 | --- | --- | --- |
-| `refresh` | The time between two reads of the services. One `refresh` after each read ends, svcview reads the plists and runs `launchctl list` and `ps` again. The value is a Go duration that is more than 0, for example `500ms`, `5s`, or `1m30s`. | `2s` |
+| `refresh` | The time between two reads of the services. One `refresh` after each read ends, svcview reads the plists and runs `launchctl list` and `ps` again. The value is a Go duration that is more than 0, for example `500ms`, `5s`, or `1m30s`. Only `config.yaml` can set `refresh`. | `2s` |
 | `groups` | The groups of the list, in the order of the list. Each group has a `name` and a `match`, and can have a `status`. | No groups |
+
+### A file in conf.d
+
+The installer of a program can add a group to svcview with one file in `conf.d`, and the user does not edit
+`config.yaml`. A file in `conf.d` can set only `groups`.
+
+svcview joins the groups of all config files in file order: first the groups of `config.yaml`, and then the groups
+of each file in `conf.d`. In each file, the groups keep the order of the file. Thus a service that the groups of two
+files match is in the group of the earlier file. The name of a group must be unique across all config files.
+
+This is a file that the installer of a worker writes:
+
+```yaml
+# ~/.config/svcview/conf.d/worker.yaml
+groups:
+  - name: Workers
+    match: ^com\.example\.worker\.
+    status:
+      command: [cat, '{{.Env.WORKER_STATUS_FILE}}']
+```
+
+The installer does these steps:
+
+1. It finds the config folder as svcview does: `$XDG_CONFIG_HOME/svcview` when `XDG_CONFIG_HOME` is an absolute
+   path, and `~/.config/svcview` in each other case.
+2. It writes the file as the user who runs svcview, not as root. The file must have no write permission for its
+   group and for other users, for example the mode `0644`. svcview refuses a file that
+   [another user can write](#a-config-file-that-another-user-can-write).
+3. It writes the file under a name that svcview skips, for example `.worker.yaml`, and then renames the file to
+   `worker.yaml`. A rename in one folder replaces the file in one step, so svcview never reads half a file.
+
+```shell
+case "$XDG_CONFIG_HOME" in
+  /*) folder="$XDG_CONFIG_HOME/svcview/conf.d" ;;
+  *) folder="$HOME/.config/svcview/conf.d" ;;
+esac
+mkdir -p "$folder"
+cat > "$folder/.worker.yaml" <<'EOF'
+groups:
+  - name: Workers
+    match: ^com\.example\.worker\.
+    status:
+      command: [cat, '{{.Env.WORKER_STATUS_FILE}}']
+EOF
+chmod 0644 "$folder/.worker.yaml"
+mv -f "$folder/.worker.yaml" "$folder/worker.yaml"
+```
+
+The uninstaller deletes the file. At the next start, svcview shows no group of that file, and the services of the
+group are in `Other`.
 
 ### Groups
 
@@ -187,12 +250,12 @@ Each entry in `groups` is a group of the list, with these settings:
 
 These rules put each service in one group:
 
-1. svcview tries the groups in the order of the config file. A service is in the first group whose `match` matches
-   its name, also when the `match` of a later group matches the name too.
+1. svcview tries the groups in file order, and the groups of one file in the order of that file. A service is in the
+   first group whose `match` matches its name, also when the `match` of a later group matches the name too.
 2. A service that no group matches is in the group `Other`. The list shows `Other` after the groups of the config
-   file.
+   files.
 3. In each group, the services are sorted by name.
-4. A group with no service shows no line. When each service is in a group of the config file, the list shows no
+4. A group with no service shows no line. When each service is in a group of a config file, the list shows no
    line `Other`.
 
 With no `groups`, each service is in the group `Other`.
@@ -427,14 +490,20 @@ reads half a file.
 
 ### Errors
 
-These errors stop svcview before the screen opens. svcview prints the error, which names the file, and exits with 1.
+These errors in a config file stop svcview before the screen opens. svcview prints the error, which names the file,
+and exits with 1.
 
 - A setting that svcview does not know, or a setting that the file sets two times.
 - A `refresh` that is not a duration, or that is not more than 0.
+- A `refresh` in a file in `conf.d`, because only `config.yaml` can set `refresh`.
 - A file that is not valid YAML, or whose top level is not a set of settings such as `refresh: 5s`.
+- A config file that is not a regular file, for example a folder, a named pipe, or a device. For a symbolic link,
+  svcview checks the file that the link points to.
 - A file that svcview cannot read.
 - A file that another user can write.
 - A file that has an ACL with one or more entries, or whose ACL svcview cannot read.
+
+A `conf.d` that is not a folder, or that svcview cannot list, stops svcview too. The error names `conf.d`.
 
 These errors in `groups` stop svcview too. Each error names the file, and an error in one group also names the
 group. A group with no name has the name of its place in `groups`, for example `group 2`.
@@ -443,7 +512,8 @@ group. A group with no name has the name of its place in `groups`, for example `
 - A group with no `name`, or with no `match`.
 - A `match` that is not a Go regular expression.
 - A setting in a group that svcview does not know, or a setting that a group sets two times.
-- Two groups with the same name.
+- Two groups with the same name, in one file or in two files. When the two groups are in two files, the error names
+  the file of the second group, and also the file of the first group.
 - A group with the name `Other`, because `Other` is the group of the services that no group matches.
 
 These errors in `status` stop svcview too. Each error names the file and the group.
@@ -457,22 +527,24 @@ These errors in `status` stop svcview too. Each error names the file and the gro
 
 ### A config file that another user can write
 
-svcview runs as your user and does what its config file says. A user who can write the file can then control what
-svcview does with your rights. So svcview refuses `config.yaml` when its group or other users can write it, when
-a user other than you owns it, or when it has an ACL with one or more entries.
+svcview runs as your user and does what its config files say. A user who can write a config file can then control
+what svcview does with your rights. So svcview refuses a config file, `config.yaml` or a file in `conf.d`, when its
+group or other users can write it, when a user other than you owns it, or when it has an ACL with one or more
+entries. svcview does the same checks on each config file.
 
-svcview checks the file that it reads, so for a symbolic link it checks the file that the link points to. It does
-not check the folders that hold the file.
+svcview checks each file that it reads, so for a symbolic link it checks the file that the link points to. It does
+not check `conf.d`, the config folder, or the other folders that hold the files. A user who can write `conf.d` can
+delete or rename your files in it, but svcview refuses a file that such a user writes.
 
 On macOS, an ACL can let another user write a file whose mode is `0644`. Each entry of an ACL names a user or a
-group by a GUID, and svcview cannot tell an entry for you from an entry for another user. So svcview refuses
-`config.yaml` when its ACL has one or more entries, whatever the entries allow or deny. It also refuses the file when
+group by a GUID, and svcview cannot tell an entry for you from an entry for another user. So svcview refuses a
+config file when its ACL has one or more entries, whatever the entries allow or deny. It also refuses the file when
 it cannot read the ACL. An ACL with no entries gives no rights to anyone, so svcview reads that file.
 
 `/bin/ls -le` shows the ACL of a file, and `/bin/chmod -N` removes it:
 
 ```shell
-/bin/ls -le ~/.config/svcview/config.yaml
+/bin/ls -le ~/.config/svcview/config.yaml ~/.config/svcview/conf.d
 /bin/chmod -N ~/.config/svcview/config.yaml
 ```
 

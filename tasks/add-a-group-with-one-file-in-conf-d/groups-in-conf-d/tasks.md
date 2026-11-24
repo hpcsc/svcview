@@ -367,25 +367,25 @@ groups, what a file of `conf.d` can set, the check of each file, and the errors.
 `conf.d` that an installer writes, and what the installer and the uninstaller do.
 
 **Acceptance Criteria:**
-- [ ] The section "The config file" says that svcview reads `config.yaml` and then each `*.yaml` file in `conf.d/`
+- [x] The section "The config file" says that svcview reads `config.yaml` and then each `*.yaml` file in `conf.d/`
       of the config folder, in the byte order of the names, with an example of that order; that it skips a name that
       starts with a dot or does not end in `.yaml`; that a file of `conf.d` works with no `config.yaml`; and that a
       change to any config file takes effect at the next start.
-- [ ] It says that svcview joins the groups of all files in file order, that a service that the groups of two files
+- [x] It says that svcview joins the groups of all files in file order, that a service that the groups of two files
       match is in the group of the earlier file, that the name of a group must be unique across all files, and that
       only `config.yaml` can set `refresh`.
-- [ ] It gives an example of `conf.d/worker.yaml` that the installer of a program writes, with a group and a status
+- [x] It gives an example of `conf.d/worker.yaml` that the installer of a program writes, with a group and a status
       command, and with only settings that svcview knows.
-- [ ] It says what the installer does: it writes the file into `conf.d` of the config folder of the user, as svcview
+- [x] It says what the installer does: it writes the file into `conf.d` of the config folder of the user, as svcview
       finds that folder from `XDG_CONFIG_HOME`; it writes the file as the user, not as root, with no write permission
       for the group and other users; and it writes the file under a name that svcview skips and then renames it. It
       says that the uninstaller deletes the file, and that the services of the group are then in `Other` at the next
       start.
-- [ ] The list of errors names a `refresh` in a file of `conf.d`, two groups with the same name in two files, a
+- [x] The list of errors names a `refresh` in a file of `conf.d`, two groups with the same name in two files, a
       config file that is not a regular file, and a `conf.d` that is not a folder or that svcview cannot list.
-- [ ] The section "A config file that another user can write" says that svcview checks each file of `conf.d` as it
+- [x] The section "A config file that another user can write" says that svcview checks each file of `conf.d` as it
       checks `config.yaml`, and that it does not check `conf.d` or the config folder.
-- [ ] No text of `docs/cli.md` says that `config.yaml` is the only file that svcview reads.
+- [x] No text of `docs/cli.md` says that `config.yaml` is the only file that svcview reads.
 
 **Affected Files/Modules:**
 - `docs/cli.md` — `conf.d` in the config file, the groups, the errors, and the refusal of a file that another user
