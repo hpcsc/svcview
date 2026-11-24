@@ -29,11 +29,10 @@
 
 ## Only e2e tests reach the terminal branch of the root command
 - Type: constraint
-- Recorded: 2026-11-23
-- Observed: task 3 — see-the-launchd-services-in-a-list-services-in-launchagents
-- Learning: The Go tests have no terminal, so the branch of internal/cli that opens the screen (showScreenOrHelp, showScreen) and the code that only it calls show as LIVED, NOT COVERED or CALLER GAPS in clerk mutants. The e2e tests in e2e/tests/screen.test.ts kill them; accept each row with the e2e test that fails on it, after you check one of them by hand in Docker.
+- Recorded: 2026-11-24
+- Observed: task 3,5 — start-and-stop-a-service-start-and-stop
+- Learning: The Go tests have no terminal, so the branch of internal/cli that opens the screen (showScreenOrHelp, showScreen) and the code that only it calls show as LIVED, NOT COVERED or CALLER GAPS in clerk mutants. The e2e tests kill them; accept each row with the e2e test that fails on it, after you check it by hand in Docker: copy the file to the scratchpad, apply the mutant, run docker build -q -f e2e/Dockerfile -t svcview-e2e-mutant . and docker container run --rm svcview-e2e-mutant npx vitest run tests/<file>.test.ts, then put the file back with /bin/cp -f and remove the image.
 - Apply when: A task changes the root action, showScreen, or the terminal check in internal/cli, or wires a new launchd or tui type into the screen.
-
 ## Run clerk mutants and clerk audit run under mise exec
 - Type: constraint
 - Recorded: 2026-11-23
@@ -127,13 +126,6 @@
 - Observed: task 2,3 — put-the-services-in-groups-with-a-config-file-groups
 - Learning: Screen sorts the rows of a read with row.compare: the index of the group in groupOrder, then the name. selectedAfterRead finds the place of a gone name with the same compare, and lineOf counts the lines that linesAbove gives above each row, as listText draws them, so the scroll and the list cannot disagree.
 - Apply when: A task in internal/tui adds a line to the list, a filter of the list, a fold of a group, or changes the order of the rows or what a row shows.
-
-## Search the learnings for the run procedure too
-- Type: pattern
-- Recorded: 2026-11-23
-- Observed: put-the-services-in-groups-with-a-config-file-groups
-- Learning: The entries about the procedure of a run (clerk mutants under mise exec, clerk land --integrate, clerk fixup) name no package of a story, so clerk learn index --match with only the nouns of the story misses them, and the groups run repeated both problems. Add the terms clerk mise mutants land integrate fixup to the --match of the ground step.
-- Apply when: The ground step of any run reads clerk learn index --match.
 
 ## Record the design note of an export for tests in the task that adds it
 - Type: constraint
@@ -263,11 +255,10 @@
 
 ## Match the learnings index with the clerk commands as well as the story
 - Type: constraint
-- Recorded: 2026-11-23
-- Observed: see-the-fields-and-the-events-of-a-status-fields-and-events
-- Learning: clerk learn index --match with only the packages and nouns of the story does not list the entries about clerk itself. fields-and-events missed 'Run clerk mutants and clerk audit run under mise exec' and 'Pass --integrate to clerk land when the request asks to land on main', and repeated both: its audit lost the mutants lens, and bare clerk land archived the breakdown without the integration. Add clerk, mutants, audit, land, finish and fixup to the terms of the first read.
+- Recorded: 2026-11-24
+- Observed: start-and-stop-a-service-start-and-stop
+- Learning: clerk learn index --match with only the packages and nouns of the story does not list the entries about clerk itself, and three runs (groups, fields-and-events, start-and-stop) missed 'Run clerk mutants and clerk audit run under mise exec', 'Pass --integrate to clerk land when the request asks to land on main' and the clerk fixup entries, and repeated their problems. Read clerk learn index --text with no --match at the ground step: it is one line for each entry, and no term can be left out.
 - Apply when: The ground step of a run in this repo reads the learnings index.
-
 ## A test that a pane does not move needs a pane that can scroll
 - Type: pattern
 - Recorded: 2026-11-23
@@ -310,3 +301,31 @@
 - Observed: task 4 — add-a-group-with-one-file-in-conf-d-groups-in-conf-d
 - Learning: zsh prints 'file exists' and does not write when > targets an existing file, and the next command in the line still runs. A by-hand check that put back the old root.go with git show HEAD:file > file ran the e2e test against the new code. Write over a file with >| or /bin/cp -f, and check with git diff that the change is in place before the test runs.
 - Apply when: A command overwrites a tracked file with a shell redirect, for example to test a test against the code before a fix, or to put back a file after a probe.
+
+## Check the name of a new type against the words of design.yaml before clerk design note
+- Type: constraint
+- Recorded: 2026-11-24
+- Observed: task 1,2 — start-and-stop-a-service-start-and-stop
+- Learning: The design check of launchctlAction found that design.yaml gives the word action to the start or stop of a key, so the type became launchctlCommand. The renamed type then needed a second clerk design note and a second design-check agent, because clerk finish refuses each type that no note names. Read the words list of the planned design and the names of the other packages before you name a new type, and name it right in its first note.
+- Apply when: A task adds a type that the planned design does not name, for example a private type in internal/launchd or internal/tui, before clerk design note.
+
+## A screen test of a read error must select a service before the error
+- Type: recurring-finding
+- Recorded: 2026-11-24
+- Observed: task 3,5 — start-and-stop-a-service-start-and-stop
+- Learning: A read that fails on the first read selects no service, so a test that s or x does nothing while the list shows a read error passes for the same reason as the test with no rows, and cannot fail when the key acts on the selected service. The audit raised it as medium. Give the error after a read that selected a service: readNow(openActing(t, readsInTurn(readGiving(svc), failing), ...)), where readNow sends the command of Init to read the services again.
+- Apply when: A test in internal/tui checks that a key, a pane or a line does nothing or shows nothing while the list shows a read error.
+
+## Fold the fixes of two tasks in one file with one clerk fixup mark for each task in turn
+- Type: pattern
+- Recorded: 2026-11-24
+- Observed: task 3,5 — start-and-stop-a-service-start-and-stop
+- Learning: internal/tui/screen_test.go changes in each task of the screen, so clerk fixup mark on it needs --onto. Edit only the lines of the first task, run clerk fixup mark --onto <its commit>, then edit the lines of the next task and mark again, and run one clerk fixup replay. A change to a line that a later task also rewrote, for example a call that a later task gave one more argument, goes into the fixup of the later task, or the replay conflicts.
+- Apply when: Audit fixes touch one file that two or more tasks of the branch changed, for example internal/tui/screen_test.go.
+
+## Add a parameter to tui.NewScreen with gofmt -r
+- Type: pattern
+- Recorded: 2026-11-24
+- Observed: task 3,5 — start-and-stop-a-service-start-and-stop
+- Learning: screen_test.go calls tui.NewScreen more than 80 times, and its arguments hold calls with commas, so a sed cannot add an argument. mise exec -- gofmt -r 'tui.NewScreen(a, b, c, d) -> tui.NewScreen(a, b, c, nil, d)' -w internal/tui/screen_test.go rewrites each call with the Go parser.
+- Apply when: A task adds a parameter to tui.NewScreen or to another function that the tests call many times.
