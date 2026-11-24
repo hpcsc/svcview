@@ -274,13 +274,13 @@ the environment of a plist, which can hold a token.
 no more than 1 MiB. The screen shows nothing new.
 
 **Acceptance Criteria:**
-- [ ] A run that gives a valid output has the stdout byte for byte, with its new lines.
-- [ ] A status error has what the program printed on stdout before it ended. A status timeout has what the program
+- [x] A run that gives a valid output has the stdout byte for byte, with its new lines.
+- [x] A status error has what the program printed on stdout before it ended. A status timeout has what the program
       printed before the stop. A status invalid has the stdout; for a stdout larger than 1 MiB, it has the start of
       the stdout, no more than 1 MiB.
-- [ ] A run that runs no program has no stdout: a template value that the service does not have, a timeout that ends
+- [x] A run that runs no program has no stdout: a template value that the service does not have, a timeout that ends
       before the start, and a context that ended before the start.
-- [ ] The screen does not change: each golden file in `internal/tui/testdata` stays the same.
+- [x] The screen does not change: each golden file in `internal/tui/testdata` stays the same.
 
 **Affected Files/Modules:**
 - `internal/status/result.go` — the stdout of the result

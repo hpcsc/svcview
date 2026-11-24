@@ -63,7 +63,7 @@
     },
     {
       "n": 3,
-      "done": false,
+      "done": true,
       "title": "Keep the stdout of each run in its result",
       "language": "Go",
       "testable": true,

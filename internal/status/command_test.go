@@ -728,6 +728,81 @@ func TestCommand(t *testing.T) {
 			require.Equal(t, &status.Failure{Kind: status.FailureKindTimeout, Text: "sh -c 'head -c 2000000 /dev/zero; sleep 30'"}, result.Failure)
 		})
 
+		t.Run("a run that gives a valid output has the stdout byte for byte, with its new lines", func(t *testing.T) {
+			stdout := "{\n  \"version\": 1,\n  \"summary\": \"busy · ENG-692\"\n}\n\n"
+
+			result := printing(t, stdout).Run(context.Background(), worker())
+
+			require.Equal(t, "busy · ENG-692", summaryOf(t, result))
+			require.Equal(t, stdout, result.Stdout)
+		})
+
+		t.Run("a status error has what the program printed on stdout before it ended", func(t *testing.T) {
+			command := newCommand(t, 0, "sh", "-c", `printf 'first\nsecond'; echo broken >&2; exit 3`)
+
+			result := command.Run(context.Background(), worker())
+
+			require.NotNil(t, result.Failure)
+			require.Equal(t, status.FailureKindError, result.Failure.Kind)
+			require.Equal(t, "first\nsecond", result.Stdout)
+		})
+
+		t.Run("a status timeout has what the program printed on stdout before the stop", func(t *testing.T) {
+			command := newCommand(t, 200*time.Millisecond, "sh", "-c", `printf 'started\n'; sleep 30`)
+
+			result := command.Run(context.Background(), worker())
+
+			require.NotNil(t, result.Failure)
+			require.Equal(t, status.FailureKindTimeout, result.Failure.Kind)
+			require.Equal(t, "started\n", result.Stdout)
+		})
+
+		t.Run("a status invalid has the stdout", func(t *testing.T) {
+			result := printing(t, "busy\nidle").Run(context.Background(), worker())
+
+			require.NotNil(t, result.Failure)
+			require.Equal(t, status.FailureKindInvalid, result.Failure.Kind)
+			require.Equal(t, "busy\nidle", result.Stdout)
+		})
+
+		t.Run("a stdout of 1 MiB is whole in the result, and a larger stdout gives the start of the stdout, no more than 1 MiB", func(t *testing.T) {
+			for _, size := range []int{1 << 20, 2 << 20} {
+				content := strings.Repeat("0123456789abcdef", size/16)
+				file := filepath.Join(t.TempDir(), "status.txt")
+				require.NoError(t, os.WriteFile(file, []byte(content), 0o644))
+
+				result := newCommand(t, 0, "cat", file).Run(context.Background(), worker())
+
+				if size == 1<<20 {
+					require.Equal(t, content, result.Stdout)
+					continue
+				}
+				require.NotEmpty(t, result.Stdout)
+				require.LessOrEqual(t, len(result.Stdout), 1<<20)
+				require.True(t, strings.HasPrefix(content, result.Stdout))
+			}
+		})
+
+		t.Run("a run that runs no program has no stdout", func(t *testing.T) {
+			ended, cancel := context.WithCancel(context.Background())
+			cancel()
+			for name, run := range map[string]func() status.Result{
+				"a template value that the service does not have": func() status.Result {
+					return newCommand(t, 0, "printf", "busy{{.Env.WORKER_LOG}}").Run(context.Background(), worker())
+				},
+				"a timeout that ends before the start": func() status.Result {
+					return newCommand(t, time.Nanosecond, "printf", "busy").Run(context.Background(), worker())
+				},
+				"a context that ended before the start": func() status.Result {
+					return newCommand(t, 0, "printf", "busy").Run(ended, worker())
+				},
+			} {
+				result := run()
+
+				require.Empty(t, result.Stdout, name)
+			}
+		})
+
 		t.Run("the result has the time at which the run ended", func(t *testing.T) {
 			command := newCommand(t, 0, "sh", "-c", `sleep 0.3; printf '{"version":1}'`)
 			started := time.Now()

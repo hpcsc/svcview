@@ -4,6 +4,7 @@ import "time"
 
 type Result struct {
 	Ended   time.Time
+	Stdout  string
 	Output  *Output
 	Failure *Failure
 }

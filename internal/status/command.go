@@ -74,7 +74,7 @@ func (c Command) Run(ctx context.Context, svc service.Service) Result {
 	var stderr lastLines
 	program.Stdout, program.Stderr = &stdout, &stderr
 	stopped, err := c.runProgram(runCtx, program)
-	result := Result{Ended: time.Now()}
+	result := Result{Ended: time.Now(), Stdout: string(stdout.data)}
 	if ctx.Err() != nil {
 		return result
 	}
