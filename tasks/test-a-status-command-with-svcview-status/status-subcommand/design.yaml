@@ -1,0 +1,51 @@
+design: planned
+types:
+  - name: Command
+    package: internal/status
+    change: changed
+    does: the status command of a group, as the config file sets it
+    owns:
+      - CommandLine gives the program and its arguments after the template values of a service, with each text that a shell reads in another way in single quotes, the same text that a status timeout shows
+      - CommandLine of a service that does not have a template value gives the failure that Run gives for it, and runs no program
+      - Run keeps in its result what the program printed on stdout
+    fields: [templates, Every, Timeout]
+    methods: [Run, CommandLine]
+  - name: Result
+    package: internal/status
+    change: changed
+    does: what one run of a status command gives
+    owns:
+      - Stdout holds what the program printed on stdout, as svcview read it, no more than 1 MiB
+      - a run that runs no program has no stdout
+    fields: [Ended, Stdout, Output, Failure]
+    methods: [Time]
+  - name: TemplateValue
+    package: internal/status
+    change: new
+    does: one template value of one service, as a text of a status command writes it, with what it gives for that service
+    owns:
+      - a value that the service does not have gives the failure of the kind template value that a run gives, and no value
+      - the template values of a service are Name, one Env value for each variable of its environment in the order of the names, StdoutPath, StderrPath and PlistPath, in this order
+    fields: [Template, Value, Failure]
+    methods: []
+functions:
+  - status.TemplateValues(service) []TemplateValue
+  - status.Command.CommandLine(service) (string, error)
+  - status.Command.Run(ctx, service) Result
+words:
+  - concept: svcview status <name>, which runs the status command of one service one time and prints each step
+    word: status subcommand
+    not: [status command, check command, test command, probe, dry run]
+  - concept: what the program of a status command printed on stdout, as svcview read it, before the parse
+    word: stdout
+    not: [raw output, body, response, payload]
+  - concept: the program and its arguments after svcview applies the template values
+    word: command line
+    not: [argv, invocation, shell line]
+  - concept: a value of a service that a text of a status command can use, such as {{.Env.WORKER_STATUS_FILE}}
+    word: template value
+    not: [variable, placeholder, parameter, field]
+  - concept: a status that svcview parsed from an output of version 1 with no failure, for which the status subcommand exits with 0
+    word: valid
+    not: [ok, healthy, success, passed]
+dependencies: []

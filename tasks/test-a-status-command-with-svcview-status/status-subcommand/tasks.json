@@ -1,0 +1,133 @@
+{
+  "story": "svcview status prints each step of one run of the status command of a service",
+  "story_id": "launchd-tui/US-006",
+  "tasks_file": "tasks/test-a-status-command-with-svcview-status/status-subcommand/tasks.md",
+  "tasks": [
+    {
+      "n": 1,
+      "done": false,
+      "title": "Give the template values of a service and the command line that they make",
+      "language": "Go",
+      "testable": true,
+      "certainty": "high",
+      "blast_radius": "low",
+      "patterns_to_follow": [
+        "internal/status/values.go:12-60",
+        "internal/status/command.go:135-162",
+        "internal/status/command_test.go:189-196",
+        "internal/status/command_test.go:223-241",
+        "internal/status/command_test.go:568-582",
+        "internal/status/result_test.go:13-35"
+      ],
+      "depends_on": [],
+      "affected_files": [
+        "internal/status/values.go",
+        "internal/status/command.go",
+        "internal/status/values_test.go",
+        "internal/status/command_test.go"
+      ]
+    },
+    {
+      "n": 2,
+      "done": false,
+      "title": "Print the template values and the command line of a service with svcview status",
+      "language": "Go",
+      "testable": true,
+      "certainty": "medium",
+      "blast_radius": "high",
+      "patterns_to_follow": [
+        "internal/cli/root.go:31-43",
+        "internal/cli/root.go:54-72",
+        "internal/cli/root.go:74-83",
+        "internal/cli/update.go:20-31",
+        "internal/cli/adapter.go:17-26",
+        "internal/cli/root_test.go:24-37",
+        "internal/config/config.go:108-115",
+        "internal/launchd/domain_test.go:59-90",
+        "internal/terminal/control_characters.go",
+        "e2e/testUtils.ts:116-158",
+        "e2e/tests/config.test.ts:49-60",
+        "task:1"
+      ],
+      "depends_on": [
+        1
+      ],
+      "affected_files": [
+        "internal/cli/root.go",
+        "internal/cli/status.go",
+        "internal/cli/status_test.go",
+        "e2e/testUtils.ts",
+        "e2e/tests/status-subcommand.test.ts",
+        "docs/e2e-tests.md"
+      ]
+    },
+    {
+      "n": 3,
+      "done": false,
+      "title": "Keep the stdout of each run in its result",
+      "language": "Go",
+      "testable": true,
+      "certainty": "high",
+      "blast_radius": "low",
+      "patterns_to_follow": [
+        "internal/status/stdout_buffer.go:8-34",
+        "internal/status/command.go:63-98",
+        "internal/status/command_test.go:689-720"
+      ],
+      "depends_on": [],
+      "affected_files": [
+        "internal/status/result.go",
+        "internal/status/command.go",
+        "internal/status/command_test.go"
+      ]
+    },
+    {
+      "n": 4,
+      "done": false,
+      "title": "Run the status command one time and print its output and its result",
+      "language": "Go",
+      "testable": true,
+      "certainty": "medium",
+      "blast_radius": "high",
+      "patterns_to_follow": [
+        "internal/status/command.go:63-98",
+        "internal/cli/status_runs.go:24-30",
+        "internal/tui/screen.go:490-499",
+        "internal/tui/screen.go:540-566",
+        "internal/status/command_test.go:674-687",
+        "e2e/tests/status.test.ts:103-138",
+        "task:2",
+        "task:3"
+      ],
+      "depends_on": [
+        2,
+        3
+      ],
+      "affected_files": [
+        "internal/cli/status.go",
+        "internal/cli/status_test.go",
+        "e2e/tests/status-subcommand.test.ts"
+      ]
+    },
+    {
+      "n": 5,
+      "done": false,
+      "title": "Describe svcview status in docs/cli.md",
+      "language": "Markdown",
+      "testable": false,
+      "certainty": "high",
+      "blast_radius": "low",
+      "patterns_to_follow": [
+        "docs/cli.md:328-546",
+        "docs/cli.md:625-646"
+      ],
+      "depends_on": [
+        4
+      ],
+      "affected_files": [
+        "docs/cli.md"
+      ]
+    }
+  ],
+  "design_file": "tasks/test-a-status-command-with-svcview-status/status-subcommand/design.yaml"
+}
