@@ -281,13 +281,13 @@ on the message line, with the full name of the service. It shows no confirmation
 press hides the text, as it hides each text of the message line.
 
 **Acceptance Criteria:**
-- [ ] `r` on a `not loaded` service shows `<name> is not loaded, so svcview cannot restart it` on the message line,
+- [x] `r` on a `not loaded` service shows `<name> is not loaded, so svcview cannot restart it` on the message line,
       shows no confirmation, and calls nothing. `y` after it calls nothing.
-- [ ] The text shows each control character of the name as `�`.
-- [ ] The next key press hides the text and does what it does: for example `↓` also selects the next row.
-- [ ] `r` shows no text while the help shows, with no rows, while the list shows a read error after a read that
+- [x] The text shows each control character of the name as `�`.
+- [x] The next key press hides the text and does what it does: for example `↓` also selects the next row.
+- [x] `r` shows no text while the help shows, with no rows, while the list shows a read error after a read that
       selected a service, and while the start of the service has not ended.
-- [ ] e2e: `r` on a `not loaded` service shows the text on the line above the help line, and records no launchctl
+- [x] e2e: `r` on a `not loaded` service shows the text on the line above the help line, and records no launchctl
       call.
 
 **Affected Files/Modules:**

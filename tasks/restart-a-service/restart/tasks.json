@@ -82,7 +82,7 @@
     },
     {
       "n": 4,
-      "done": false,
+      "done": true,
       "title": "Say on the message line that r found the service not loaded",
       "language": "Go",
       "testable": true,

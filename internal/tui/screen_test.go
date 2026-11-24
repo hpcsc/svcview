@@ -3365,18 +3365,51 @@ func TestScreen(t *testing.T) {
 			require.Equal(t, tea.QuitMsg{}, cmd())
 		})
 
-		t.Run("r on a not loaded service shows no confirmation, and y after it calls nothing", func(t *testing.T) {
-			restarts := &serviceCalls{}
-			screen := openActing(t, readGiving(notLoaded), nil, nil, restarts.record)
-			before := screen.View().Content
+		t.Run("r on a not loaded service shows on the message line that the service is not loaded, shows no confirmation, and calls nothing, and y after it calls nothing", func(t *testing.T) {
+			starts, restarts := &serviceCalls{}, &serviceCalls{}
+			screen := openActing(t, readGiving(notLoaded), starts.record, nil, restarts.record)
 
 			screen, onNotLoaded := screen.Update(keyR)
-			afterR := screen.View().Content
+			afterR := bottomLines(screen, 3)
 			_, afterY := screen.Update(keyY)
 			runAll(onNotLoaded, afterY)
 
-			require.Equal(t, before, afterR)
+			require.Equal(t, []string{listBottom, " com.example.a is not loaded, so svcview cannot restart it", helpLine}, afterR)
+			require.Empty(t, starts.get())
 			require.Empty(t, restarts.get())
+		})
+
+		t.Run("the text of r on a not loaded service shows each control character of the name as �", func(t *testing.T) {
+			screen := openActing(t, readGiving(service.Service{Name: "com.example.\x1b[2Jworker", State: service.NotLoaded}), nil, nil, nil)
+			screen, _ = screen.Update(tea.WindowSizeMsg{Width: 100, Height: 12})
+
+			screen = pressKeys(screen, keyR)
+
+			require.Equal(t, " com.example.�[2Jworker is not loaded, so svcview cannot restart it", bottomLines(screen, 2)[0])
+			require.NotContains(t, screen.View().Content, "\x1b[2J")
+		})
+
+		t.Run("the next key press hides the text of r on a not loaded service, and also does what it does", func(t *testing.T) {
+			screen := openActing(t, readGiving(notLoaded, loaded), nil, nil, nil)
+
+			screen = pressKeys(screen, keyR, down)
+
+			require.Equal(t, "com.example.b", selectedName(screen))
+			require.Equal(t, []string{listBottom, helpLine}, bottomLines(screen, 2))
+		})
+
+		t.Run("r on a not loaded service shows no text while the help shows, with no rows, while the list shows a read error, and while the start of the service has not ended", func(t *testing.T) {
+			failing := func() ([]service.Service, error) {
+				return []service.Service{notLoaded}, errors.New("launchctl list: exit status 3")
+			}
+			inHelp := pressKeys(openActing(t, readGiving(notLoaded), nil, nil, nil), question, keyR)
+			noRows := pressKeys(openActing(t, readGiving(), nil, nil, nil), keyR)
+			readError := pressKeys(readNow(openActing(t, readsInTurn(readGiving(notLoaded), failing), nil, nil, nil)), keyR)
+			startNotEnded := pressKeys(openActing(t, readGiving(notLoaded), func(service.Service) error { return nil }, nil, nil), keyS, keyR)
+
+			for name, screen := range map[string]tea.Model{"help": inHelp, "no rows": noRows, "read error": readError, "start not ended": startNotEnded} {
+				require.NotContains(t, bottomLines(screen, 2)[0], "is not loaded", name)
+			}
 		})
 
 		t.Run("r shows no confirmation while the help shows, with no rows, while the list shows a read error, and while the start, the stop or the restart of the service has not ended", func(t *testing.T) {

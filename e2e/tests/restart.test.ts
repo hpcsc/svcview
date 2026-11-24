@@ -47,6 +47,22 @@ describe('restart a service', () => {
     await expect.poll(() => launchctlCalls(home)).toEqual([`kickstart -k gui/${uid}/com.example.worker`])
   })
 
+  it('r on a not loaded service shows on the line above the help line that the service is not loaded, and runs no launchctl command', async () => {
+    const home = homeWithPlists(['com.example.worker'])
+    const session = await openCli(scratchDir(), [], { HOME: home })
+    await session.waitForText('▌○ com.example.worker')
+
+    await session.press('r')
+
+    await session.waitForText('com.example.worker is not loaded, so svcview cannot restart it')
+    const lines = (await session.text()).split('\n')
+    const help = lines.findIndex((line) => line.includes('? help'))
+    expect(lines[help - 1]).toMatch(/^ com\.example\.worker is not loaded, so svcview cannot restart it\s*$/)
+    await session.press('y')
+    await new Promise((done) => setTimeout(done, 500))
+    expect(launchctlCalls(home)).toEqual([])
+  })
+
   it('after r, y, a launchctl list with a new PID and a new elapsed time of ps, the detail pane shows the new PID and the new uptime at the next refresh, with no key press', async () => {
     const home = homeWithPlists(['com.example.worker'])
     setLaunchctlList(home, [{ name: 'com.example.worker', pid: 4122 }])

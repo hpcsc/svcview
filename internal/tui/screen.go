@@ -199,7 +199,12 @@ func (s Screen) press(key tea.KeyPressMsg) (Screen, tea.Cmd) {
 			s.confirmation = newConfirmation("Stop", svc, s.stop)
 		}
 	case "r":
-		if svc, ok := s.serviceToActOn(); ok && svc.State != service.NotLoaded {
+		svc, ok := s.serviceToActOn()
+		switch {
+		case !ok:
+		case svc.State == service.NotLoaded:
+			s.message = terminal.ReplaceControlCharacters(svc.Name) + " is not loaded, so svcview cannot restart it"
+		default:
 			s.confirmation = newConfirmation("Restart", svc, s.restart)
 		}
 	case "up", "k", "down", "j":
