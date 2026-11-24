@@ -412,18 +412,18 @@ another service than the confirmation names, or a stop with no yes, ends the pro
 table matches the help of the screen.
 
 **Acceptance Criteria:**
-- [ ] The Keys table lists `s` and `x` as the help shows them, and says that `y` answers yes to the confirmation and
+- [x] The Keys table lists `s` and `x` as the help shows them, and says that `y` answers yes to the confirmation and
       each other key answers no.
-- [ ] The table of the parts of the screen shows the help line `s start · x stop · ? help`, and the message line
+- [x] The table of the parts of the screen shows the help line `s start · x stop · ? help`, and the message line
       above it. The example screen at the start of "The screen" shows the new help line.
-- [ ] A section says which launchctl command `s` runs for a service that is `not loaded` and for one that is
+- [x] A section says which launchctl command `s` runs for a service that is `not loaded` and for one that is
       `loaded`, and that `s` on a `running` service does nothing; that `x` asks for a confirmation, `y` runs
       `launchctl bootout gui/<uid>/<name>`, and `x` on a `not loaded` service does nothing.
-- [ ] It says that a stopped service stays `not loaded` until the next login or until a start in svcview, also when
+- [x] It says that a stopped service stays `not loaded` until the next login or until a start in svcview, also when
       its plist has `KeepAlive`, because svcview runs `bootout` and not `kill`; and that svcview does not run
       `launchctl disable`.
-- [ ] It says that the row shows the new state at the next refresh.
-- [ ] It says that the message line shows what launchctl printed when it fails, until the next key press, and that a
+- [x] It says that the row shows the new state at the next refresh.
+- [x] It says that the message line shows what launchctl printed when it fails, until the next key press, and that a
       launchctl that does not end within 30 s is stopped with an error.
 
 **Affected Files/Modules:**

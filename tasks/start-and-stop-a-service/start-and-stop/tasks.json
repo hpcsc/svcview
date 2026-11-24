@@ -137,7 +137,7 @@
     },
     {
       "n": 6,
-      "done": false,
+      "done": true,
       "title": "Describe the start, the stop and the message line in docs/cli.md",
       "language": "Markdown",
       "testable": false,
