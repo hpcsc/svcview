@@ -24,7 +24,7 @@
     },
     {
       "n": 2,
-      "done": false,
+      "done": true,
       "title": "Read status.stale_after from the status of a group",
       "language": "Go",
       "testable": true,

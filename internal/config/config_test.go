@@ -581,6 +581,21 @@ func TestSettings(t *testing.T) {
 			require.NotEqual(t, &withOtherTexts, settings.Groups[0].Status)
 		})
 
+		t.Run("a group whose status sets stale_after gives a status command with that stale after, with its program, its arguments, its every and its timeout", func(t *testing.T) {
+			settings := readSettings(t, "groups:\n  - name: Workers\n    match: worker\n    status:\n      command: [cat, '{{.Env.WORKER_STATUS_FILE}}', --all]\n      every: 5s\n      timeout: 3s\n      stale_after: 30s\n")
+			command, err := status.NewCommand([]string{"cat", "{{.Env.WORKER_STATUS_FILE}}", "--all"}, 5*time.Second, 3*time.Second)
+			require.NoError(t, err)
+			command.StaleAfter = 30 * time.Second
+
+			require.Equal(t, &command, settings.Groups[0].Status)
+		})
+
+		t.Run("a group whose status has no stale_after has a stale after of 0, also with every and timeout", func(t *testing.T) {
+			settings := readSettings(t, "groups:\n  - name: Workers\n    match: worker\n    status:\n      command: [cat, status.json]\n  - name: Jobs\n    match: job\n    status:\n      command: [cat, job.json]\n      every: 5s\n      timeout: 3s\n")
+
+			require.Equal(t, [2]time.Duration{0, 0}, [2]time.Duration{settings.Groups[0].Status.StaleAfter, settings.Groups[1].Status.StaleAfter})
+		})
+
 		t.Run("a group with status and no every or timeout has an every of 2s and a timeout of 1s", func(t *testing.T) {
 			settings := readSettings(t, "groups:\n  - name: Workers\n    match: worker\n    status:\n      command:\n        - cat\n        - '{{.Env.WORKER_STATUS_FILE}}'\n")
 
@@ -642,25 +657,32 @@ func TestSettings(t *testing.T) {
 			require.Equal(t, config.Settings{}, settings)
 		})
 
-		t.Run("an every or a timeout that is not a duration more than 0 gives an error that names the file, the group and the setting, and no settings", func(t *testing.T) {
+		t.Run("an every, a timeout or a stale_after that is not a duration more than 0 gives an error that names the file, the group and the setting, and no settings", func(t *testing.T) {
 			for content, setting := range map[string]string{
-				"every: fast":    `"every"`,
-				"every: 0s":      `"every"`,
-				"every: -5s":     `"every"`,
-				"every:":         `"every"`,
-				"timeout: 5":     `"timeout"`,
-				"timeout: 0":     `"timeout"`,
-				"timeout: [1s]":  `"timeout"`,
-				"timeout: -1ms":  `"timeout"`,
-				"timeout: ''":    `"timeout"`,
-				"every: 1m30s x": `"every"`,
+				"every: fast":        `"every"`,
+				"every: 0s":          `"every"`,
+				"every: -5s":         `"every"`,
+				"every:":             `"every"`,
+				"timeout: 5":         `"timeout"`,
+				"timeout: 0":         `"timeout"`,
+				"timeout: [1s]":      `"timeout"`,
+				"timeout: -1ms":      `"timeout"`,
+				"timeout: ''":        `"timeout"`,
+				"every: 1m30s x":     `"every"`,
+				"stale_after: soon":  `"stale_after"`,
+				"stale_after: 0s":    `"stale_after"`,
+				"stale_after: -5s":   `"stale_after"`,
+				"stale_after:":       `"stale_after"`,
+				"stale_after: ''":    `"stale_after"`,
+				"stale_after: [30s]": `"stale_after"`,
+				"stale_after: 30":    `"stale_after"`,
 			} {
 				folder, path := folderWith(t, "groups:\n  - name: Workers\n    match: worker\n    status:\n      command: [cat, status.json]\n      "+content+"\n")
 
 				settings, err := config.Read(folder, os.Getuid(), noACL)
 
 				require.ErrorContains(t, err, path, content)
-				require.ErrorContains(t, err, setting+` of the status of group "Workers"`, content)
+				require.ErrorContains(t, err, setting+` of the status of group "Workers" must be a duration more than 0`, content)
 				require.Equal(t, config.Settings{}, settings, content)
 			}
 		})
@@ -678,7 +700,7 @@ func TestSettings(t *testing.T) {
 		})
 
 		t.Run("a setting in status that svcview does not know gives an error that names the file, the group and the setting, and no settings", func(t *testing.T) {
-			for _, setting := range []string{"stale_after", "actions", "interval"} {
+			for _, setting := range []string{"actions", "interval", "max_age"} {
 				folder, path := folderWith(t, "groups:\n  - name: Workers\n    match: worker\n    status:\n      command: [cat, status.json]\n      "+setting+": 1m\n")
 
 				settings, err := config.Read(folder, os.Getuid(), noACL)
@@ -691,16 +713,17 @@ func TestSettings(t *testing.T) {
 
 		t.Run("a setting that status sets two times gives an error that names the file, the group and the setting, and no settings", func(t *testing.T) {
 			for content, setting := range map[string]string{
-				"command: [cat, status.json]\n      every: 5s\n      every: 6s":     `"every" of the status of group "Workers"`,
-				"command: [cat, a.json]\n      command: [cat, b.json]":              `"command" of the status of group "Workers"`,
-				"command: [cat, status.json]\n      timeout: 1s\n      timeout: 1s": `"timeout" of the status of group "Workers"`,
+				"command: [cat, status.json]\n      every: 5s\n      every: 6s":              `"every" of the status of group "Workers" is already on line 6`,
+				"command: [cat, a.json]\n      command: [cat, b.json]":                       `"command" of the status of group "Workers" is already on line 5`,
+				"command: [cat, status.json]\n      timeout: 1s\n      timeout: 1s":          `"timeout" of the status of group "Workers" is already on line 6`,
+				"command: [cat, status.json]\n      stale_after: 30s\n      stale_after: 1m": `"stale_after" of the status of group "Workers" is already on line 6`,
 			} {
 				folder, path := folderWith(t, "groups:\n  - name: Workers\n    match: worker\n    status:\n      "+content+"\n")
 
 				settings, err := config.Read(folder, os.Getuid(), noACL)
 
 				require.ErrorContains(t, err, path, content)
-				require.ErrorContains(t, err, setting+" is already on line", content)
+				require.ErrorContains(t, err, setting, content)
 				require.Equal(t, config.Settings{}, settings, content)
 			}
 		})
@@ -733,6 +756,15 @@ func TestSettings(t *testing.T) {
 			require.NoError(t, err)
 			require.Equal(t, []string{"Main", "Apple", "Ten", "Two", "AlsoTwo", "UpperB", "LowerA"}, groupNames(settings))
 			require.Equal(t, 5*time.Second, settings.Refresh)
+		})
+
+		t.Run("a stale_after in the status of a group of a file of conf.d gives the status command that stale after", func(t *testing.T) {
+			folder, _ := folderWithConfD(t, "groups:\n  - name: Workers\n    match: worker\n    status:\n      command: [cat, status.json]\n      stale_after: 1m\n")
+
+			settings, err := config.Read(folder, os.Getuid(), noACL)
+
+			require.NoError(t, err)
+			require.Equal(t, time.Minute, settings.Groups[0].Status.StaleAfter)
 		})
 
 		t.Run("a file of conf.d gives its groups when no config.yaml exists, and the refresh is 2s", func(t *testing.T) {

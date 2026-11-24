@@ -29,9 +29,10 @@ const (
 var valuesWithoutKey = []string{"Name", "StdoutPath", "StderrPath", "PlistPath"}
 
 type Command struct {
-	templates []*template.Template
-	Every     time.Duration
-	Timeout   time.Duration
+	templates  []*template.Template
+	Every      time.Duration
+	Timeout    time.Duration
+	StaleAfter time.Duration
 }
 
 func NewCommand(texts []string, every, timeout time.Duration) (Command, error) {

@@ -144,19 +144,19 @@ means no check.
 command of the group as `Command.StaleAfter`. Without it, `StaleAfter` is 0, so the group has no check.
 
 **Acceptance Criteria:**
-- [ ] A group whose status sets `stale_after: 30s` gives a status command with a `StaleAfter` of 30 s, with its
+- [x] A group whose status sets `stale_after: 30s` gives a status command with a `StaleAfter` of 30 s, with its
       program, its arguments, its `every` and its `timeout` as before.
-- [ ] A group whose status has no `stale_after` gives a status command with a `StaleAfter` of 0, and so does a status
+- [x] A group whose status has no `stale_after` gives a status command with a `StaleAfter` of 0, and so does a status
       with `every` and `timeout` but no `stale_after`.
-- [ ] A `stale_after` that is not a Go duration more than 0 (for example `soon`, `0s`, `-5s`, an empty value, or a
+- [x] A `stale_after` that is not a Go duration more than 0 (for example `soon`, `0s`, `-5s`, an empty value, or a
       list) gives an error that names the file, the group and `"stale_after"`, and no settings, as for `every` and
       `timeout`.
-- [ ] A `stale_after` that the status sets two times gives the error that names the file, the group and the line of
+- [x] A `stale_after` that the status sets two times gives the error that names the file, the group and the line of
       the first, as for the other settings of the status.
-- [ ] The test at `internal/config/config_test.go:680-690`, which checks today that svcview does not know
+- [x] The test at `internal/config/config_test.go:680-690`, which checks today that svcview does not know
       `stale_after`, checks other settings that svcview does not know, and no longer names `stale_after`.
-- [ ] A `stale_after` in a file of `conf.d` is read as in `config.yaml`.
-- [ ] Each check of a word in an error uses the setting in quotes, so the name of the `t.TempDir` path cannot make it
+- [x] A `stale_after` in a file of `conf.d` is read as in `config.yaml`.
+- [x] Each check of a word in an error uses the setting in quotes, so the name of the `t.TempDir` path cannot make it
       pass.
 
 **Affected Files/Modules:**

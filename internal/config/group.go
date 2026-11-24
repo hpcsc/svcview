@@ -85,7 +85,7 @@ func readStatus(node *yaml.Node, groupLabel string) (*status.Command, error) {
 		return nil, fmt.Errorf("line %d: the setting \"status\" of %s must be a set of settings with a command, such as command: [cat, '{{.Env.WORKER_STATUS_FILE}}']", node.Line, groupLabel)
 	}
 	label := "the status of " + groupLabel
-	if err := checkSettings(node, label, "command", "every", "timeout"); err != nil {
+	if err := checkSettings(node, label, "command", "every", "timeout", "stale_after"); err != nil {
 		return nil, err
 	}
 	valueOf := valuesOf(node)
@@ -98,7 +98,7 @@ func readStatus(node *yaml.Node, groupLabel string) (*status.Command, error) {
 		return nil, fmt.Errorf("line %d: the setting \"command\" of %s must be a list of texts with the program first, such as [cat, '{{.Env.WORKER_STATUS_FILE}}']", command.Line, label)
 	}
 	durations := map[string]time.Duration{}
-	for _, setting := range []string{"every", "timeout"} {
+	for _, setting := range []string{"every", "timeout", "stale_after"} {
 		if value, ok := valueOf[setting]; ok {
 			duration, err := readDuration(value, fmt.Sprintf("%q of %s", setting, label))
 			if err != nil {
@@ -111,6 +111,7 @@ func readStatus(node *yaml.Node, groupLabel string) (*status.Command, error) {
 	if err != nil {
 		return nil, fmt.Errorf("line %d: %s: %w", command.Line, label, err)
 	}
+	statusCommand.StaleAfter = durations["stale_after"]
 	return &statusCommand, nil
 }
 
