@@ -110,13 +110,13 @@ limit: a result is stale only when its output has an `at` and the age of that `a
 means no check.
 
 **Acceptance Criteria:**
-- [ ] A result whose output has an `at` older than the limit is stale.
-- [ ] A result whose output has an `at` exactly as old as the limit, or newer, is not stale; an `at` after the given
+- [x] A result whose output has an `at` older than the limit is stale.
+- [x] A result whose output has an `at` exactly as old as the limit, or newer, is not stale; an `at` after the given
       time is not stale.
-- [ ] A result whose output has no `at` is never stale, whatever the time at which the run ended.
-- [ ] A result with a failure, and a result with no output, are never stale.
-- [ ] With a limit of 0, no result is stale, also one whose `at` is days old.
-- [ ] The tests are a `stale` group under the umbrella `TestResult`, beside the group `time`.
+- [x] A result whose output has no `at` is never stale, whatever the time at which the run ended.
+- [x] A result with a failure, and a result with no output, are never stale.
+- [x] With a limit of 0, no result is stale, also one whose `at` is days old.
+- [x] The tests are a `stale` group under the umbrella `TestResult`, beside the group `time`.
 
 **Affected Files/Modules:**
 - `internal/status/result.go` — `Result.Stale`

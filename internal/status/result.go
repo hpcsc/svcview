@@ -16,6 +16,13 @@ func (r Result) Time() time.Time {
 	return r.Ended
 }
 
+func (r Result) Stale(staleAfter time.Duration, now time.Time) bool {
+	if staleAfter <= 0 || r.Failure != nil || r.Output == nil || r.Output.At == nil {
+		return false
+	}
+	return now.Sub(*r.Output.At) > staleAfter
+}
+
 type FailureKind int
 
 const (

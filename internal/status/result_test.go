@@ -33,6 +33,53 @@ func TestResult(t *testing.T) {
 			}
 		})
 	})
+
+	t.Run("stale", func(t *testing.T) {
+		at := time.Date(2026, 11, 23, 9, 12, 0, 0, time.UTC)
+
+		t.Run("is stale when the at of the output is older than stale after", func(t *testing.T) {
+			result := status.Result{Ended: ended, Output: &status.Output{Summary: "busy", At: &at}}
+
+			require.True(t, result.Stale(30*time.Second, at.Add(3*time.Minute)))
+			require.True(t, result.Stale(30*time.Second, at.Add(30*time.Second+time.Nanosecond)))
+		})
+
+		t.Run("is not stale when the at is exactly as old as stale after, newer, or after the given time", func(t *testing.T) {
+			result := status.Result{Ended: ended, Output: &status.Output{Summary: "busy", At: &at}}
+
+			require.False(t, result.Stale(30*time.Second, at.Add(30*time.Second)))
+			require.False(t, result.Stale(30*time.Second, at.Add(10*time.Second)))
+			require.False(t, result.Stale(30*time.Second, at.Add(-time.Minute)))
+		})
+
+		t.Run("is never stale when the output has no at, whatever the time at which the run ended", func(t *testing.T) {
+			result := status.Result{Ended: ended, Output: &status.Output{Summary: "busy"}}
+
+			require.False(t, result.Stale(30*time.Second, ended.Add(48*time.Hour)))
+		})
+
+		t.Run("is never stale when the run gave a failure or no output", func(t *testing.T) {
+			for _, result := range []status.Result{
+				{Ended: ended, Failure: &status.Failure{Kind: status.FailureKindTimeout, Text: "cat /tmp/worker.json"}},
+				{Ended: ended, Output: &status.Output{At: &at}, Failure: &status.Failure{Kind: status.FailureKindInvalid, Text: "the output has more text after its JSON object"}},
+				{Ended: ended},
+			} {
+				require.False(t, result.Stale(30*time.Second, ended.Add(48*time.Hour)))
+			}
+		})
+
+		t.Run("is never stale with a stale after of 0, also when the at is days old", func(t *testing.T) {
+			result := status.Result{Ended: ended, Output: &status.Output{Summary: "busy", At: &at}}
+
+			require.False(t, result.Stale(0, at.Add(72*time.Hour)))
+		})
+
+		t.Run("checks the at with the smallest stale after more than 0", func(t *testing.T) {
+			result := status.Result{Ended: ended, Output: &status.Output{Summary: "busy", At: &at}}
+
+			require.True(t, result.Stale(time.Nanosecond, at.Add(time.Second)))
+		})
+	})
 }
 
 func TestFailureKind(t *testing.T) {
