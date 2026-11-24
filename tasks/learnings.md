@@ -347,3 +347,31 @@
 - Observed: task 4 — test-a-status-command-with-svcview-status-status-subcommand
 - Learning: status.FailureKind.String gives status error, status timeout and status invalid, and status.Level.String gives info, warn and error, as service.State.String gives the words of a state. The screen and svcview status use them; the screen shows the text of a template value failure in place of a word. A switch over these enums that gives their words in another package is a copy that the audit of status-subcommand raised twice.
 - Apply when: A task shows the kind of a failure or the level of an output or an event as text, in internal/cli, internal/tui, or a new package.
+
+## Draw the screen at set times with a recorder model to test text that changes with time
+- Type: pattern
+- Recorded: 2026-11-24
+- Observed: task 3 — see-when-a-status-is-stale-stale-status
+- Learning: runSized and runFor wait one minute on the synctest clock after the quit, so a View() after they return is one minute late, and one model cannot show two times. internal/tui/screen_test.go drawsAt wraps the screen in drawRecorder, which keeps a copy of View() on each drawNow message that the test sends at a set time, while the runs and the refresh go on.
+- Apply when: A test in internal/tui checks text that changes with time and no message, for example the age of a status or a stale mark, or checks the screen at more than one time.
+
+## rowText writes one style segment for parts with one style, so the golden files keep their bytes
+- Type: convention
+- Recorded: 2026-11-24
+- Observed: task 3 — see-when-a-status-is-stale-stale-status
+- Learning: internal/tui/screen.go rowText draws each row after its glyph, for the selected row and the other rows. It joins the name, the summary, the mark and the padding into one styled segment when the summary has the style of the rest (slices.Equal of the two ansi.Style values), as selectedRow did. A change that always writes three segments changes the bytes of status-summaries.golden and of each golden file with a selected row of the level info.
+- Apply when: A task adds a part or a style to the row of the list, or changes rowText, selectedRow or the styles of the summary.
+
+## A test of a cut at a width needs the exact-fit width and one cell less
+- Type: recurring-finding
+- Recorded: 2026-11-24
+- Observed: task 4 — see-when-a-status-is-stale-stale-status
+- Learning: The audit of stale-status found that a test named for a pane too narrow for the short name and the stale mark ran the exact fit (room 0), so the mutant room > 0 -> room != 0 lived. A rule that cuts text to fit a width needs a test at room 1, room 0 and room -1, and the name of each test says which room it runs.
+- Apply when: A task cuts or pads text to fit the width of a pane or a column, in internal/tui or in the output of internal/cli.
+
+## svcview status reads the whole config file, so it reads each new setting
+- Type: constraint
+- Recorded: 2026-11-24
+- Observed: task 5 — see-when-a-status-is-stale-stale-status
+- Learning: findStatusCommand in internal/cli/status.go reads the config through readSettingsAndDomain in internal/cli/root.go, which calls config.Read, as the screen does. Thus a bad value of a new setting stops svcview status with exit 1 too. The stale-status breakdown said that svcview status does not read stale_after, docs/cli.md repeated it, and the audit found the sentence false. Say what svcview status does not show, not that it does not read a setting.
+- Apply when: Planning a setting in a config file, or writing a boundary or docs/cli.md text about what svcview status does with a setting.
