@@ -41,10 +41,10 @@
 - Apply when: Running clerk mutants, clerk audit run, gopls or another Go tool in this repo.
 ## Fake a program that svcview runs with a script first on PATH
 - Type: pattern
-- Recorded: 2026-11-23
-- Observed: task 1 — see-the-launchd-services-in-a-list-detail-pane
-- Learning: macOS checks each new executable file at its first run, which costs about 0.3 s, so internal/launchd/domain_test.go writes one fake launchctl and one fake ps in TestMain and each test gives them its output file through FAKE_LAUNCHCTL_LIST, FAKE_PS_OUTPUT and FAKE_PS_CALLS (fakeLaunchctlList, fakePs); only a test that needs another script writes its own with fakeProgram. A fake script for each test made the package tests 27 s in place of 15 s, and clerk mutants then stopped at its limit of 10 minutes. e2e tests keep the fakes in e2e/fakes, which openCli puts first on PATH: launchctl prints $HOME/launchctl-list.txt, and ps prints 03:12:07 for each PID. Put a command after a long one in a fake (sleep 60; echo never), because dash runs the last command in place of the shell.
-- Apply when: A task runs another program from internal/launchd, for example launchctl kickstart or bootout for an action, or fakes one in a unit or e2e test.
+- Recorded: 2026-11-24
+- Observed: task 2 — test-a-status-command-with-svcview-status-status-subcommand
+- Learning: macOS checks each new executable file at its first run, which costs about 0.3 s, so internal/launchd/domain_test.go writes one fake launchctl and one fake ps in TestMain and each test gives them its output file through FAKE_LAUNCHCTL_LIST, FAKE_PS_OUTPUT and FAKE_PS_CALLS (fakeLaunchctlList, fakePs); only a test that needs another script writes its own with fakeProgram. A fake script for each test made the package tests 27 s in place of 15 s, and clerk mutants then stopped at its limit of 10 minutes. internal/cli has its own fake launchctl, which TestMain in internal/cli/status_test.go puts first on PATH for the whole package: it prints $HOME/launchctl-list.txt, and fails with the text of $HOME/launchctl-failure.txt. e2e tests keep the fakes in e2e/fakes, which openCli and runCli put first on PATH: launchctl prints $HOME/launchctl-list.txt, and ps prints 03:12:07 for each PID. Put a command after a long one in a fake (sleep 60; echo never), because dash runs the last command in place of the shell.
+- Apply when: A task runs another program from internal/launchd or internal/cli, for example launchctl kickstart or bootout for an action, or fakes one in a unit or e2e test.
 ## Run each outside program with a deadline
 - Type: constraint
 - Recorded: 2026-11-23
@@ -143,11 +143,10 @@
 
 ## A change to the template values changes the check of status.NewCommand
 - Type: constraint
-- Recorded: 2026-11-23
-- Observed: task 3 — see-the-status-that-each-service-reports-status-settings
-- Learning: status.NewCommand checks each text of a status command with a walk of its parse tree, because an execution visits only the branches that it takes. The walk knows where . is the service: it refuses a field without $ in a with, a range (each value is text), define and template, a field of a declared variable, and a new value for $. Two audit rounds found texts that passed an earlier walk and failed at run time. A new template value, or a value that is not text, changes valuesWithoutKey, otherFields and the struct that Run executes against in one task, with a test that runs the text.
+- Recorded: 2026-11-24
+- Observed: task 1 — test-a-status-command-with-svcview-status-status-subcommand
+- Learning: status.NewCommand checks each text of a status command with a walk of its parse tree, because an execution visits only the branches that it takes. The walk knows where . is the service: it refuses a field without $ in a with, a range (each value is text), define and template, a field of a declared variable, and a new value for $. Two audit rounds found texts that passed an earlier walk and failed at run time. A new template value, or a value that is not text, changes valuesWithoutKey, otherFields, the templateValues text of the error, the struct that Run executes against, and values.list in values.go, which status.TemplateValues gives to svcview status, in one task, with a test that runs the text. No test ties values.list to the values that NewCommand accepts, so a value that is not in list compiles, passes, and svcview status does not print it.
 - Apply when: A task adds or changes a template value of a status command, adds a function to its templates, or adds the struct that status.Command.Run executes the templates against.
-
 ## Check by hand a mutant that only the tests of another package kill
 - Type: pattern
 - Recorded: 2026-11-23
@@ -178,11 +177,10 @@
 
 ## An audit fix that adds a file is a commit of its own
 - Type: constraint
-- Recorded: 2026-11-23
-- Observed: see-the-status-that-each-service-reports-status-summary
-- Learning: clerk fixup mark refuses a file that no commit of the branch touches, also with --onto, so an audit fix that adds a file (a new type, or a _test.go for a type whose tests were under another umbrella) becomes a commit of its own. Put each changed file that needs the new file into that commit, and fold only the changes that compile without it: in status-summary, root.go needed status_runs.go, and a fold of root.go alone would have broken the build of the Task 5 commit.
-- Apply when: An audit fix adds a file, for example a new private type that a fix needs, or a test file for the umbrella test of a type.
-
+- Recorded: 2026-11-24
+- Observed: test-a-status-command-with-svcview-status-status-subcommand
+- Learning: clerk fixup mark refuses a file that no commit of the branch touches, also with --onto, so an audit fix that adds a file (a new type, or a _test.go for a type whose tests were under another umbrella) becomes a commit of its own. Put each changed file that needs the new file into that commit, and fold only the changes that compile without it: in status-summary, root.go needed status_runs.go, and a fold of root.go alone would have broken the build of the Task 5 commit. Put that commit before the first task commit that uses what it adds, and fold the lines of that task into the task commit: in status-subcommand, a commit on top that added status.FailureKind.String and also removed the copy of the words that Task 4 added got a scattered-task warning from run-verifier, and needed a split with git commit-tree.
+- Apply when: An audit fix adds a file, for example a new private type that a fix needs, or a test file for the umbrella test of a type, or moves a rule into a package that no commit of the branch changed.
 ## Bubble Tea does not wait for the goroutines of its commands
 - Type: constraint
 - Recorded: 2026-11-23
@@ -319,13 +317,33 @@
 ## Fold the fixes of two tasks in one file with one clerk fixup mark for each task in turn
 - Type: pattern
 - Recorded: 2026-11-24
-- Observed: task 3,5 — start-and-stop-a-service-start-and-stop
-- Learning: internal/tui/screen_test.go changes in each task of the screen, so clerk fixup mark on it needs --onto. Edit only the lines of the first task, run clerk fixup mark --onto <its commit>, then edit the lines of the next task and mark again, and run one clerk fixup replay. A change to a line that a later task also rewrote, for example a call that a later task gave one more argument, goes into the fixup of the later task, or the replay conflicts.
-- Apply when: Audit fixes touch one file that two or more tasks of the branch changed, for example internal/tui/screen_test.go.
-
+- Observed: test-a-status-command-with-svcview-status-status-subcommand
+- Learning: internal/tui/screen_test.go changes in each task of the screen, so clerk fixup mark on it needs --onto. Edit only the lines of the first task, run clerk fixup mark --onto <its commit>, then edit the lines of the next task and mark again, and run one clerk fixup replay. A change to a line that a later task also rewrote, for example a call that a later task gave one more argument, goes into the fixup of the later task, or the replay conflicts. A second clerk fixup mark of a file before the replay is ambiguous too, because the first fixup! commit also touches the file: pass --onto the task commit.
+- Apply when: Audit fixes touch one file that two or more tasks of the branch changed, for example internal/tui/screen_test.go or internal/cli/status_test.go, or a second fix touches a file that an unreplayed fixup! commit touches.
 ## Add a parameter to tui.NewScreen with gofmt -r
 - Type: pattern
 - Recorded: 2026-11-24
 - Observed: task 3,5 — start-and-stop-a-service-start-and-stop
 - Learning: screen_test.go calls tui.NewScreen more than 80 times, and its arguments hold calls with commas, so a sed cannot add an argument. mise exec -- gofmt -r 'tui.NewScreen(a, b, c, d) -> tui.NewScreen(a, b, c, nil, d)' -w internal/tui/screen_test.go rewrites each call with the Go parser.
 - Apply when: A task adds a parameter to tui.NewScreen or to another function that the tests call many times.
+
+## sed on this machine is GNU sed, so sed -i '' edits no file
+- Type: constraint
+- Recorded: 2026-11-24
+- Observed: task 2 — test-a-status-command-with-svcview-status-status-subcommand
+- Learning: sed resolves to /opt/homebrew/bin/gsed, which reads the '' of the BSD form sed -i '' as the script and the script as a file name, fails, and leaves the file as it was; the next command in the line still runs. In status-subcommand, a by-hand mutant of Run applied with sed -i '' did not change root.go, and the Docker e2e run then passed against the real code. Apply a mutant with a Python script or with sed -i (GNU form), and check with git diff that the change is in place before the test runs.
+- Apply when: A command edits a file with sed -i, for example to apply a mutant by hand before a Docker e2e run, or to put back a file after a probe.
+
+## clerk audit accept refuses after a round whose earning finding you declined
+- Type: constraint
+- Recorded: 2026-11-24
+- Observed: test-a-status-command-with-svcview-status-status-subcommand
+- Learning: A round records a declined finding only through the --recheck of a next round, so clerk audit accept still says that a medium runtime finding earns another round after you decline it. Do not run a paid round only to record the decline: run clerk audit accept --early with the reason of the decline and the fixes of the other findings, after the post-fix receipt and clerk mutants.
+- Apply when: The audit step, when the only finding that earns another round is one that you decline.
+
+## Show the words of a status.FailureKind or a status.Level through its String method
+- Type: convention
+- Recorded: 2026-11-24
+- Observed: task 4 — test-a-status-command-with-svcview-status-status-subcommand
+- Learning: status.FailureKind.String gives status error, status timeout and status invalid, and status.Level.String gives info, warn and error, as service.State.String gives the words of a state. The screen and svcview status use them; the screen shows the text of a template value failure in place of a word. A switch over these enums that gives their words in another package is a copy that the audit of status-subcommand raised twice.
+- Apply when: A task shows the kind of a failure or the level of an output or an event as text, in internal/cli, internal/tui, or a new package.
