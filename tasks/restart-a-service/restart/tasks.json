@@ -1,0 +1,120 @@
+{
+  "story": "r restarts the selected service after a confirmation",
+  "story_id": "launchd-tui/US-009",
+  "tasks_file": "tasks/restart-a-service/restart/tasks.md",
+  "tasks": [
+    {
+      "n": 1,
+      "done": false,
+      "title": "Restart a service with launchctl kickstart -k in the gui domain of the user",
+      "language": "Go",
+      "testable": true,
+      "certainty": "high",
+      "blast_radius": "high",
+      "patterns_to_follow": [
+        "internal/launchd/domain.go:54-75",
+        "internal/launchd/launchctl_command.go:26-49",
+        "internal/launchd/domain_test.go:942-1003",
+        "internal/launchd/domain_test.go:118-138"
+      ],
+      "depends_on": [],
+      "affected_files": [
+        "internal/launchd/domain.go",
+        "internal/launchd/domain_test.go"
+      ]
+    },
+    {
+      "n": 2,
+      "done": false,
+      "title": "Show r restart in the help line and in the help",
+      "language": "Go",
+      "testable": true,
+      "certainty": "high",
+      "blast_radius": "low",
+      "patterns_to_follow": [
+        "internal/tui/screen.go:21",
+        "internal/tui/screen.go:421-433",
+        "internal/tui/screen_test.go:3276-3281",
+        "internal/tui/screen_test.go:3333-3340"
+      ],
+      "depends_on": [],
+      "affected_files": [
+        "internal/tui/screen.go",
+        "internal/tui/screen_test.go",
+        "internal/tui/testdata/",
+        "e2e/tests/start-stop.test.ts"
+      ]
+    },
+    {
+      "n": 3,
+      "done": false,
+      "title": "Restart the selected service with r after a confirmation",
+      "language": "Go",
+      "testable": true,
+      "certainty": "medium",
+      "blast_radius": "high",
+      "patterns_to_follow": [
+        "internal/tui/screen.go:186-220",
+        "internal/tui/screen.go:270-278",
+        "internal/tui/screen_test.go:3072-3265",
+        "internal/tui/screen_test.go:2923-2938",
+        "internal/tui/screen_test.go:786-798",
+        "internal/cli/root.go:62-74",
+        "e2e/tests/start-stop.test.ts:75-140",
+        "e2e/fakes/launchctl",
+        "e2e/testUtils.ts:72-80",
+        "task:1",
+        "task:2"
+      ],
+      "depends_on": [1, 2],
+      "affected_files": [
+        "internal/tui/screen.go",
+        "internal/tui/screen_test.go",
+        "internal/cli/root.go",
+        "e2e/fakes/ps",
+        "e2e/testUtils.ts",
+        "e2e/tests/restart.test.ts",
+        "docs/e2e-tests.md"
+      ]
+    },
+    {
+      "n": 4,
+      "done": false,
+      "title": "Say on the message line that r found the service not loaded",
+      "language": "Go",
+      "testable": true,
+      "certainty": "high",
+      "blast_radius": "low",
+      "patterns_to_follow": [
+        "internal/tui/screen.go:165-193",
+        "internal/tui/screen.go:388-397",
+        "internal/tui/screen_test.go:2943-3070",
+        "e2e/tests/start-stop.test.ts:60-72",
+        "task:3"
+      ],
+      "depends_on": [3],
+      "affected_files": [
+        "internal/tui/screen.go",
+        "internal/tui/screen_test.go",
+        "e2e/tests/restart.test.ts"
+      ]
+    },
+    {
+      "n": 5,
+      "done": false,
+      "title": "Describe the restart in docs/cli.md",
+      "language": "Markdown",
+      "testable": false,
+      "certainty": "high",
+      "blast_radius": "low",
+      "patterns_to_follow": [
+        "docs/cli.md:146-212"
+      ],
+      "depends_on": [4],
+      "affected_files": [
+        "docs/cli.md"
+      ]
+    }
+  ],
+  "design_file": "tasks/restart-a-service/restart/design.yaml"
+}

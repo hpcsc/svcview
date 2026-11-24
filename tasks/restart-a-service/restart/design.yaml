@@ -1,0 +1,51 @@
+design: planned
+types:
+  - name: Domain
+    package: internal/launchd
+    change: changed
+    does: the gui domain of the user, as launchctl knows it
+    owns:
+      - Restart of a loaded or a running service runs launchctl kickstart -k gui/<uid>/<name>
+      - Restart of a not loaded service runs no command, and gives an error that names the service and says that it is not loaded
+      - no restart runs launchctl bootout, bootstrap, kill, load, unload, enable or disable
+      - Restart reads no plist and changes nothing that Services keeps, so it can run while Services runs, as Start and Stop can
+    fields: [uid, plists]
+    methods: [Services, String, Start, Stop, Restart]
+  - name: Screen
+    package: internal/tui
+    change: changed
+    does: the Bubble Tea model of the screen of svcview
+    owns:
+      - the help line shows s start · x stop · r restart · ? help, and ? lists r with its action
+      - r on a selected service that is loaded or running shows the confirmation Restart <name>? (y/N) on the message line
+      - r on a selected service that is not loaded shows on the message line that the service is not loaded, and calls nothing
+      - r does nothing while the help shows, with no rows, while a read error shows, and on a service whose start, stop or restart has not ended
+      - the detail pane shows the PID and the uptime that the next refresh reads after a restart ends; the end of a restart starts no read
+    fields: [start, stop, restart, confirmation, message, actionNotEnded]
+    methods: [Init, Update, View]
+  - name: confirmation
+    package: internal/tui
+    change: changed
+    does: a question on the message line that waits for y before svcview acts on one service
+    owns:
+      - the service is the one that was selected when the question showed, not the one that is selected when y comes
+      - y runs the action of the key that asked, the stop after x and the restart after r, and no other
+    fields: [question, service, action]
+    methods: []
+functions:
+  - launchd.Domain.Restart(ctx, service) error
+  - tui.NewScreen(domain, read, runStatus, start, stop, restart, settings) Screen
+words:
+  - concept: making launchd kill the process of a loaded or a running service, when it has one, and run the service again
+    word: restart
+    not: [reload, relaunch, bounce, reboot]
+  - concept: the start, the stop or the restart that a key of the screen does to the selected service
+    word: action
+    not: [operation, command, control, job]
+  - concept: the question that x or r asks before a stop or a restart, which y answers
+    word: confirmation
+    not: [prompt, dialog, modal, popup]
+  - concept: the line above the help line that shows a confirmation, the error of an action, or the text of r on a not loaded service
+    word: message line
+    not: [status line, footer, notification, toast, flash, banner]
+dependencies: []
