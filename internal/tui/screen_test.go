@@ -392,6 +392,82 @@ func summary(text string, level status.Level) status.Result {
 	return status.Result{Output: &status.Output{Summary: text, Level: level}}
 }
 
+func summaryAt(text string, level status.Level, at time.Time) status.Result {
+	return status.Result{Output: &status.Output{Summary: text, Level: level, At: &at}}
+}
+
+func workersStaleAfter(t *testing.T, staleAfter time.Duration, otherNameAndMatch ...string) config.Settings {
+	t.Helper()
+	settings := workersWithStatus(t, otherNameAndMatch...)
+	settings.Groups[0].Status.StaleAfter = staleAfter
+	return settings
+}
+
+type drawNow struct{}
+
+type drawn struct {
+	view tea.View
+}
+
+func (d drawn) Init() tea.Cmd {
+	return nil
+}
+
+func (d drawn) Update(tea.Msg) (tea.Model, tea.Cmd) {
+	return d, nil
+}
+
+func (d drawn) View() tea.View {
+	return d.view
+}
+
+type drawRecorder struct {
+	screen tea.Model
+	draws  *[]tea.Model
+}
+
+func (r drawRecorder) Init() tea.Cmd {
+	return r.screen.Init()
+}
+
+func (r drawRecorder) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	if _, ok := msg.(drawNow); ok {
+		*r.draws = append(*r.draws, drawn{view: r.screen.View()})
+		return r, nil
+	}
+	var cmd tea.Cmd
+	r.screen, cmd = r.screen.Update(msg)
+	return r, cmd
+}
+
+func (r drawRecorder) View() tea.View {
+	return r.screen.View()
+}
+
+// drawsAt must run in a synctest bubble: it waits a minute on the clock of the bubble.
+func drawsAt(t *testing.T, screen tui.Screen, width, height int, times ...time.Duration) []tea.Model {
+	t.Helper()
+	var draws []tea.Model
+	program := tea.NewProgram(drawRecorder{screen: screen, draws: &draws},
+		tea.WithInput(nil),
+		tea.WithOutput(io.Discard),
+		tea.WithoutSignalHandler(),
+		tea.WithWindowSize(width, height))
+	start := time.Now()
+	go func() {
+		for _, at := range times {
+			time.Sleep(at - time.Since(start))
+			program.Send(drawNow{})
+		}
+		program.Quit()
+	}()
+	_, err := program.Run()
+	require.NoError(t, err)
+	time.Sleep(time.Minute)
+	synctest.Wait()
+	return draws
+}
+
 func TestScreen(t *testing.T) {
 	t.Run("start", func(t *testing.T) {
 		t.Run("reads the services with no key press and shows them", func(t *testing.T) {
@@ -1056,6 +1132,150 @@ func TestScreen(t *testing.T) {
 
 				require.Equal(t, []string{"Workers", "▌○ a  busy�[2J�next · a sum…", "○ b  no�[2Jfile"}, listRows(screen)[:3])
 				require.NotContains(t, screen.View().Content, "\x1b[2J")
+			})
+		})
+
+		t.Run("with a stale_after of 30 s, the row of a service whose output has an at 3 minutes old shows the summary, two spaces, then stale and the age of at, and the detail pane keeps the age in two units", func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				at := time.Now().Add(-3*time.Minute - 12*time.Second)
+				run := runsGiving(map[string]status.Result{"com.example.worker.a": summaryAt("busy", status.LevelInfo, at)})
+
+				draws := drawsAt(t, tui.NewScreen("gui/501", servicesNamed("com.example.worker.a"), run, nil, nil, workersStaleAfter(t, 30*time.Second)), 80, 12, 500*time.Millisecond)
+
+				require.Equal(t, []string{"Workers", "▌○ a  busy  stale 3m"}, listRows(draws[0])[:2])
+				require.Equal(t, "Status 3m12s ago", detailPane(draws[0])[2])
+			})
+		})
+
+		t.Run("the age in the stale mark is the age of at in its largest whole unit, rounded down", func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				drawTime := time.Now().Add(time.Second)
+				run := runsGiving(map[string]status.Result{
+					"com.example.worker.a": summaryAt("busy", status.LevelInfo, drawTime.Add(-45*time.Second)),
+					"com.example.worker.b": summaryAt("busy", status.LevelInfo, drawTime.Add(-time.Minute)),
+					"com.example.worker.c": summaryAt("busy", status.LevelInfo, drawTime.Add(-3*time.Minute-59*time.Second)),
+					"com.example.worker.d": summaryAt("busy", status.LevelInfo, drawTime.Add(-time.Hour)),
+					"com.example.worker.e": summaryAt("busy", status.LevelInfo, drawTime.Add(-2*time.Hour-59*time.Minute)),
+					"com.example.worker.f": summaryAt("busy", status.LevelInfo, drawTime.Add(-24*time.Hour)),
+					"com.example.worker.g": summaryAt("busy", status.LevelInfo, drawTime.Add(-47*time.Hour)),
+					"com.example.worker.h": summaryAt("busy", status.LevelInfo, drawTime.Add(-23*time.Hour-59*time.Minute)),
+				})
+				read := servicesNamed("com.example.worker.a", "com.example.worker.b", "com.example.worker.c", "com.example.worker.d", "com.example.worker.e", "com.example.worker.f", "com.example.worker.g", "com.example.worker.h")
+
+				draws := drawsAt(t, tui.NewScreen("gui/501", read, run, nil, nil, workersStaleAfter(t, 30*time.Second)), 80, 15, time.Second)
+
+				require.Equal(t, []string{
+					"Workers",
+					"▌○ a  busy  stale 45s",
+					"○ b  busy  stale 1m",
+					"○ c  busy  stale 3m",
+					"○ d  busy  stale 1h",
+					"○ e  busy  stale 2h",
+					"○ f  busy  stale 1d",
+					"○ g  busy  stale 1d",
+					"○ h  busy  stale 23h",
+				}, listRows(draws[0]))
+			})
+		})
+
+		t.Run("a stale summary is dim in the color of its level, the stale mark is in the default color, both are on the background of the selected row, and an output with no summary shows only the mark in the column of the summaries", func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				drawTime := time.Now().Add(time.Second)
+				read := servicesNamed("com.example.worker.a", "com.example.worker.bb", "com.example.worker.ccc", "com.example.worker.dddd", "com.example.worker.eeeee")
+				run := runsGiving(map[string]status.Result{
+					"com.example.worker.a":     summaryAt("busy", status.LevelInfo, drawTime.Add(-3*time.Minute)),
+					"com.example.worker.bb":    summaryAt("idle", status.LevelWarn, drawTime.Add(-2*time.Hour)),
+					"com.example.worker.ccc":   summaryAt("failed", status.LevelError, drawTime.Add(-45*time.Second)),
+					"com.example.worker.dddd":  summaryAt("busy", status.LevelInfo, drawTime.Add(-10*time.Second)),
+					"com.example.worker.eeeee": summaryAt("", status.LevelInfo, drawTime.Add(-5*time.Minute)),
+				})
+
+				draws := drawsAt(t, tui.NewScreen("gui/501", read, run, nil, nil, workersStaleAfter(t, 30*time.Second)), 80, 12, time.Second)
+
+				requireGolden(t, "status-stale", draws[0])
+				require.Equal(t, []string{
+					"Workers",
+					"▌○ a      busy  stale 3m",
+					"○ bb     idle  stale 2h",
+					"○ ccc    failed  stale 45s",
+					"○ dddd   busy",
+					"○ eeeee  stale 5m",
+				}, listRows(draws[0]))
+			})
+		})
+
+		t.Run("shows no stale mark for an output with no at, an at not older than stale_after, a failure, a group whose status command has no stale_after, and a group with no status command", func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				drawTime := time.Now().Add(time.Second)
+				settings := workersStaleAfter(t, 30*time.Second, "Jobs", `^com\.example\.job\.`, "Databases", "redis")
+				settings.Groups[1].Status = statusCommand(t)
+				read := servicesNamed("com.example.worker.a", "com.example.worker.b", "com.example.worker.c", "com.example.job.d", "homebrew.mxcl.redis")
+				run := runsGiving(map[string]status.Result{
+					"com.example.worker.a": {Ended: drawTime.Add(-48 * time.Hour), Output: &status.Output{Summary: "busy"}},
+					"com.example.worker.b": summaryAt("idle", status.LevelInfo, drawTime.Add(-30*time.Second)),
+					"com.example.worker.c": {Failure: &status.Failure{Kind: status.FailureKindTimeout, Text: "cat /tmp/c.json"}},
+					"com.example.job.d":    summaryAt("done", status.LevelInfo, drawTime.Add(-72*time.Hour)),
+				})
+
+				draws := drawsAt(t, tui.NewScreen("gui/501", read, run, nil, nil, settings), 80, 16, time.Second)
+
+				require.Equal(t, []string{
+					"Workers",
+					"▌○ a  busy",
+					"○ b  idle",
+					"○ c  status timeout",
+					"",
+					"Jobs",
+					"○ d  done",
+					"",
+					"Databases",
+					"○ homebrew.mxcl.redis",
+				}, listRows(draws[0]))
+			})
+		})
+
+		t.Run("a running service and a not loaded service whose outputs have an at older than stale_after each show the stale mark", func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				drawTime := time.Now().Add(time.Second)
+				read := readGiving(
+					service.Service{Name: "com.example.worker.a", State: service.Running, PID: 4122},
+					service.Service{Name: "com.example.worker.b", State: service.NotLoaded},
+				)
+				run := runsGiving(map[string]status.Result{
+					"com.example.worker.a": summaryAt("busy", status.LevelInfo, drawTime.Add(-3*time.Minute)),
+					"com.example.worker.b": summaryAt("idle", status.LevelInfo, drawTime.Add(-5*time.Minute)),
+				})
+
+				draws := drawsAt(t, tui.NewScreen("gui/501", read, run, nil, nil, workersStaleAfter(t, 30*time.Second)), 80, 12, time.Second)
+
+				require.Equal(t, []string{"Workers", "▌● a  busy  stale 3m", "○ b  idle  stale 5m"}, listRows(draws[0])[:3])
+			})
+		})
+
+		t.Run("with an at 20 s old and a stale_after of 30 s, the row shows no stale mark at first, the mark once at is more than 30 s old while the runs give the same at, and an age that grows at each draw", func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				at := time.Now().Add(-20 * time.Second)
+				run := runsGiving(map[string]status.Result{"com.example.worker.a": summaryAt("busy", status.LevelInfo, at)})
+
+				draws := drawsAt(t, tui.NewScreen("gui/501", servicesNamed("com.example.worker.a"), run, nil, nil, workersStaleAfter(t, 30*time.Second)), 80, 12, 9500*time.Millisecond, 10500*time.Millisecond, 45*time.Second)
+
+				require.Equal(t, []string{"▌○ a  busy", "▌○ a  busy  stale 30s", "▌○ a  busy  stale 1m"}, []string{listRows(draws[0])[1], listRows(draws[1])[1], listRows(draws[2])[1]})
+			})
+		})
+
+		t.Run("after a run that gives a stale at, the next run whose at is newer than stale_after shows its summary with no stale mark at the end of that run", func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				start := time.Now()
+				run := func(_ status.Command, svc service.Service) status.Result {
+					if time.Since(start) < 3*time.Second {
+						return summaryAt("busy", status.LevelInfo, start.Add(-3*time.Minute))
+					}
+					return summaryAt("idle", status.LevelInfo, time.Now())
+				}
+
+				draws := drawsAt(t, tui.NewScreen("gui/501", servicesNamed("com.example.worker.a"), run, nil, nil, workersStaleAfter(t, 30*time.Second)), 80, 12, 3*time.Second, 4500*time.Millisecond)
+
+				require.Equal(t, []string{"▌○ a  busy  stale 3m", "▌○ a  idle"}, []string{listRows(draws[0])[1], listRows(draws[1])[1]})
 			})
 		})
 	})

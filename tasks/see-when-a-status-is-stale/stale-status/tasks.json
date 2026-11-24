@@ -47,7 +47,7 @@
     },
     {
       "n": 3,
-      "done": false,
+      "done": true,
       "title": "Show a stale status dim in its row, with stale and the age of at after it",
       "language": "Go",
       "testable": true,

@@ -449,12 +449,11 @@ func (s Screen) listText(width int) []string {
 	nameWidths := s.nameWidths()
 	for at, r := range s.rows() {
 		text = append(text, s.linesAbove(at)...)
-		name, statusText, color := s.rowText(r, nameWidths[r.groupIndex])
+		firstCell, background := " ", ansi.Color(nil)
 		if r.service.Name == s.selected {
-			text = append(text, s.selectedRow(r, name, statusText, color, width))
-			continue
+			firstCell, background = ansi.NewStyle().ForegroundColor(accent).Styled("▌"), ansi.BrightBlack
 		}
-		text = append(text, " "+s.rowGlyph(r.service)+name+s.textStyle(color, nil).Styled(statusText))
+		text = append(text, firstCell+s.rowGlyph(r.service)+s.rowText(r, nameWidths[r.groupIndex], background, width-2))
 	}
 	return text
 }
@@ -467,24 +466,41 @@ func (s Screen) nameWidths() map[int]int {
 	return widths
 }
 
-func (s Screen) rowText(r row, nameWidth int) (name, statusText string, color ansi.Color) {
+func (s Screen) rowText(r row, nameWidth int, background ansi.Color, width int) string {
 	shortName := terminal.ReplaceControlCharacters(r.shortName())
-	statusText, color = s.statusText(r.service.Name)
-	if statusText == "" {
-		return " " + shortName, "", nil
+	name := " " + shortName
+	statusText, color, mark := s.statusText(r)
+	if statusText != "" || mark != "" {
+		name += strings.Repeat(" ", nameWidth-ansi.StringWidth(shortName)+2)
 	}
-	return " " + shortName + strings.Repeat(" ", nameWidth-ansi.StringWidth(shortName)+2), statusText, color
+	statusStyle := s.textStyle(color, background)
+	if statusText != "" && mark != "" {
+		statusStyle, mark = statusStyle.Faint(), "  "+mark
+	}
+	plain := s.textStyle(nil, background)
+	padding := strings.Repeat(" ", max(width-ansi.StringWidth(name+statusText+mark), 0))
+	if statusText == "" || slices.Equal(statusStyle, plain) {
+		return plain.Styled(name + statusText + mark + padding)
+	}
+	return plain.Styled(name) + statusStyle.Styled(statusText) + plain.Styled(mark+padding)
 }
 
-func (s Screen) statusText(name string) (string, ansi.Color) {
-	result := s.statuses[name]
+func (s Screen) statusText(r row) (text string, color ansi.Color, mark string) {
+	result := s.statuses[r.service.Name]
 	switch {
 	case result.Failure != nil:
-		return terminal.ReplaceControlCharacters(s.failureRowText(result.Failure)), ansi.Red
+		return terminal.ReplaceControlCharacters(s.failureRowText(result.Failure)), ansi.Red, ""
 	case result.Output != nil:
-		return terminal.ReplaceControlCharacters(result.Output.Summary), s.levelColor(result.Output.Level)
+		return terminal.ReplaceControlCharacters(result.Output.Summary), s.levelColor(result.Output.Level), s.staleMark(r, result)
 	}
-	return "", nil
+	return "", nil, ""
+}
+
+func (s Screen) staleMark(r row, result status.Result) string {
+	if !result.Stale(r.group.Status.StaleAfter, time.Now()) {
+		return ""
+	}
+	return "stale " + s.largestUnitText(s.statusAge(result))
 }
 
 func (s Screen) failureRowText(failure *status.Failure) string {
@@ -513,15 +529,6 @@ func (s Screen) textStyle(foreground, background ansi.Color) ansi.Style {
 		style = style.ForegroundColor(foreground)
 	}
 	return style
-}
-
-func (s Screen) selectedRow(r row, name, statusText string, color ansi.Color, width int) string {
-	padding := strings.Repeat(" ", max(width-2-ansi.StringWidth(name+statusText), 0))
-	line := s.textStyle(nil, ansi.BrightBlack).Styled(name + statusText + padding)
-	if color != nil {
-		line = s.textStyle(nil, ansi.BrightBlack).Styled(name) + s.textStyle(color, ansi.BrightBlack).Styled(statusText) + s.textStyle(nil, ansi.BrightBlack).Styled(padding)
-	}
-	return ansi.NewStyle().ForegroundColor(accent).Styled("▌") + s.rowGlyph(r.service) + line
 }
 
 func (s Screen) selectedDetailText() []string {
@@ -611,6 +618,19 @@ func (s Screen) durationText(duration time.Duration) string {
 		return fmt.Sprintf("%dh%dm", int(duration.Hours()), int(duration.Minutes())%60)
 	default:
 		return fmt.Sprintf("%dd%dh", int(duration.Hours())/24, int(duration.Hours())%24)
+	}
+}
+
+func (s Screen) largestUnitText(duration time.Duration) string {
+	switch {
+	case duration < time.Minute:
+		return fmt.Sprintf("%ds", int(duration.Seconds()))
+	case duration < time.Hour:
+		return fmt.Sprintf("%dm", int(duration.Minutes()))
+	case duration < 24*time.Hour:
+		return fmt.Sprintf("%dh", int(duration.Hours()))
+	default:
+		return fmt.Sprintf("%dd", int(duration.Hours())/24)
 	}
 }
 

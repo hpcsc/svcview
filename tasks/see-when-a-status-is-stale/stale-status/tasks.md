@@ -191,28 +191,28 @@ and the age of `at`, for example `busy  stale 3m`. The mark is drawn at each dra
 `at` gets older than `stale_after`, and it goes away at the end of the first run whose output has a newer `at`.
 
 **Acceptance Criteria:**
-- [ ] With a `StaleAfter` of 30 s, the row of a service whose last output has the summary `busy` and an `at` 3 minutes
+- [x] With a `StaleAfter` of 30 s, the row of a service whose last output has the summary `busy` and an `at` 3 minutes
       old shows `busy  stale 3m`: the summary dim, then two spaces, then the mark in the default color of the terminal.
-- [ ] The age in the mark is the age of `at` in its largest whole unit, rounded down: `45s`, `3m` for 3 minutes and 12
+- [x] The age in the mark is the age of `at` in its largest whole unit, rounded down: `45s`, `3m` for 3 minutes and 12
       seconds, `2h`, `1d`. The detail pane keeps `Status 3m12s ago`.
-- [ ] A dim summary keeps the color of its level: dim in the default color for `info`, dim yellow for `warn`, dim red
+- [x] A dim summary keeps the color of its level: dim in the default color for `info`, dim yellow for `warn`, dim red
       for `error`. The mark is in the default color for each level.
-- [ ] On the selected row, the dim summary and the mark are on the background of the selected row.
-- [ ] An output with no summary and a stale `at` shows only the mark, in the column of the summaries of the group.
-- [ ] The summaries of one group still start in one column, stale or not.
-- [ ] These rows show the summary as before, with no dim and no mark: an output with no `at`, also when the run ended
+- [x] On the selected row, the dim summary and the mark are on the background of the selected row.
+- [x] An output with no summary and a stale `at` shows only the mark, in the column of the summaries of the group.
+- [x] The summaries of one group still start in one column, stale or not.
+- [x] These rows show the summary as before, with no dim and no mark: an output with no `at`, also when the run ended
       long ago; an `at` that is not older than `stale_after`; a failure, which stays in red in place of the summary; a
       service of a group whose status command has no `StaleAfter`; a service of a group with no status command.
-- [ ] A `running` service and a `not loaded` service whose last outputs have an `at` older than `stale_after` each
+- [x] A `running` service and a `not loaded` service whose last outputs have an `at` older than `stale_after` each
       show the mark.
-- [ ] With an `at` 20 s old at the end of the run and a `stale_after` of 30 s, the row shows no mark at first, and
+- [x] With an `at` 20 s old at the end of the run and a `stale_after` of 30 s, the row shows no mark at first, and
       shows the mark after more than 10 s more, while the runs give the same `at`; the age in the mark grows as the
       screen draws again.
-- [ ] After a run that gives a stale `at`, the next run whose output has an `at` newer than `stale_after` makes the
+- [x] After a run that gives a stale `at`, the next run whose output has an `at` newer than `stale_after` makes the
       row show its summary with no dim and no mark, at the end of that run.
-- [ ] A golden file `status-stale` in `internal/tui/testdata` shows a stale row of each level, a row that is not stale,
+- [x] A golden file `status-stale` in `internal/tui/testdata` shows a stale row of each level, a row that is not stale,
       and the selected row stale.
-- [ ] e2e: with `stale_after: 30s` in the status of the group and a status file whose `at` is 5 minutes old, the row of
+- [x] e2e: with `stale_after: 30s` in the status of the group and a status file whose `at` is 5 minutes old, the row of
       the `not loaded` service shows `01  busy  stale 5m`; after a rename puts a file with a new `at` and the summary
       `idle` in its place, the row shows `01  idle` with no mark, with no key press.
 

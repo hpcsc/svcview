@@ -100,6 +100,26 @@ describe('the status command', () => {
     await session.waitForText('01  busy', { timeout: 5000 })
   })
 
+  it('with stale_after: 30s, a status file whose at is 5 minutes old shows stale and the age of at after the summary in the row of the not loaded service, and the mark goes away with no key press when the file gets a new at', async () => {
+    const home = homeWithPlists([])
+    const statusFile = join(scratchDir(), 'status.json')
+    const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString()
+    writeFileSync(statusFile, `{"version":1,"at":"${fiveMinutesAgo}","summary":"busy"}\n`)
+    addPlist(home, 'com.example.worker.01', { WORKER_STATUS_FILE: statusFile })
+    writeConfig(
+      join(home, '.config', 'svcview'),
+      `${workersWithStatusCommand(`[cat, '{{.Env.WORKER_STATUS_FILE}}']`)}      stale_after: 30s\n`,
+    )
+
+    const session = await openCli(scratchDir(), [], { HOME: home })
+    await session.waitForText('○ 01  busy  stale 5m')
+    writeFileSync(`${statusFile}.new`, `{"version":1,"at":"${new Date().toISOString()}","summary":"idle"}\n`)
+    renameSync(`${statusFile}.new`, statusFile)
+
+    await session.waitForText('○ 01  idle', { timeout: 5000 })
+    expect(await session.text()).not.toContain('stale')
+  })
+
   it('a status command that exits with 3 shows status error in the row, and the exit code and the lines of stderr in the detail pane', async () => {
     const home = homeWithPlists(['com.example.worker.01'])
     writeConfig(join(home, '.config', 'svcview'), workersWithStatusCommand(`[sh, -c, 'echo broken >&2; exit 3']`))
