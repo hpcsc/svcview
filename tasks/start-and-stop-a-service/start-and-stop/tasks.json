@@ -83,7 +83,7 @@
     },
     {
       "n": 4,
-      "done": false,
+      "done": true,
       "title": "Show the error of a failed start on a message line above the help line",
       "language": "Go",
       "testable": true,

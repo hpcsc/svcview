@@ -297,21 +297,21 @@ error. The panes are one line shorter while the message line shows. The next key
 what it does without a message line.
 
 **Acceptance Criteria:**
-- [ ] When the start gives an error, the line above the help line shows its text, and the panes end one line higher.
+- [x] When the start gives an error, the line above the help line shows its text, and the panes end one line higher.
       Under the help, the help box ends one line higher.
-- [ ] The text of an error with more than one line shows on the one line, each line after the line before it with a
+- [x] The text of an error with more than one line shows on the one line, each line after the line before it with a
       space between them. A text that is wider than the terminal is cut with `…`. Each control character shows as
       `�`.
-- [ ] The message line stays through each refresh and each run, until the next key press. That key hides it and does
+- [x] The message line stays through each refresh and each run, until the next key press. That key hides it and does
       what it does without a message line: for example `↓` also selects the next row.
-- [ ] A start that ends with no error shows no message line. The error of a later start takes the place of an
+- [x] A start that ends with no error shows no message line. The error of a later start takes the place of an
       earlier one.
-- [ ] Before the first error, and after a key hides it, the screen has no message line, so the golden files of the
+- [x] Before the first error, and after a key hides it, the screen has no message line, so the golden files of the
       earlier tasks do not change.
-- [ ] When the message line shows and hides, the selected row stays in view in the list, and the scroll of the detail
+- [x] When the message line shows and hides, the selected row stays in view in the list, and the scroll of the detail
       pane stays inside its text.
-- [ ] A new golden file shows a screen with a message line.
-- [ ] e2e: when a helper in `e2e/testUtils.ts` tells the fake launchctl to fail, the fake prints the text of the
+- [x] A new golden file shows a screen with a message line.
+- [x] e2e: when a helper in `e2e/testUtils.ts` tells the fake launchctl to fail, the fake prints the text of the
       helper to stderr and exits with a code other than 0; `s` then shows that text above the help line, for example
       `Bootstrap failed: 5: Input/output error`. `docs/e2e-tests.md` names the helper.
 

@@ -3,3 +3,7 @@ if [ "$*" = list ]; then
   exec cat "$HOME/launchctl-list.txt"
 fi
 printf '%s\n' "$*" >> "$HOME/launchctl-calls.txt"
+if [ -f "$HOME/launchctl-failure.txt" ]; then
+  cat "$HOME/launchctl-failure.txt" >&2
+  exit 5
+fi

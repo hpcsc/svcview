@@ -339,6 +339,17 @@ func openStarting(t *testing.T, read func() ([]service.Service, error), start fu
 	return screen
 }
 
+func startFailing(text string) func(service.Service) error {
+	return func(service.Service) error {
+		return errors.New(text)
+	}
+}
+
+func bottomLines(screen tea.Model, count int) []string {
+	lines := strings.Split(ansi.Strip(screen.View().Content), "\n")
+	return lines[len(lines)-count:]
+}
+
 func runAll(cmds ...tea.Cmd) {
 	for _, cmd := range cmds {
 		if cmd != nil {
@@ -2444,6 +2455,135 @@ func TestScreen(t *testing.T) {
 				require.Equal(t, []service.Service{loaded}, starts.get())
 				require.Equal(t, []time.Duration{0, 2 * time.Second}, reads.get())
 				require.Contains(t, ansi.Strip(screen.View().Content), "▌● com.example.b")
+			})
+		})
+	})
+
+	t.Run("message line", func(t *testing.T) {
+		listBottom := "╰" + strings.Repeat("─", 30) + "╯╰" + strings.Repeat("─", 46) + "╯"
+		helpLine := " s start · x stop · ? help"
+
+		t.Run("when the start gives an error, the line above the help line shows its text, and the panes end one line higher", func(t *testing.T) {
+			screen := openStarting(t, servicesNamed("com.example.a"), startFailing("Bootstrap failed: 5: Input/output error"))
+
+			screen, start := screen.Update(keyS)
+			screen, _ = screen.Update(start())
+
+			requireGolden(t, "message-line", screen)
+			lines := strings.Split(ansi.Strip(screen.View().Content), "\n")
+			require.Equal(t, []string{listBottom, " Bootstrap failed: 5: Input/output error", helpLine}, lines[9:])
+		})
+
+		t.Run("when the start gives an error while the help shows, the help box ends one line higher", func(t *testing.T) {
+			screen := openStarting(t, servicesNamed("com.example.a"), startFailing("Bootstrap failed: 5: Input/output error"))
+
+			screen, start := screen.Update(keyS)
+			screen = pressKeys(screen, question)
+			screen, _ = screen.Update(start())
+
+			lines := strings.Split(ansi.Strip(screen.View().Content), "\n")
+			require.Equal(t, []string{"╰" + strings.Repeat("─", 78) + "╯", " Bootstrap failed: 5: Input/output error", helpLine}, lines[9:])
+		})
+
+		t.Run("shows the lines of an error on one line, each line after the line before it with a space between them, and each control character as �", func(t *testing.T) {
+			screen := openStarting(t, servicesNamed("com.example.a"), startFailing("Bootstrap failed: 5: Input/output error\nTry re-running the command as root\x1b[2J for richer errors."))
+			screen, _ = screen.Update(tea.WindowSizeMsg{Width: 120, Height: 12})
+
+			screen, start := screen.Update(keyS)
+			screen, _ = screen.Update(start())
+
+			require.Equal(t, " Bootstrap failed: 5: Input/output error Try re-running the command as root�[2J for richer errors.", bottomLines(screen, 2)[0])
+			require.NotContains(t, screen.View().Content, "\x1b[2J")
+		})
+
+		t.Run("cuts a text that is wider than the terminal, and ends it with …", func(t *testing.T) {
+			screen := openStarting(t, servicesNamed("com.example.a"), startFailing("Bootstrap failed: 5: Input/output error"))
+			screen, _ = screen.Update(tea.WindowSizeMsg{Width: 30, Height: 12})
+
+			screen, start := screen.Update(keyS)
+			screen, _ = screen.Update(start())
+
+			require.Equal(t, " Bootstrap failed: 5: Input/o…", bottomLines(screen, 2)[0])
+		})
+
+		t.Run("stays through each refresh and each status run until the next key press, and that key also does what it does without a message line", func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				run := runsGiving(map[string]status.Result{"com.example.worker.a": summary("busy", status.LevelInfo)})
+				screen := runFor(t, tui.NewScreen("gui/501", servicesNamed("com.example.worker.a", "com.example.worker.b"), run, startFailing("Bootstrap failed: 5: Input/output error"), workersWithStatus(t)), 5*time.Second, keyS)
+				withMessage := bottomLines(screen, 2)
+
+				screen = pressKeys(screen, down)
+
+				require.Equal(t, []string{" Bootstrap failed: 5: Input/output error", helpLine}, withMessage)
+				require.Equal(t, []string{listBottom, helpLine}, bottomLines(screen, 2))
+				require.Equal(t, "b", selectedName(screen))
+			})
+		})
+
+		t.Run("a start that ends with no error shows no message line", func(t *testing.T) {
+			screen := openStarting(t, servicesNamed("com.example.a"), func(service.Service) error { return nil })
+			before := screen.View().Content
+
+			screen, start := screen.Update(keyS)
+			screen, _ = screen.Update(start())
+
+			require.Equal(t, before, screen.View().Content)
+		})
+
+		t.Run("the error of a later start takes the place of an earlier one", func(t *testing.T) {
+			start := func(svc service.Service) error {
+				return fmt.Errorf("%s failed", svc.Name)
+			}
+			screen := openStarting(t, servicesNamed("com.example.a", "com.example.b"), start)
+
+			screen, startA := screen.Update(keyS)
+			screen = pressKeys(screen, down)
+			screen, startB := screen.Update(keyS)
+			screen, _ = screen.Update(startA())
+			screen, _ = screen.Update(startB())
+
+			require.Equal(t, []string{listBottom, " com.example.b failed", helpLine}, bottomLines(screen, 3))
+		})
+
+		t.Run("after a key hides the message line, the screen shows what it showed before the error", func(t *testing.T) {
+			screen := openStarting(t, servicesNamed("com.example.a", "com.example.b"), startFailing("Bootstrap failed: 5: Input/output error"))
+			before := screen.View().Content
+			screen, start := screen.Update(keyS)
+			screen, _ = screen.Update(start())
+			withMessage := screen.View().Content
+
+			screen = pressKeys(screen, escape)
+
+			require.NotEqual(t, before, withMessage)
+			require.Equal(t, before, screen.View().Content)
+		})
+
+		t.Run("when the message line shows and hides, the selected row stays in view in the list", func(t *testing.T) {
+			screen := openStarting(t, servicesNamed("com.example.a", "com.example.b", "com.example.c", "com.example.d", "com.example.e", "com.example.f", "com.example.g", "com.example.h", "com.example.i", "com.example.j"), startFailing("Bootstrap failed"))
+			screen = pressKeys(screen, down, down, down, down, down, down, down, down, down)
+
+			screen, start := screen.Update(keyS)
+			screen, _ = screen.Update(start())
+			withMessage := listRows(screen)
+			screen = pressKeys(screen, escape)
+
+			require.Equal(t, []string{"○ com.example.f", "○ com.example.g", "○ com.example.h", "○ com.example.i", "▌○ com.example.j"}, withMessage)
+			require.Equal(t, []string{"○ com.example.e", "○ com.example.f", "○ com.example.g", "○ com.example.h", "○ com.example.i", "▌○ com.example.j"}, listRows(screen))
+		})
+
+		t.Run("when the message line shows and hides, the scroll of the detail pane stays inside its text", func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				run := runsGiving(map[string]status.Result{"com.example.worker.a": {Output: &status.Output{Events: eventsNumbered(10)}}})
+				screen := runSized(t, tui.NewScreen("gui/501", servicesNamed("com.example.worker.a"), run, startFailing("Bootstrap failed"), workersWithStatus(t)), 80, 12, 100*time.Millisecond)
+				screen = pressKeys(screen, tab, down, down, down, down, down, down, down, down, down, down, down, down)
+
+				screen, start := screen.Update(keyS)
+				screen, _ = screen.Update(start())
+				withMessage := detailPane(screen)
+				screen = pressKeys(screen, escape)
+
+				require.Equal(t, []string{"09:04 ● event 05", "09:05 ● event 06", "09:06 ● event 07", "09:07 ● event 08", "09:08 ● event 09"}, withMessage)
+				require.Equal(t, []string{"09:04 ● event 05", "09:05 ● event 06", "09:06 ● event 07", "09:07 ● event 08", "09:08 ● event 09", "09:09 ● event 10"}, detailPane(screen))
 			})
 		})
 	})

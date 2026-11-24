@@ -85,6 +85,7 @@ type Screen struct {
 	statuses       map[string]status.Result
 	runNotEnded    map[string]bool
 	actionNotEnded map[string]bool
+	message        string
 	selected       string
 	listTop        int
 	detailTop      int
@@ -119,6 +120,7 @@ func (s Screen) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		s.width, s.height = msg.Width, msg.Height
 	case tea.KeyPressMsg:
+		s.message = ""
 		switch msg.String() {
 		case "q", "ctrl+c":
 			return s, tea.Quit
@@ -162,6 +164,9 @@ func (s Screen) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		s.statuses[msg.name] = msg.result
 	case actionEnded:
 		delete(s.actionNotEnded, msg.name)
+		if msg.err != nil {
+			s.message = terminal.ReplaceControlCharacters(strings.ReplaceAll(msg.err.Error(), "\n", " "))
+		}
 	case refresh:
 		return s, s.readServices
 	}
@@ -331,11 +336,19 @@ func (s Screen) content() string {
 	} else {
 		lines = append(lines, s.panes()...)
 	}
+	lines = append(lines, s.messageLines()...)
 	return strings.Join(append(lines, ansi.Truncate(helpLine, s.width, "")), "\n")
 }
 
 func (s Screen) paneHeight() int {
-	return s.height - headerHeight - 1
+	return s.height - headerHeight - len(s.messageLines()) - 1
+}
+
+func (s Screen) messageLines() []string {
+	if s.message == "" {
+		return nil
+	}
+	return []string{ansi.Truncate(" "+s.message, s.width, "…")}
 }
 
 func (s Screen) panes() []string {

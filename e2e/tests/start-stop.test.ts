@@ -1,6 +1,6 @@
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { homeWithPlists, launchctlCalls, openCli, scratchDir, setLaunchctlList } from '../testUtils'
+import { failLaunchctl, homeWithPlists, launchctlCalls, openCli, scratchDir, setLaunchctlList } from '../testUtils'
 
 const uid = process.getuid?.()
 
@@ -55,5 +55,19 @@ describe('start a service', () => {
     setLaunchctlList(home, [{ name: 'com.example.worker', pid: 4122 }])
 
     await session.waitForText('▌● com.example.worker', { timeout: 5000 })
+  })
+
+  it('when launchctl fails, the line above the help line shows what it printed', async () => {
+    const home = homeWithPlists(['com.example.worker'])
+    failLaunchctl(home, 'Bootstrap failed: 5: Input/output error\n')
+    const session = await openCli(scratchDir(), [], { HOME: home })
+    await session.waitForText('▌○ com.example.worker')
+
+    await session.press('s')
+
+    await session.waitForText('Bootstrap failed: 5: Input/output error')
+    const lines = (await session.text()).split('\n')
+    const help = lines.findIndex((line) => line.startsWith(' s start · x stop · ? help'))
+    expect(lines[help - 1]).toMatch(/^ Bootstrap failed: 5: Input\/output error\s*$/)
   })
 })

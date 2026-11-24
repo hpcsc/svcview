@@ -127,6 +127,8 @@ sequenceDiagram
   `launchctl-list.txt`: a test that wants the row to show a new state writes the new output with `setLaunchctlList`.
 - `launchctlCalls(home)` gives the lines of `launchctl-calls.txt`, one for each call, or no lines when svcview did not
   call the fake. A start runs in the background, so a test waits for the calls with `expect.poll`.
+- `failLaunchctl(home, text)` makes each later call other than `list` fail: the fake still records the call, then
+  prints the text to stderr and exits with 5, as the real `launchctl` does when a `bootstrap` fails.
 - `setLaunchctlList` writes the file to a new name and renames it over the old file. So the fake never prints half
   of the file while the screen is open.
 - The fake must stay executable in git (mode `100755`): the Docker image copies the mode with the file.
