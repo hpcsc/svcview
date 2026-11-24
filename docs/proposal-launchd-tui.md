@@ -87,7 +87,7 @@ a new tool, and not as a change to one of them.
 │                              ││ 09:04 ● step review         │
 │                              ││ 09:00 ● claimed ENG-692     │
 ╰──────────────────────────────╯╰─────────────────────────────╯
- s start · x stop · r restart · l log · L worker log · ? help
+ s start · x stop · r restart · o log · L worker log · ? help
 ```
 
 The screen has three parts:
@@ -103,7 +103,7 @@ the name after the text that `match` matched, when the match starts at the first
 svcview cuts a long name with `…`. The title of the detail pane always shows the full name.
 
 The list takes 40 percent of the width. When the terminal has fewer than 60 columns, svcview shows one pane at a
-time, and `enter` opens the detail pane.
+time. `enter` or `l` opens the detail pane, and `esc` or `h` goes back to the list.
 
 When `launchctl` exits with an error, a message line above the help line shows its output.
 
@@ -129,16 +129,20 @@ shows the state without color too.
 
 | Key | Action |
 | --- | --- |
-| `↑` `↓` | Select a service. When the detail pane has the focus, scroll it. |
+| `↑` `↓`, or `k` `j` | Select a service. When the detail pane has the focus, scroll it. |
 | `tab` | Move the focus to the other pane. |
+| `l` | Move the focus to the detail pane. When svcview shows one pane at a time, open the detail pane. |
+| `h` | Move the focus to the list. When svcview shows one pane at a time, go back to the list. |
 | `enter` | Open the detail pane, when svcview shows one pane at a time. |
 | `/` | Filter the list by name. |
 | `s` | Start the service. |
 | `x` | Stop the service. svcview asks for a confirmation. |
 | `r` | Restart the service. svcview asks for a confirmation. |
-| `l` | Show the log of the service. |
+| `o` | Show the log of the service. |
 | `?` | Show all keys. |
 | `q` | Quit. |
+
+`h`, `j`, `k`, and `l` move as in vim, so a person who uses vim does not move a hand to the arrow keys.
 
 The help line shows the keys of the actions. A group can add more keys. See
 [Actions of a Group](#actions-of-a-group).

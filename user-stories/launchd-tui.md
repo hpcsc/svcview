@@ -40,6 +40,7 @@ flowchart LR
     S13["US-013<br/>All services"]
     S14["US-014<br/>Narrow, no color"]
     S15["US-015<br/>Mac install"]
+    S16["US-016<br/>Vim keys"]
 
     S1 --> S2
     S1 --> S8
@@ -48,6 +49,7 @@ flowchart LR
     S1 --> S13
     S1 --> S14
     S1 --> S15
+    S1 --> S16
     S2 --> S3
     S2 --> S5
     S2 --> S11
@@ -61,7 +63,7 @@ flowchart LR
 ```
 
 Everything blocks on US-001: until svcview lists the services, no other story has a screen to act on. When it
-lands, seven stories can start at the same time.
+lands, eight stories can start at the same time.
 
 The shaded chain is the critical path, at four deep: the list, then the groups, then the status summary, and then
 any of US-004, US-006, and US-007. Start US-002 and US-003 first after US-001, because six stories wait on US-002.
@@ -317,12 +319,12 @@ prints with no search for its log path.
 
 **Acceptance Criteria:**
 
-- [ ] `l` gives the terminal to `less +F` with the `StandardOutPath` of the service. When `less` ends, the screen
+- [ ] `o` gives the terminal to `less +F` with the `StandardOutPath` of the service. When `less` ends, the screen
       shows again, with the same service selected.
-- [ ] When the plist has no `StandardOutPath`, `l` opens the `StandardErrorPath`.
-- [ ] When the service has neither path, `l` does not open `less`, and the message line says that the service has
+- [ ] When the plist has no `StandardOutPath`, `o` opens the `StandardErrorPath`.
+- [ ] When the service has neither path, `o` does not open `less`, and the message line says that the service has
       no log path.
-- [ ] The help line shows `l log`.
+- [ ] The help line shows `o log`.
 
 **Context:** `less +F` shows the end of the file and each new line, as `tail -f` does. `ctrl-c` stops the follow,
 and `q` ends `less`.
@@ -366,6 +368,7 @@ with a few keys.
 - [ ] A group with no service that matches the filter is not in the list.
 - [ ] `enter` keeps the filter, and `↑` and `↓` then select a service in the filtered list.
 - [ ] `esc` clears the filter, and the list shows all services again.
+- [ ] While the filter line is open, each letter goes into the filter, also `h`, `j`, `k`, and `l`.
 - [ ] When no service matches, the list shows `no service matches`.
 
 **Depends on:** US-001
@@ -401,8 +404,8 @@ easy to read, so that I can use svcview in any terminal.
 
 - [ ] With 60 columns or more, the screen shows the list and the detail pane side by side. The list takes 40 percent
       of the width.
-- [ ] With fewer than 60 columns, the screen shows one pane at a time. The list shows first. `enter` opens the detail
-      pane of the selected service, and `esc` goes back to the list.
+- [ ] With fewer than 60 columns, the screen shows one pane at a time. The list shows first. `enter` or `l` opens the
+      detail pane of the selected service, and `esc` or `h` goes back to the list.
 - [ ] When the terminal changes size, the screen changes its layout with no restart.
 - [ ] The screen uses only the 16 colors of the ANSI palette, so the theme of the terminal sets the real colors.
 - [ ] When `NO_COLOR` is set, the screen has no color. The glyphs `●`, `◐`, and `○` still show the state.
@@ -427,6 +430,28 @@ other systems, so that I do not install a tool that cannot run on my machine.
 
 **Depends on:** US-001
 
+### US-016: Move with the keys of vim
+
+**Goals:** G1
+
+**Description:** As a developer who uses vim, I want to move in the screen with `h`, `j`, `k`, and `l`, so that I do
+not move a hand to the arrow keys.
+
+**Acceptance Criteria:**
+
+- [ ] `j` does what `↓` does, and `k` does what `↑` does: they select the next or the previous service in the list,
+      and they scroll the detail pane when it has the focus.
+- [ ] `l` moves the focus to the detail pane, and `h` moves the focus to the list. `l` when the detail pane has the
+      focus, and `h` when the list has the focus, do nothing.
+- [ ] While the help shows, `h`, `j`, `k`, and `l` do nothing, as `↑`, `↓`, and `tab` do.
+- [ ] While a confirmation shows, `h`, `j`, `k`, and `l` answer no, as each key other than `y` does.
+- [ ] The help that `?` shows lists `h`, `j`, `k`, and `l` with their actions, and `docs/cli.md` describes them.
+
+**Context:** The log of US-010 uses `o`, so `l` is free for the move to the detail pane. In the one-pane layout of
+US-014, `l` opens the detail pane and `h` goes back to the list. US-014 builds that part.
+
+**Depends on:** US-001
+
 ## Non-Goals
 
 - No systemd, and no other service manager.
@@ -447,7 +472,7 @@ other systems, so that I do not install a tool that cannot run on my machine.
 3. The proposal does not give these details. The stories assume these answers:
    - The filter of US-012: a match of part of the name, with no regard to case. `enter` keeps the filter, and
      `esc` clears it.
-   - The key that goes back to the list in one-pane mode, in US-014: `esc`.
+   - The keys that go back to the list in one-pane mode, in US-014: `esc` and `h`.
    - The time zone of the event times in US-004: the local time zone.
    - `s` on a service that is `running`, and `x` on a service that is `not loaded`, in US-008: no command and no
      message.
