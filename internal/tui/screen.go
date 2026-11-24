@@ -18,7 +18,7 @@ import (
 
 const (
 	headerHeight    = 3
-	helpLine        = " s start · x stop · ? help"
+	helpLine        = " s start · x stop · r restart · ? help"
 	accent          = ansi.Blue
 	detailLeftWidth = 14
 	barCells        = 10
@@ -426,6 +426,7 @@ func (s Screen) helpText() []string {
 		"h         move the focus to the list",
 		"s         start the selected service",
 		"x         stop the selected service, after a confirmation",
+		"r         restart the selected service, after a confirmation",
 		"?         show or hide this help",
 		"esc       hide this help",
 		"q ctrl+c  quit",

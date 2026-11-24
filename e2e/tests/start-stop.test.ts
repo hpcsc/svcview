@@ -67,7 +67,7 @@ describe('start a service', () => {
 
     await session.waitForText('Bootstrap failed: 5: Input/output error')
     const lines = (await session.text()).split('\n')
-    const help = lines.findIndex((line) => line.startsWith(' s start · x stop · ? help'))
+    const help = lines.findIndex((line) => line.includes('? help'))
     expect(lines[help - 1]).toMatch(/^ Bootstrap failed: 5: Input\/output error\s*$/)
   })
 })

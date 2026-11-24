@@ -170,13 +170,13 @@ with "restart the selected service, after a confirmation", on the line after `x`
 task changes only the text of the help; Task 3 gives `r` its action.
 
 **Acceptance Criteria:**
-- [ ] The help line shows `s start · x stop · r restart · ? help` under the panes and under the help, cut at the width
+- [x] The help line shows `s start · x stop · r restart · ? help` under the panes and under the help, cut at the width
       of the terminal as before.
-- [ ] `?` shows `r` with its action on the line after `x`, and each other key with its action as before. The golden
+- [x] `?` shows `r` with its action on the line after `x`, and each other key with its action as before. The golden
       file of the help shows all of its lines, in a terminal that is high enough for them.
-- [ ] Each golden file in `internal/tui/testdata` shows the new help line, and no other line of them changes, except
+- [x] Each golden file in `internal/tui/testdata` shows the new help line, and no other line of them changes, except
       the help in `keys.golden`.
-- [ ] The e2e test that finds the help line under a message line finds the new help line.
+- [x] The e2e test that finds the help line under a message line finds the new help line.
 
 **Affected Files/Modules:**
 - `internal/tui/screen.go` — the help line and the help

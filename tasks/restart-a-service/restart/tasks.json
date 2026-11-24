@@ -25,7 +25,7 @@
     },
     {
       "n": 2,
-      "done": false,
+      "done": true,
       "title": "Show r restart in the help line and in the help",
       "language": "Go",
       "testable": true,

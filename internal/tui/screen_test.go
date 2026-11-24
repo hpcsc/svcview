@@ -2942,7 +2942,7 @@ func TestScreen(t *testing.T) {
 
 	t.Run("message line", func(t *testing.T) {
 		listBottom := "╰" + strings.Repeat("─", 30) + "╯╰" + strings.Repeat("─", 46) + "╯"
-		helpLine := " s start · x stop · ? help"
+		helpLine := " s start · x stop · r restart · ? help"
 
 		t.Run("when the start gives an error, the line above the help line shows its text, and the panes end one line higher", func(t *testing.T) {
 			screen := openStarting(t, servicesNamed("com.example.a"), failingWith("Bootstrap failed: 5: Input/output error"))
@@ -3074,7 +3074,7 @@ func TestScreen(t *testing.T) {
 		loaded := service.Service{Name: "com.example.b", State: service.Loaded, PlistPath: "/Users/me/Library/LaunchAgents/com.example.b.plist"}
 		running := service.Service{Name: "com.example.c", State: service.Running, PID: 4122, PlistPath: "/Users/me/Library/LaunchAgents/com.example.c.plist"}
 		listBottom := "╰" + strings.Repeat("─", 30) + "╯╰" + strings.Repeat("─", 46) + "╯"
-		helpLine := " s start · x stop · ? help"
+		helpLine := " s start · x stop · r restart · ? help"
 
 		t.Run("x on a loaded service and on a running service shows the confirmation with the full name of the service on the message line, and calls nothing yet", func(t *testing.T) {
 			stops := &serviceCalls{}
@@ -3274,7 +3274,7 @@ func TestScreen(t *testing.T) {
 		})
 
 		t.Run("? shows each key of the screen with its action, in place of the panes", func(t *testing.T) {
-			screen := open(t, "gui/501", servicesNamed("com.example.worker"), 80, 15)
+			screen := open(t, "gui/501", servicesNamed("com.example.worker"), 80, 16)
 
 			screen = pressKeys(screen, question)
 
@@ -3330,13 +3330,13 @@ func TestScreen(t *testing.T) {
 			require.NoError(t, runWithInput(t, tui.NewScreen("gui/501", servicesNamed("com.example.worker"), nil, nil, nil, refreshEvery2s), "?q"))
 		})
 
-		t.Run("the help line at the bottom of the screen shows s start, x stop and ? help, under the panes and under the help", func(t *testing.T) {
+		t.Run("the help line at the bottom of the screen shows s start, x stop, r restart and ? help, under the panes and under the help", func(t *testing.T) {
 			screen := open(t, "gui/501", servicesNamed("com.example.worker"), 80, 12)
 			panes := strings.Split(ansi.Strip(screen.View().Content), "\n")
 			help := strings.Split(ansi.Strip(pressKeys(screen, question).View().Content), "\n")
 
-			require.Equal(t, []string{"╰" + strings.Repeat("─", 30) + "╯╰" + strings.Repeat("─", 46) + "╯", " s start · x stop · ? help"}, panes[10:])
-			require.Equal(t, []string{"╰" + strings.Repeat("─", 78) + "╯", " s start · x stop · ? help"}, help[10:])
+			require.Equal(t, []string{"╰" + strings.Repeat("─", 30) + "╯╰" + strings.Repeat("─", 46) + "╯", " s start · x stop · r restart · ? help"}, panes[10:])
+			require.Equal(t, []string{"╰" + strings.Repeat("─", 78) + "╯", " s start · x stop · r restart · ? help"}, help[10:])
 		})
 
 		t.Run("the help line is cut at the width of the terminal", func(t *testing.T) {
