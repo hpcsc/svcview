@@ -106,7 +106,7 @@
     },
     {
       "n": 5,
-      "done": false,
+      "done": true,
       "title": "Describe the restart in docs/cli.md",
       "language": "Markdown",
       "testable": false,

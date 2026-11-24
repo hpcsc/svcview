@@ -61,7 +61,7 @@ terminal, for example in a pipe, it prints the help and opens no screen.
 │                              ││ 09:00 ● claimed ENG-692                      │
 │                              ││                                              │
 ╰──────────────────────────────╯╰──────────────────────────────────────────────╯
- s start · x stop · ? help
+ s start · x stop · r restart · ? help
 ```
 
 This screen has the group `Workers`, with the match `^com\.example\.worker\.` and a
@@ -72,8 +72,8 @@ This screen has the group `Workers`, with the match `^com\.example\.worker\.` an
 | The header | The domain `gui/<uid>` of the user, and the number of services in each state. |
 | The list | One row for each service that has a plist in `~/Library/LaunchAgents`, in [the groups of the config files](#groups), and then in the group `Other`. Each group starts with a line with its name, and an empty line separates two groups. In each group, the services are sorted by name. Each row starts with the glyph of the state of the service, and a row in a group shows the short name of the service. svcview cuts a name that is too long for the list with `…`. When the list has more lines than the pane, it scrolls to keep the selected row in view. When the selected row is the first row of its group, and the pane has room for more than one line, the line of the group shows too. In a group with a status command, a row shows [the summary of the status](#in-the-list-and-the-detail-pane) after the short name. The list takes 40 percent of the width. At start, the list has [the focus](#the-focus-and-the-scroll). |
 | The detail pane | The selected service. Its title is the full name of the service. The pane shows the state, the PID, the uptime, and the last exit. In a group with a status command, it also shows the age of the status, and the [fields and the events](#in-the-list-and-the-detail-pane) of the last output or the [failure](#failures) of the last run. When the detail pane has [the focus](#the-focus-and-the-scroll), `↑` and `↓`, or `k` and `j`, scroll it. |
-| The message line | The [confirmation](#start-and-stop-a-service) of `x`, or what launchctl printed when a start or a stop fails. The line shows above the help line only while it has a text, and the panes are one line shorter while it shows. See [The message line](#the-message-line). |
-| The help line | `s start · x stop · ? help` |
+| The message line | The [confirmation](#start-stop-and-restart-a-service) of `x` or of `r`, what launchctl printed when a start, a stop or a restart fails, or the text of `r` on a `not loaded` service. The line shows above the help line only while it has a text, and the panes are one line shorter while it shows. See [The message line](#the-message-line). |
+| The help line | `s start · x stop · r restart · ? help` |
 
 The name of a service is the `Label` of its plist. svcview gets the state, the PID, and the last exit of each
 service from `launchctl list`, and the uptime from `ps`.
@@ -151,34 +151,38 @@ and no rows. When `ps` fails, no service shows an uptime.
 | `tab` | Move the focus to the other pane. |
 | `l` | Move the focus to the detail pane. When the detail pane has the focus, `l` does nothing. |
 | `h` | Move the focus to the list. When the list has the focus, `h` does nothing. |
-| `s` | Start the selected service. See [Start and stop a service](#start-and-stop-a-service). |
+| `s` | Start the selected service. See [Start, stop and restart a service](#start-stop-and-restart-a-service). |
 | `x` | Stop the selected service, after a confirmation. `y` answers yes to the confirmation, and each other key answers no. |
+| `r` | Restart the selected service, after a confirmation. `y` answers yes to the confirmation, and each other key answers no. |
 | `?` | Show the help, which lists all keys, or hide it. |
 | `esc` | Hide the help. |
 | `q` or `ctrl+c` | Quit. |
 
-### Start and stop a service
+### Start, stop and restart a service
 
-`s` starts the selected service, and `x` stops it. svcview runs `launchctl` in the domain `gui/<uid>` of the user:
+`s` starts the selected service, `x` stops it, and `r` restarts it. svcview runs `launchctl` in the domain
+`gui/<uid>` of the user:
 
-| The state of the selected service | `s` runs | `x` runs |
-| --- | --- | --- |
-| `not loaded` | `launchctl bootstrap gui/<uid> <plist path>` | Nothing |
-| `loaded` | `launchctl kickstart gui/<uid>/<name>` | `launchctl bootout gui/<uid>/<name>`, after the confirmation |
-| `running` | Nothing | `launchctl bootout gui/<uid>/<name>`, after the confirmation |
+| The state of the selected service | `s` runs | `x` runs | `r` runs |
+| --- | --- | --- | --- |
+| `not loaded` | `launchctl bootstrap gui/<uid> <plist path>` | Nothing | Nothing |
+| `loaded` | `launchctl kickstart gui/<uid>/<name>` | `launchctl bootout gui/<uid>/<name>`, after the confirmation | `launchctl kickstart -k gui/<uid>/<name>`, after the confirmation |
+| `running` | Nothing | `launchctl bootout gui/<uid>/<name>`, after the confirmation | `launchctl kickstart -k gui/<uid>/<name>`, after the confirmation |
 
 `<plist path>` is the path of the plist in `~/Library/LaunchAgents`, and `<name>` is the `Label` of the plist. svcview
 gives each argument to `launchctl` as it is, with no shell.
 
-`x` asks for a confirmation on the message line, with the full name of the service:
+`x` and `r` ask for a confirmation on the message line, with the full name of the service:
 
 ```
  Stop com.example.worker.01? (y/N)
+ Restart com.example.worker.01? (y/N)
 ```
 
-`y` stops the service that the confirmation names. This is the service that was selected when you pressed `x`, also
-when a refresh changed the selected row while the confirmation showed. Each other key answers no, and does nothing
-else: for example, `q` does not quit, `↓` and `j` do not select another row, and `l` does not move the focus.
+`y` stops or restarts the service that the confirmation names: after `x` it stops the service, and after `r` it
+restarts it. This is the service that was selected when you pressed `x` or `r`, also when a refresh changed the
+selected row while the confirmation showed. Each other key answers no, and does nothing else: for example, `q` does
+not quit, `↓` and `j` do not select another row, `l` does not move the focus, and `r` or `x` does not ask again.
 `ctrl+c` quits.
 
 A stop runs `bootout`, not `launchctl kill`. `bootout` removes the service from launchd, so launchd does not start
@@ -186,30 +190,47 @@ it again, also when its plist has `KeepAlive`. The service stays `not loaded` un
 starts it. svcview does not run `launchctl disable`, so a service whose plist has `RunAtLoad` starts again at the
 next login. svcview starts no service on its own.
 
-A start and a stop run in the background, so the screen goes on with its reads, its status runs, and its keys.
-svcview does not read the services when a start or a stop ends. The row shows the new state at the next refresh
-after the start or the stop ends. These rules apply to the keys:
+A restart runs `kickstart -k`. When the service is `running`, launchd kills its process and then runs the service
+again, so the service reads its own config files again or leaves a bad state, with no separate stop and start. When
+the service is `loaded`, it has no process, and launchd only runs it. The detail pane shows the new PID and the new uptime at the
+next refresh after the restart ends.
 
-1. While the start or the stop of a service runs, `s` and `x` do nothing on that service. They still act on another
-   service.
-2. `s` and `x` do nothing while the help shows, and while the list shows an error.
-3. When svcview quits, it does not wait for a start or a stop that still runs.
+A restart does not load the plist again: launchd runs the service with the plist that it loaded at the bootstrap. A
+change to the plist takes effect after `x` stops the service and `s` starts it.
+
+`r` on a `not loaded` service runs nothing and asks nothing. The message line says why:
+
+```
+ com.example.worker.01 is not loaded, so svcview cannot restart it
+```
+
+`s` starts a `not loaded` service.
+
+A start, a stop and a restart run in the background, so the screen goes on with its reads, its status runs, and its
+keys. svcview does not read the services when a start, a stop or a restart ends. The row and the detail pane show the
+new state at the next refresh after the action ends. These rules apply to the keys:
+
+1. While the start, the stop or the restart of a service runs, `s`, `x` and `r` do nothing on that service. They
+   still act on another service.
+2. `s`, `x` and `r` do nothing while the help shows, and while the list shows an error.
+3. When svcview quits, it does not wait for a start, a stop or a restart that still runs.
 
 ### The message line
 
-When launchctl fails, the message line above the help line shows what launchctl printed, stderr first, for example
-`Bootstrap failed: 5: Input/output error`. When launchctl prints nothing, the message line names the command and its
-exit code, for example `launchctl kickstart gui/501/com.example.worker.01 exited with code 113`. svcview kills a
-launchctl that does not end within 30 s, with each process that it started, and the message line says so, for
-example `launchctl bootout gui/501/com.example.worker.01 did not end: svcview killed it after 30s`.
+When launchctl fails in a start, a stop or a restart, the message line above the help line shows what launchctl
+printed, stderr first, for example `Bootstrap failed: 5: Input/output error`. When launchctl prints nothing, the
+message line names the command and its exit code, for example
+`launchctl kickstart gui/501/com.example.worker.01 exited with code 113`. svcview kills a launchctl that does not end
+within 30 s, with each process that it started, and the message line says so, for example
+`launchctl bootout gui/501/com.example.worker.01 did not end: svcview killed it after 30s`.
 
 The message line shows the lines of the text on one line, with a space between them. It shows each control
 character as `�`, and cuts a text that is wider than the terminal with `…`. It has no color.
 
 The message line stays through each refresh and each status run, until the next key press. That key hides it, and
-also does what it does: for example, `↓` selects the next row. The error of a later start or stop takes the place of
-an earlier one. An error that ends while the confirmation shows does not hide the confirmation: the message line
-shows the error after the answer. The panes, or the help, are one line shorter while the message line shows.
+also does what it does: for example, `↓` selects the next row. The error of a later start, stop or restart takes the
+place of an earlier one. An error that ends while the confirmation shows does not hide the confirmation: the message
+line shows the error after the answer. The panes, or the help, are one line shorter while the message line shows.
 
 ## The config file
 

@@ -319,19 +319,19 @@ press hides the text, as it hides each text of the message line.
 `not loaded` service, and the new help line. The Keys table matches the help of the screen.
 
 **Acceptance Criteria:**
-- [ ] The Keys table lists `r` as the help shows it, and says that `y` answers yes to its confirmation and each other
+- [x] The Keys table lists `r` as the help shows it, and says that `y` answers yes to its confirmation and each other
       key answers no.
-- [ ] The example screen and the table of the parts of the screen show the help line
+- [x] The example screen and the table of the parts of the screen show the help line
       `s start · x stop · r restart · ? help`. The row of the message line names the confirmation of `x` and of `r`,
       the error of a restart, and the text of `r` on a `not loaded` service.
-- [ ] A section on the restart says that `r` on a `loaded` or a `running` service asks `Restart <name>? (y/N)`, and
+- [x] A section on the restart says that `r` on a `loaded` or a `running` service asks `Restart <name>? (y/N)`, and
       that `y` runs `launchctl kickstart -k gui/<uid>/<name>`, which kills the process of a `running` service and
       runs the service again; that `r` on a `not loaded` service runs nothing and says so on the message line; and
       that the detail pane shows the new PID and the new uptime at the next refresh after the restart ends.
-- [ ] It says that a restart does not load the plist again, so a change to the plist takes effect after `x` and `s`.
-- [ ] The rules of the keys while an action runs, and "The message line", name the restart beside the start and the
+- [x] It says that a restart does not load the plist again, so a change to the plist takes effect after `x` and `s`.
+- [x] The rules of the keys while an action runs, and "The message line", name the restart beside the start and the
       stop.
-- [ ] Each link to a section of `docs/cli.md` still finds its section.
+- [x] Each link to a section of `docs/cli.md` still finds its section.
 
 **Affected Files/Modules:**
 - `docs/cli.md` — the restart, its confirmation, the message line, and the help line
