@@ -240,6 +240,19 @@ describe('the files of conf.d', () => {
     expect(lines.slice(0, 3)).toEqual(['Other', '▌○ com.apple.a', '○ com.example.worker'])
   })
 
+  it('a conf.d/worker.yaml with refresh: 5s stops svcview with the exit code 1 and an error that names the file, before the screen opens', async () => {
+    const home = homeWithPlists(['com.example.worker'])
+    const path = writeConfD(join(home, '.config', 'svcview'), 'worker.yaml', 'refresh: 5s\n')
+
+    const session = await openCli(scratchDir(), [], { HOME: home })
+
+    await session.waitForText('EXIT:1')
+    const printed = (await session.text()).replaceAll('\n', '')
+    expect(printed).toContain(path)
+    expect(printed).toContain('only config.yaml can set the setting "refresh"')
+    expect(printed).not.toContain('com.example.worker')
+  })
+
   it('a file of conf.d that all users can write stops svcview with the exit code 1 and an error that names the file, before the screen opens', async () => {
     const home = homeWithPlists(['com.example.worker'])
     const path = writeConfD(

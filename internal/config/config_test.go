@@ -1000,6 +1000,47 @@ func TestSettings(t *testing.T) {
 				require.Equal(t, config.Settings{}, settings, content)
 			}
 		})
+
+		t.Run("a refresh in a file of conf.d gives an error that names the file and says that only config.yaml can set it, and no settings, with or without a refresh in config.yaml, and with no config.yaml", func(t *testing.T) {
+			withRefresh, _ := folderWith(t, "refresh: 5s\n")
+			withoutRefresh, _ := folderWith(t, groupsYAML("Databases", "redis"))
+			noConfigYAML := t.TempDir()
+			for _, folder := range []string{withRefresh, withoutRefresh, noConfigYAML} {
+				path := writeConfD(t, folder, "worker.yaml", "refresh: 10s\n"+groupsYAML("Workers", "worker"))
+
+				settings, err := config.Read(folder, os.Getuid(), noACL)
+
+				require.ErrorContains(t, err, path, folder)
+				require.ErrorContains(t, err, `only config.yaml can set the setting "refresh"`, folder)
+				require.Equal(t, config.Settings{}, settings, folder)
+			}
+		})
+
+		t.Run("a refresh in a later YAML document of a file of conf.d, or a refresh that is not a duration there, gives the same error", func(t *testing.T) {
+			for _, content := range []string{
+				groupsYAML("Workers", "worker") + "---\nrefresh: 10s\n",
+				"refresh: fast\n",
+				"refresh: [5s]\n",
+			} {
+				folder, path := confDWith(t, content)
+
+				settings, err := config.Read(folder, os.Getuid(), noACL)
+
+				require.ErrorContains(t, err, path, content)
+				require.ErrorContains(t, err, `only config.yaml can set the setting "refresh"`, content)
+				require.Equal(t, config.Settings{}, settings, content)
+			}
+		})
+
+		t.Run("a setting that svcview does not know in a file of conf.d gives the error that it gives in config.yaml, with the name of the file of conf.d", func(t *testing.T) {
+			folder, path := confDWith(t, groupsYAML("Workers", "worker")+"colour: blue\n")
+
+			settings, err := config.Read(folder, os.Getuid(), noACL)
+
+			require.ErrorContains(t, err, path)
+			require.ErrorContains(t, err, `svcview does not know the setting "colour"`)
+			require.Equal(t, config.Settings{}, settings)
+		})
 	})
 
 	t.Run("group of a service", func(t *testing.T) {

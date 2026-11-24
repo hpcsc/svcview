@@ -287,14 +287,14 @@ Docker; `task test:e2e:local` passes on this Mac.
 error names the file and the setting, and says that only `config.yaml` can set it.
 
 **Acceptance Criteria:**
-- [ ] A file of `conf.d` with `refresh` gives an error that names the file, `"refresh"`, and `config.yaml`, and no
+- [x] A file of `conf.d` with `refresh` gives an error that names the file, `"refresh"`, and `config.yaml`, and no
       settings: with a `config.yaml` that sets `refresh`, with one that does not, and with no `config.yaml`.
-- [ ] The same error comes for a `refresh` in a later YAML document of the file, and for a `refresh` whose value is
+- [x] The same error comes for a `refresh` in a later YAML document of the file, and for a `refresh` whose value is
       not a duration.
-- [ ] `refresh` in `config.yaml` works as before, also when files of `conf.d` exist.
-- [ ] A setting that svcview does not know in a file of `conf.d` gives the error that it gives in `config.yaml`,
+- [x] `refresh` in `config.yaml` works as before, also when files of `conf.d` exist.
+- [x] A setting that svcview does not know in a file of `conf.d` gives the error that it gives in `config.yaml`,
       and the error names the file of `conf.d`.
-- [ ] e2e: a `conf.d/worker.yaml` with `refresh: 5s` stops svcview with `EXIT:1` and an error that names the file,
+- [x] e2e: a `conf.d/worker.yaml` with `refresh: 5s` stops svcview with `EXIT:1` and an error that names the file,
       before the screen opens.
 
 **Affected Files/Modules:**

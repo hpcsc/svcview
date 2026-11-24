@@ -55,7 +55,7 @@
     },
     {
       "n": 3,
-      "done": false,
+      "done": true,
       "title": "Refuse a `refresh` in a file of `conf.d`",
       "language": "Go",
       "testable": true,

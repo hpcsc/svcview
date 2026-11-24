@@ -29,7 +29,7 @@ type Settings struct {
 
 func Read(folder string, uid int, aclEntries func(*os.File) (int, error)) (Settings, error) {
 	settings := Settings{Refresh: 2 * time.Second}
-	if err := settings.readFile(filepath.Join(folder, fileName), uid, aclEntries); err != nil {
+	if err := settings.readFile(filepath.Join(folder, fileName), uid, aclEntries, settings.set); err != nil {
 		return Settings{}, err
 	}
 	paths, err := filesOfConfD(filepath.Join(folder, confD))
@@ -37,14 +37,14 @@ func Read(folder string, uid int, aclEntries func(*os.File) (int, error)) (Setti
 		return Settings{}, err
 	}
 	for _, path := range paths {
-		if err := settings.readFile(path, uid, aclEntries); err != nil {
+		if err := settings.readFile(path, uid, aclEntries, settings.setInConfD); err != nil {
 			return Settings{}, err
 		}
 	}
 	return settings, nil
 }
 
-func (s *Settings) readFile(path string, uid int, aclEntries func(*os.File) (int, error)) error {
+func (s *Settings) readFile(path string, uid int, aclEntries func(*os.File) (int, error), set func(name, value *yaml.Node) error) error {
 	file, err := os.OpenFile(path, os.O_RDONLY|syscall.O_NONBLOCK, 0)
 	if errors.Is(err, fs.ErrNotExist) {
 		return nil
@@ -75,13 +75,13 @@ func (s *Settings) readFile(path string, uid int, aclEntries func(*os.File) (int
 	if err != nil {
 		return fmt.Errorf("read the config file: %w", err)
 	}
-	if err := s.read(content); err != nil {
+	if err := s.read(content, set); err != nil {
 		return fmt.Errorf("the config file %s: %w", path, err)
 	}
 	return nil
 }
 
-func (s *Settings) read(content []byte) error {
+func (s *Settings) read(content []byte, set func(name, value *yaml.Node) error) error {
 	decoder := yaml.NewDecoder(bytes.NewReader(content))
 	lineOf := map[string]int{}
 	for {
@@ -106,7 +106,7 @@ func (s *Settings) read(content []byte) error {
 				return fmt.Errorf("line %d: the setting %q is already on line %d", name.Line, name.Value, line)
 			}
 			lineOf[name.Value] = name.Line
-			if err := s.set(name, value); err != nil {
+			if err := set(name, value); err != nil {
 				return err
 			}
 		}
@@ -121,6 +121,13 @@ func (s *Settings) set(name, value *yaml.Node) error {
 		return s.setGroups(name, value)
 	}
 	return fmt.Errorf("line %d: svcview does not know the setting %q", name.Line, name.Value)
+}
+
+func (s *Settings) setInConfD(name, value *yaml.Node) error {
+	if name.Value == "refresh" {
+		return fmt.Errorf("line %d: only %s can set the setting %q", name.Line, fileName, name.Value)
+	}
+	return s.set(name, value)
 }
 
 func (s *Settings) setRefresh(name, value *yaml.Node) error {
