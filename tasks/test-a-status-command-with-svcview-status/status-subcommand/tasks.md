@@ -312,28 +312,28 @@ svcview read from the output, or the failure with the word that the row shows an
 shows. It exits with 0 only when the status is valid.
 
 **Acceptance Criteria:**
-- [ ] For a valid output, it prints under `Output` the stdout as the program printed it, line by line, and under
+- [x] For a valid output, it prints under `Output` the stdout as the program printed it, line by line, and under
       `Result` the word `valid`, then the `at` as an RFC 3339 time or that the output has no `at`, the `summary`, the
       `level` (`info` when the output has none), each field with its `name`, its `value` and its `progress` when it has
       one, and each event with its `at`, its `level` and its `text`, in the order of the output. It exits with 0.
-- [ ] A command that exits with a code other than 0, that a signal ends, or that svcview cannot start prints under
+- [x] A command that exits with a code other than 0, that a signal ends, or that svcview cannot start prints under
       `Result` the words `status error`, then the exit code, the signal or the reason, and the last 20 lines of
       stderr. It exits with 1. `Output` shows what the program printed on stdout.
-- [ ] A command that runs longer than `status.timeout` of its group (default `1s`) prints `status timeout` and the
+- [x] A command that runs longer than `status.timeout` of its group (default `1s`) prints `status timeout` and the
       command line under `Result`, and exits with 1 no later than 1 s after the timeout. The program and each process
       that it started stop, as on the screen.
-- [ ] An output that is not a JSON object of version 1, that is larger than 1 MiB, or that has a field with a
+- [x] An output that is not a JSON object of version 1, that is larger than 1 MiB, or that has a field with a
       `progress` outside 0 to 1, prints `status invalid`, the parse error and the lines of the failure under `Result`,
       and exits with 1.
-- [ ] The result is the result that the screen gets for the same service and the same output: the subcommand gets it
+- [x] The result is the result that the screen gets for the same service and the same output: the subcommand gets it
       from `Command.Run`, and parses and classifies nothing itself.
-- [ ] When svcview gets SIGINT, SIGTERM or SIGHUP while the command runs, the program and each process that it
+- [x] When svcview gets SIGINT, SIGTERM or SIGHUP while the command runs, the program and each process that it
       started stop, and svcview exits with 1 and does not print `valid`.
-- [ ] A failure shows one time in what svcview prints.
-- [ ] When the program prints nothing on stdout, `Output` says that it printed nothing.
-- [ ] Each control character in the stdout other than the new line, and each control character in the result,
+- [x] A failure shows one time in what svcview prints.
+- [x] When the program prints nothing on stdout, `Output` says that it printed nothing.
+- [x] Each control character in the stdout other than the new line, and each control character in the result,
       prints as `�`, as on the screen.
-- [ ] e2e, in `e2e/tests/status-subcommand.test.ts`: `cat` of a valid status file prints the output and `valid`
+- [x] e2e, in `e2e/tests/status-subcommand.test.ts`: `cat` of a valid status file prints the output and `valid`
       with the summary, and exits with 0; `[sh, -c, 'echo broken >&2; exit 3']` prints `status error`, `exit code 3`
       and `broken`, and exits with 1; `[sleep, '30']` with `timeout: 500ms` prints `status timeout` and `sleep 30`, and
       exits with 1; `[printf, 'busy']` prints `status invalid` and `the output is not valid JSON`, and exits with 1.

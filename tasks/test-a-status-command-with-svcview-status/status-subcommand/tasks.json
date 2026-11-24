@@ -83,7 +83,7 @@
     },
     {
       "n": 4,
-      "done": false,
+      "done": true,
       "title": "Run the status command one time and print its output and its result",
       "language": "Go",
       "testable": true,

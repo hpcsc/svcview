@@ -3,8 +3,8 @@ import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { addPlist, homeWithPlists, openCli, runCli, scratchDir, writeConfig } from '../testUtils'
 
-const workersWithStatusCommand = (command: string): string =>
-  `groups:\n  - name: Workers\n    match: '^com\\.example\\.worker'\n    status:\n      command: ${command}\n`
+const workersWithStatusCommand = (command: string, timeout = '1s'): string =>
+  `groups:\n  - name: Workers\n    match: '^com\\.example\\.worker'\n    status:\n      command: ${command}\n      timeout: ${timeout}\n`
 
 function homeWithStatusFile(content: string): { home: string; statusFile: string } {
   const home = homeWithPlists([])
@@ -15,7 +15,7 @@ function homeWithStatusFile(content: string): { home: string; statusFile: string
 }
 
 describe('svcview status', () => {
-  it('prints the template values with a variable of the plist, then the command line, and exits with 0', async () => {
+  it('cat of a valid status file prints the template values with a variable of the plist, the command line, the output, and valid with the summary, and exits with 0', async () => {
     const { home, statusFile } = homeWithStatusFile('{"version":1,"summary":"busy"}\n')
     writeConfig(join(home, '.config', 'svcview'), workersWithStatusCommand(`[cat, '{{.Env.WORKER_STATUS_FILE}}']`))
 
@@ -24,7 +24,43 @@ describe('svcview status', () => {
     expect(result.stdout).toContain('Template values\n  {{.Name}}')
     expect(result.stdout).toContain(`  {{.Env.WORKER_STATUS_FILE}}  ${statusFile}\n`)
     expect(result.stdout).toContain(`\nCommand line\n  cat ${statusFile}\n`)
+    expect(result.stdout).toContain('\nOutput\n  {"version":1,"summary":"busy"}\n')
+    expect(result.stdout).toContain('\nResult\n  valid\n')
+    expect(result.stdout).toContain('  summary  busy\n')
     expect(result.status).toBe(0)
+  })
+
+  it('a command that exits with 3 prints status error, the exit code and the stderr, and exits with 1', async () => {
+    const home = homeWithPlists(['com.example.worker'])
+    writeConfig(join(home, '.config', 'svcview'), workersWithStatusCommand(`[sh, -c, 'echo broken >&2; exit 3']`))
+
+    const result = await runCli(scratchDir(), ['status', 'com.example.worker'], { HOME: home })
+
+    expect(result.stdout).toContain('\nResult\n  status error\n  exit code 3\n    broken\n')
+    expect(result.status).toBe(1)
+  })
+
+  it('a command that runs longer than the timeout prints status timeout and the command line, and exits with 1', async () => {
+    const home = homeWithPlists(['com.example.worker'])
+    writeConfig(join(home, '.config', 'svcview'), workersWithStatusCommand(`[sleep, '30']`, '500ms'))
+    const started = Date.now()
+
+    const result = await runCli(scratchDir(), ['status', 'com.example.worker'], { HOME: home })
+
+    expect(Date.now() - started).toBeLessThan(1500)
+    expect(result.stdout).toContain('\nResult\n  status timeout\n  sleep 30\n')
+    expect(result.status).toBe(1)
+  })
+
+  it('a command that prints text that is not JSON prints status invalid and the parse error, and exits with 1', async () => {
+    const home = homeWithPlists(['com.example.worker'])
+    writeConfig(join(home, '.config', 'svcview'), workersWithStatusCommand(`[printf, 'busy']`))
+
+    const result = await runCli(scratchDir(), ['status', 'com.example.worker'], { HOME: home })
+
+    expect(result.stdout).toContain('\nOutput\n  busy\n')
+    expect(result.stdout).toContain('\nResult\n  status invalid\n  the output is not valid JSON')
+    expect(result.status).toBe(1)
   })
 
   it('a variable that the plist does not have prints the plist has no and the variable, runs no program, and exits with 1', async () => {
@@ -91,7 +127,7 @@ describe('svcview status', () => {
     expect(result.status).toBe(0)
   })
 
-  it('in a terminal, prints the template values and ends with the exit code 0, with no screen', async () => {
+  it('in a terminal, prints the template values and the result, and ends with the exit code 0, with no screen', async () => {
     const { home, statusFile } = homeWithStatusFile('{"version":1,"summary":"busy"}\n')
     writeConfig(join(home, '.config', 'svcview'), workersWithStatusCommand(`[cat, '{{.Env.WORKER_STATUS_FILE}}']`))
 
@@ -101,6 +137,7 @@ describe('svcview status', () => {
     const printed = (await session.text()).replaceAll('\n', '')
     expect(printed).toContain('Template values')
     expect(printed).toContain(`{{.Env.WORKER_STATUS_FILE}}  ${statusFile}`)
+    expect(printed).toContain('valid')
     expect(printed).not.toContain('╭ Services')
   })
 })

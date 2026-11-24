@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 	"github.com/urfave/cli/v3"
@@ -79,6 +80,11 @@ func writeConfig(t *testing.T, home, content string) string {
 
 func runSvcview(t *testing.T, arguments ...string) (string, int) {
 	t.Helper()
+	return runSvcviewUntil(t, context.Background(), arguments...)
+}
+
+func runSvcviewUntil(t *testing.T, ctx context.Context, arguments ...string) (string, int) {
+	t.Helper()
 	var output bytes.Buffer
 	command := newCommand()
 	command.Reader = inputThatFailsTheTest{t: t}
@@ -86,15 +92,24 @@ func runSvcview(t *testing.T, arguments ...string) (string, int) {
 	command.ErrWriter = &output
 	command.ExitErrHandler = func(context.Context, *cli.Command, error) {}
 
-	code := runCommand(context.Background(), command, append([]string{"svcview"}, arguments...))
+	code := runCommand(ctx, command, append([]string{"svcview"}, arguments...))
 
 	return output.String(), code
 }
 
-type outputThatFails struct{}
+func workersWithCommand(command string) string {
+	return "groups:\n  - name: Workers\n    match: worker\n    status:\n      command: " + command + "\n"
+}
 
-func (outputThatFails) Write([]byte) (int, error) {
-	return 0, errors.New("no space left on device")
+type outputThatFailsAt struct {
+	heading string
+}
+
+func (o outputThatFailsAt) Write(p []byte) (int, error) {
+	if bytes.Contains(p, []byte(o.heading+"\n")) {
+		return 0, errors.New("no space left on device")
+	}
+	return len(p), nil
 }
 
 const workersWithPrintf = `groups:
@@ -106,7 +121,7 @@ const workersWithPrintf = `groups:
 
 func TestStatusSubcommand(t *testing.T) {
 	t.Run("steps", func(t *testing.T) {
-		t.Run("prints the template values of the service, then the command line of the status command of its group, and exits with 0", func(t *testing.T) {
+		t.Run("prints the template values of the service, the command line of the status command of its group, the output and the result, and exits with 0 for a valid status", func(t *testing.T) {
 			home := newHome(t)
 			plist := addPlist(t, home, "com.example.worker", environment("WORKER_MODE", "busy", "HOME_DIR", "/Users/me", "WORKER_QUIET", "")+
 				"<key>StandardOutPath</key><string>/Users/me/Library/Logs/worker.out.log</string>")
@@ -124,7 +139,16 @@ func TestStatusSubcommand(t *testing.T) {
 				"  {{.PlistPath}}"+strings.Repeat(" ", 9)+plist+"\n"+
 				"\n"+
 				"Command line\n"+
-				`  printf '{"version":1,"summary":"%s"}' busy`+"\n", output)
+				`  printf '{"version":1,"summary":"%s"}' busy`+"\n"+
+				"\n"+
+				"Output\n"+
+				`  {"version":1,"summary":"busy"}`+"\n"+
+				"\n"+
+				"Result\n"+
+				"  valid\n"+
+				"  at       the output has no at\n"+
+				"  summary  busy\n"+
+				"  level    info\n", output)
 			require.Equal(t, 0, code)
 		})
 
@@ -148,19 +172,21 @@ func TestStatusSubcommand(t *testing.T) {
 			require.NoFileExists(t, marker)
 		})
 
-		t.Run("a step that svcview cannot write exits with 1", func(t *testing.T) {
+		t.Run("a valid status exits with 1 when svcview cannot write one of its steps", func(t *testing.T) {
 			home := newHome(t)
 			addPlist(t, home, "com.example.worker", environment("WORKER_MODE", "busy"))
 			writeConfig(t, home, workersWithPrintf)
-			command := newCommand()
-			command.Reader = inputThatFailsTheTest{t: t}
-			command.Writer = outputThatFails{}
-			command.ErrWriter = outputThatFails{}
-			command.ExitErrHandler = func(context.Context, *cli.Command, error) {}
+			for _, heading := range []string{"Template values", "Command line", "Output", "Result"} {
+				command := newCommand()
+				command.Reader = inputThatFailsTheTest{t: t}
+				command.Writer = outputThatFailsAt{heading: heading}
+				command.ErrWriter = outputThatFailsAt{heading: heading}
+				command.ExitErrHandler = func(context.Context, *cli.Command, error) {}
 
-			code := runCommand(context.Background(), command, []string{"svcview", "status", "com.example.worker"})
+				code := runCommand(context.Background(), command, []string{"svcview", "status", "com.example.worker"})
 
-			require.Equal(t, 1, code)
+				require.Equal(t, 1, code, heading)
+			}
 		})
 
 		t.Run("each control character in a variable, a value or the command line prints as �", func(t *testing.T) {
@@ -173,12 +199,220 @@ func TestStatusSubcommand(t *testing.T) {
       command: [printf, "%s\t", '{{.Name}}']
 `)
 
-			output, code := runSvcview(t, "status", "com.example.worker")
+			output, _ := runSvcview(t, "status", "com.example.worker")
 
 			require.Contains(t, output, "  {{.Env.WORKER�MODE}}  busy�idle\n")
 			require.Contains(t, output, "  printf '%s�' com.example.worker\n")
 			require.NotContains(t, output, "\t")
+		})
+	})
+
+	t.Run("run", func(t *testing.T) {
+		t.Run("a valid output prints the stdout line by line, then valid with the at, the summary, the level, each field and each event in the order of the output", func(t *testing.T) {
+			home := newHome(t)
+			statusFile := filepath.Join(home, "status.json")
+			require.NoError(t, os.WriteFile(statusFile, []byte(`{
+  "version": 1,
+  "at": "2026-11-23T09:12:00Z",
+  "summary": "busy · ENG-692",
+  "level": "warn",
+  "fields": [
+    {"name": "mode", "value": "busy"},
+    {"name": "step", "value": "review", "progress": 0.625},
+    {"name": "failed", "value": "", "progress": 0}
+  ],
+  "events": [
+    {"at": "2026-11-23T09:04:40Z", "level": "error", "text": "step review"},
+    {"at": "2026-11-23T09:00:12+02:00", "level": "info", "text": "claimed ENG-692"}
+  ]
+}
+`), 0o644))
+			addPlist(t, home, "com.example.worker", environment("WORKER_STATUS_FILE", statusFile))
+			writeConfig(t, home, workersWithCommand(`[cat, '{{.Env.WORKER_STATUS_FILE}}']`))
+
+			output, code := runSvcview(t, "status", "com.example.worker")
+
+			_, printed, found := strings.Cut(output, "\nOutput\n")
+			require.True(t, found, output)
+			require.Equal(t, `  {
+    "version": 1,
+    "at": "2026-11-23T09:12:00Z",
+    "summary": "busy · ENG-692",
+    "level": "warn",
+    "fields": [
+      {"name": "mode", "value": "busy"},
+      {"name": "step", "value": "review", "progress": 0.625},
+      {"name": "failed", "value": "", "progress": 0}
+    ],
+    "events": [
+      {"at": "2026-11-23T09:04:40Z", "level": "error", "text": "step review"},
+      {"at": "2026-11-23T09:00:12+02:00", "level": "info", "text": "claimed ENG-692"}
+    ]
+  }
+
+Result
+  valid
+  at       2026-11-23T09:12:00Z
+  summary  busy · ENG-692
+  level    warn
+  fields
+    mode    busy
+    step    review (progress 0.625)
+    failed  (progress 0)
+  events
+    2026-11-23T09:04:40Z  error  step review
+    2026-11-23T09:00:12+02:00  info   claimed ENG-692
+`, printed)
 			require.Equal(t, 0, code)
+		})
+
+		t.Run("an output with one field and one event prints the field and the event", func(t *testing.T) {
+			home := newHome(t)
+			addPlist(t, home, "com.example.worker", "")
+			writeConfig(t, home, workersWithCommand(`[printf, '%s', '{"version":1,"fields":[{"name":"mode","value":"busy"}],"events":[{"at":"2026-11-23T09:04:40Z","level":"warn","text":"step review"}]}']`))
+
+			output, code := runSvcview(t, "status", "com.example.worker")
+
+			require.True(t, strings.HasSuffix(output, "  level    info\n  fields\n    mode  busy\n  events\n    2026-11-23T09:04:40Z  warn   step review\n"), output)
+			require.Equal(t, 0, code)
+		})
+
+		t.Run("a program that exits with a code other than 0 prints its stdout, then status error, the exit code and the lines of stderr, one time, and exits with 1", func(t *testing.T) {
+			home := newHome(t)
+			addPlist(t, home, "com.example.worker", "")
+			writeConfig(t, home, workersWithCommand(`[sh, -c, 'printf partial; echo first >&2; echo broken >&2; exit 3']`))
+
+			output, code := runSvcview(t, "status", "com.example.worker")
+
+			require.True(t, strings.HasSuffix(output, "\nOutput\n  partial\n\nResult\n  status error\n  exit code 3\n    first\n    broken\n"), output)
+			require.Equal(t, 1, strings.Count(output, "exit code 3"), output)
+			require.Equal(t, 1, code)
+		})
+
+		t.Run("a program that a signal ends, or that svcview cannot start, prints status error with the signal or the reason, and exits with 1", func(t *testing.T) {
+			for command, reason := range map[string]string{
+				`[sh, -c, 'echo stopping >&2; kill -TERM $$']`: "  ended by SIGTERM\n    stopping\n",
+				`[svcview-no-such-program]`:                    "executable file not found",
+			} {
+				home := newHome(t)
+				addPlist(t, home, "com.example.worker", "")
+				writeConfig(t, home, workersWithCommand(command))
+
+				output, code := runSvcview(t, "status", "com.example.worker")
+
+				require.Contains(t, output, "\nResult\n  status error\n", command)
+				require.Contains(t, output, reason, command)
+				require.Equal(t, 1, code, command)
+			}
+		})
+
+		t.Run("a program that prints nothing on stdout prints that it printed nothing under Output", func(t *testing.T) {
+			home := newHome(t)
+			addPlist(t, home, "com.example.worker", "")
+			writeConfig(t, home, workersWithCommand(`[sh, -c, 'exit 0']`))
+
+			output, code := runSvcview(t, "status", "com.example.worker")
+
+			require.Contains(t, output, "\nOutput\n  the program printed nothing on stdout\n\nResult\n  status invalid\n  the output is empty\n")
+			require.Equal(t, 1, code)
+		})
+
+		t.Run("a program that runs longer than the timeout of its group prints status timeout with the command line no later than 1 s after the timeout, stops each process that it started, and exits with 1", func(t *testing.T) {
+			home := newHome(t)
+			addPlist(t, home, "com.example.worker", "")
+			marker := filepath.Join(home, "written")
+			writeConfig(t, home, `groups:
+  - name: Workers
+    match: worker
+    status:
+      timeout: 300ms
+      command: [sh, -c, '(sleep 1; touch "$0") & sleep 30', '`+marker+`']
+`)
+			started := time.Now()
+
+			output, code := runSvcview(t, "status", "com.example.worker")
+
+			require.Less(t, time.Since(started), 1300*time.Millisecond)
+			require.Contains(t, output, "\nResult\n  status timeout\n  sh -c '(sleep 1; touch \"$0\") & sleep 30' ")
+			require.Equal(t, 1, code)
+			time.Sleep(1500 * time.Millisecond)
+			require.NoFileExists(t, marker)
+		})
+
+		t.Run("a program that runs longer than 1 s and less than the timeout of its group gives its result, and exits with 0", func(t *testing.T) {
+			home := newHome(t)
+			addPlist(t, home, "com.example.worker", "")
+			writeConfig(t, home, `groups:
+  - name: Workers
+    match: worker
+    status:
+      timeout: 3s
+      command: [sh, -c, 'sleep 1.2 && printf "%s" "$0"', '{"version":1,"summary":"late"}']
+`)
+
+			output, code := runSvcview(t, "status", "com.example.worker")
+
+			require.Contains(t, output, "\nResult\n  valid\n")
+			require.Contains(t, output, "  summary  late\n")
+			require.Equal(t, 0, code)
+		})
+
+		t.Run("an output that is not a JSON object of version 1, that is larger than 1 MiB, or that has a progress outside 0 to 1 prints status invalid with the parse error, and exits with 1", func(t *testing.T) {
+			for command, parseError := range map[string]string{
+				`[printf, busy]`: "  the output is not valid JSON: ",
+				`[printf, '%s', '{"version":1,"fields":[{"name":"step","value":"review","progress":1.5}]}']`: `  "/fields/0/progress" is 1.5, and it must be from 0 to 1` + "\n",
+				`[yes]`: "  the output is larger than 1 MiB\n    y\n",
+			} {
+				home := newHome(t)
+				addPlist(t, home, "com.example.worker", "")
+				writeConfig(t, home, workersWithCommand(command))
+
+				output, code := runSvcview(t, "status", "com.example.worker")
+
+				require.Contains(t, output, "\nResult\n  status invalid\n"+parseError, command)
+				require.Equal(t, 1, code, command)
+			}
+		})
+
+		t.Run("each control character in the stdout other than the new line, and in the result, prints as �", func(t *testing.T) {
+			home := newHome(t)
+			addPlist(t, home, "com.example.worker", "")
+			for command, printed := range map[string]string{
+				`[printf, "a\e[2Jb\tc\nd"]`:                            "\nOutput\n  a�[2Jb�c\n  d\n",
+				`[printf, '%s', '{"version":1,"summary":"a\u001bb"}']`: "  summary  a�b\n",
+			} {
+				writeConfig(t, home, workersWithCommand(command))
+
+				output, _ := runSvcview(t, "status", "com.example.worker")
+
+				require.Contains(t, output, printed, command)
+				require.NotContains(t, output, "\x1b", command)
+			}
+		})
+
+		t.Run("when the context of svcview ends during the run, the program and each process that it started stop, and svcview exits with 1 and does not print valid", func(t *testing.T) {
+			home := newHome(t)
+			addPlist(t, home, "com.example.worker", "")
+			marker := filepath.Join(home, "written")
+			writeConfig(t, home, `groups:
+  - name: Workers
+    match: worker
+    status:
+      timeout: 10s
+      command: [sh, -c, '(sleep 1; touch "$0") & sleep 30', '`+marker+`']
+`)
+			ctx, cancel := context.WithCancel(context.Background())
+			time.AfterFunc(300*time.Millisecond, cancel)
+			started := time.Now()
+
+			output, code := runSvcviewUntil(t, ctx, "status", "com.example.worker")
+
+			require.Less(t, time.Since(started), 2*time.Second)
+			require.Contains(t, output, "signal")
+			require.NotContains(t, output, "valid")
+			require.Equal(t, 1, code)
+			time.Sleep(1500 * time.Millisecond)
+			require.NoFileExists(t, marker)
 		})
 	})
 
@@ -329,7 +563,7 @@ func TestStatusSubcommand(t *testing.T) {
 				output, code := runSvcview(t, arguments...)
 
 				require.Contains(t, output, "status", arguments)
-				require.Contains(t, output, "the command line of the status command", arguments)
+				require.Contains(t, output, "run the status command of a service one time", arguments)
 				require.Equal(t, 0, code, arguments)
 			}
 		})
