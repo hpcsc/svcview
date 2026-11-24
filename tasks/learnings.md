@@ -103,11 +103,10 @@
 
 ## internal/config is the precedent for a setting and for the check of the config file
 - Type: convention
-- Recorded: 2026-11-23
-- Observed: task 1,2 — put-the-services-in-groups-with-a-config-file-config-file
-- Learning: A task that adds a setting reads it in (*Settings).set of internal/config/config.go from yaml.Node values, with an error that gives the line and the setting in quotes, and tests it with a config.yaml in t.TempDir. The check of the mode and the owner with fstat on the open file is in config.Read. Tasks of this kind were planned as low certainty and went green on the first try.
-- Apply when: Planning or assessing a task that adds a setting to config.yaml, for example groups, status or actions, or that changes the check of the config file.
-
+- Recorded: 2026-11-24
+- Observed: task 1,2 — add-a-group-with-one-file-in-conf-d-groups-in-conf-d
+- Learning: A setting is read in (*Settings).set of internal/config/config.go from yaml.Node values, with an error that gives the line and the setting in quotes, and is tested with a config folder in t.TempDir. Each config file (config.yaml and each file of conf.d) passes one check in readConfigFile: an open with O_NONBLOCK, os.Stat of the path when the open fails (a socket fails in open(2) before any fstat), then a regular file, the owner, the mode and the ACL of the open file. Tasks that extend this read went green on the first try at low and at medium certainty.
+- Apply when: Planning or assessing a task that adds a setting to a config file, for example actions, or that changes which files svcview reads or the check of a config file.
 ## A fix whose fold conflicts gets a commit of its own after the last task that changed its lines
 - Type: convention
 - Recorded: 2026-11-23
@@ -276,3 +275,38 @@
 - Learning: The audit found that the subtest 'with the focus on the detail pane, ↑ and ↓ do not change the selected service, and the list does not move' could not fail: its list of 3 services fits in the pane, so listTopInView clamps listTop to 0 whatever the keys do. The fix gives the list 9 services and selects the 4th, so a key that moves listTop changes listRows. The same audit found a test that pressed ↓ and then ↑, which cancel out, so it could not see a scroll. Each fixed test was then checked by hand against the mutant that the finding named.
 - Apply when: A test in internal/tui asserts that the list or the detail pane does not scroll or does not move, or that a key changes nothing.
 
+
+## Text from outside goes to the terminal through terminal.ReplaceControlCharacters
+- Type: convention
+- Recorded: 2026-11-24
+- Observed: task 4 — add-a-group-with-one-file-in-conf-d-groups-in-conf-d
+- Learning: A file name, a plist value, a status output or an error that names a file can hold ESC or OSC bytes. The screen and the error that Run prints show each control character as � through terminal.ReplaceControlCharacters in internal/terminal; a new print to the terminal that bypasses it lets a user who can write conf.d clear the screen or set the clipboard.
+- Apply when: A task prints text that comes from a file, a file name, a plist or a command to the terminal, in internal/cli, internal/tui, or a new command such as svcview status.
+
+## A Mac test folder ignores the case of file names
+- Type: constraint
+- Recorded: 2026-11-24
+- Observed: task 2 — add-a-group-with-one-file-in-conf-d-groups-in-conf-d
+- Learning: APFS ignores case by default, so a test that wrote worker.YAML next to worker.yaml replaced the fixture and failed for the wrong reason. A test of a case-sensitive name rule gives the two files different base names, for example jobs.YAML next to worker.yaml.
+- Apply when: A Go or e2e test writes two files whose names differ only in case, for example to show that svcview skips .YAML or .Plist.
+
+## A Unix socket in a test needs a short path in /tmp
+- Type: constraint
+- Recorded: 2026-11-24
+- Observed: task 4 — add-a-group-with-one-file-in-conf-d-groups-in-conf-d
+- Learning: On macOS, bind of a Unix socket fails for a path longer than 104 bytes, and a path in t.TempDir is longer. Create the socket in os.MkdirTemp("/tmp", ...) with a cleanup, and give the path under test a symbolic link to it.
+- Apply when: A test needs a socket file, for example to check that svcview refuses a config file or a status file that is not a regular file.
+
+## An audit fix folded into a later commit needs that commit's message changed
+- Type: pattern
+- Recorded: 2026-11-24
+- Observed: task 1,4 — add-a-group-with-one-file-in-conf-d-groups-in-conf-d
+- Learning: When later tasks rewrite the code of an earlier task, a fold onto the earlier commit conflicts, and a fold onto the last commit that touched the file makes run-verifier report a scattered task, because that message does not say it. clerk fixup replay folds only fixup! commits, so change the message with an empty commit whose message starts with 'amend! <subject>' and fold it with GIT_SEQUENCE_EDITOR=: GIT_EDITOR=: git rebase -i --autosquash <base>, or keep the fix as a commit of its own.
+- Apply when: An audit fix corrects code that a later task of the branch rewrote, for example internal/config/config.go across several tasks, or clerk fixup mark needs --onto a commit other than the one that added the defect.
+
+## The shell of a run has noclobber, so a redirect onto a file can fail and the command goes on
+- Type: constraint
+- Recorded: 2026-11-24
+- Observed: task 4 — add-a-group-with-one-file-in-conf-d-groups-in-conf-d
+- Learning: zsh prints 'file exists' and does not write when > targets an existing file, and the next command in the line still runs. A by-hand check that put back the old root.go with git show HEAD:file > file ran the e2e test against the new code. Write over a file with >| or /bin/cp -f, and check with git diff that the change is in place before the test runs.
+- Apply when: A command overwrites a tracked file with a shell redirect, for example to test a test against the code before a fix, or to put back a file after a probe.
