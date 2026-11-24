@@ -1,0 +1,149 @@
+{
+  "story": "One key starts or stops the selected service",
+  "story_id": "launchd-tui/US-008",
+  "tasks_file": "tasks/start-and-stop-a-service/start-and-stop/tasks.md",
+  "tasks": [
+    {
+      "n": 1,
+      "done": false,
+      "title": "Start and stop a service with launchctl in the gui domain of the user",
+      "language": "Go",
+      "testable": true,
+      "certainty": "medium",
+      "blast_radius": "high",
+      "patterns_to_follow": [
+        "internal/launchd/launchctl_list.go:24-41",
+        "internal/status/command.go:63-98",
+        "internal/launchd/domain_test.go:59-82",
+        "internal/launchd/domain_test.go:110-120",
+        "internal/launchd/domain_test.go:426-447"
+      ],
+      "depends_on": [],
+      "affected_files": [
+        "internal/launchd/domain.go",
+        "internal/launchd/",
+        "internal/launchd/domain_test.go"
+      ]
+    },
+    {
+      "n": 2,
+      "done": false,
+      "title": "Show s start and x stop in the help line and in the help",
+      "language": "Go",
+      "testable": true,
+      "certainty": "high",
+      "blast_radius": "low",
+      "patterns_to_follow": [
+        "internal/tui/screen.go:21",
+        "internal/tui/screen.go:330-338",
+        "internal/tui/screen_test.go:2289-2295",
+        "internal/tui/screen_test.go:2338-2345"
+      ],
+      "depends_on": [],
+      "affected_files": [
+        "internal/tui/screen.go",
+        "internal/tui/screen_test.go",
+        "internal/tui/testdata/"
+      ]
+    },
+    {
+      "n": 3,
+      "done": false,
+      "title": "Start the selected service with s",
+      "language": "Go",
+      "testable": true,
+      "certainty": "medium",
+      "blast_radius": "low",
+      "patterns_to_follow": [
+        "internal/tui/screen.go:112-136",
+        "internal/tui/screen.go:191-207",
+        "internal/tui/screen.go:147-149",
+        "internal/tui/screen_test.go:274-282",
+        "internal/tui/screen_test.go:169-186",
+        "internal/tui/screen_test.go:203-229",
+        "internal/cli/root.go:53-69",
+        "e2e/fakes/ps",
+        "e2e/testUtils.ts:65-70",
+        "e2e/tests/screen.test.ts:76-92",
+        "task:1"
+      ],
+      "depends_on": [1, 2],
+      "affected_files": [
+        "internal/tui/screen.go",
+        "internal/tui/screen_test.go",
+        "internal/cli/root.go",
+        "e2e/fakes/launchctl",
+        "e2e/testUtils.ts",
+        "e2e/tests/start-stop.test.ts",
+        "docs/e2e-tests.md"
+      ]
+    },
+    {
+      "n": 4,
+      "done": false,
+      "title": "Show the error of a failed start on a message line above the help line",
+      "language": "Go",
+      "testable": true,
+      "certainty": "medium",
+      "blast_radius": "low",
+      "patterns_to_follow": [
+        "internal/tui/screen.go:289-306",
+        "internal/tui/screen.go:355-362",
+        "internal/tui/screen.go:242-259",
+        "internal/terminal/control_characters.go",
+        "internal/tui/screen_test.go:540-560",
+        "task:3"
+      ],
+      "depends_on": [3],
+      "affected_files": [
+        "internal/tui/screen.go",
+        "internal/tui/screen_test.go",
+        "internal/tui/testdata/",
+        "e2e/fakes/launchctl",
+        "e2e/testUtils.ts",
+        "e2e/tests/start-stop.test.ts",
+        "docs/e2e-tests.md"
+      ]
+    },
+    {
+      "n": 5,
+      "done": false,
+      "title": "Stop the selected service with x after a confirmation",
+      "language": "Go",
+      "testable": true,
+      "certainty": "medium",
+      "blast_radius": "high",
+      "patterns_to_follow": [
+        "internal/tui/screen.go:112-136",
+        "internal/tui/screen_test.go:2280-2353",
+        "task:3",
+        "task:4"
+      ],
+      "depends_on": [4],
+      "affected_files": [
+        "internal/tui/screen.go",
+        "internal/tui/screen_test.go",
+        "internal/tui/testdata/",
+        "internal/cli/root.go",
+        "e2e/tests/start-stop.test.ts"
+      ]
+    },
+    {
+      "n": 6,
+      "done": false,
+      "title": "Describe the start, the stop and the message line in docs/cli.md",
+      "language": "Markdown",
+      "testable": false,
+      "certainty": "high",
+      "blast_radius": "low",
+      "patterns_to_follow": [
+        "docs/cli.md:35-147"
+      ],
+      "depends_on": [5],
+      "affected_files": [
+        "docs/cli.md"
+      ]
+    }
+  ],
+  "design_file": "tasks/start-and-stop-a-service/start-and-stop/design.yaml"
+}

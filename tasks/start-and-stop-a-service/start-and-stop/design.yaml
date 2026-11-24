@@ -1,0 +1,68 @@
+design: planned
+types:
+  - name: Domain
+    package: internal/launchd
+    change: changed
+    does: the gui domain of the user, as launchctl knows it
+    owns:
+      - Start of a not loaded service runs launchctl bootstrap gui/<uid> <plist path>, Start of a loaded service runs launchctl kickstart gui/<uid>/<name>, and Start of a running service runs no command
+      - Start of a not loaded service with no plist path runs no command, and gives an error that says that the service has no plist
+      - Stop of a loaded or a running service runs launchctl bootout gui/<uid>/<name>, and Stop of a not loaded service runs no command
+      - no start and no stop runs launchctl kill, load, unload, enable or disable
+      - launchctl gets each argument as it is, with no shell
+      - a launchctl that exits with a code other than 0 gives an error whose text is what launchctl printed, stderr first, or the command and its exit code when it printed nothing
+      - a launchctl that does not end within 30 s, or before the context of the call ends, is stopped, and gives an error that names the command
+      - Start and Stop read no plist and change nothing that Services keeps, so they can run while Services runs
+    fields: [uid, plists]
+    methods: [Services, String, Start, Stop]
+  - name: Screen
+    package: internal/tui
+    change: changed
+    does: the Bubble Tea model of the screen of svcview
+    owns:
+      - the help line shows s start · x stop · ? help, and ? lists s and x with their actions
+      - s on a selected service that is not loaded or loaded calls start with that service, and s on a running service calls nothing
+      - x on a selected service that is loaded or running shows a confirmation on the message line, and x on a not loaded service shows nothing and calls nothing
+      - y calls stop with the service that the confirmation names, also when the selection changed while it showed; ctrl+c quits; each other key answers no, calls nothing, and does nothing else
+      - s and x do nothing while the help shows, with no rows, while a read error shows, and on a service whose start or stop has not ended
+      - when a start or a stop gives an error, the message line above the help line shows its text on one line until the next key press, and the panes are one line shorter while a message line shows
+      - an error that ends while a confirmation shows does not hide the confirmation, and shows after the answer
+      - the row shows the new state at the next refresh; the end of a start or a stop starts no read of the services
+    fields: [start, stop, confirmation, message, actionNotEnded]
+    methods: [Init, Update, View]
+  - name: actionEnded
+    package: internal/tui
+    change: new
+    does: the end of the start or the stop of one service, as a message of the screen
+    owns: []
+    fields: [name, err]
+    methods: []
+  - name: confirmation
+    package: internal/tui
+    change: new
+    does: a question on the message line that waits for y before svcview acts on one service
+    owns:
+      - the service is the one that was selected when the question showed, not the one that is selected when y comes
+    fields: [question, service]
+    methods: []
+functions:
+  - launchd.Domain.Start(ctx, service) error
+  - launchd.Domain.Stop(ctx, service) error
+  - tui.NewScreen(domain, read, runStatus, start, stop, settings) Screen
+words:
+  - concept: the line above the help line that shows a confirmation or the error of a start or a stop
+    word: message line
+    not: [status line, footer, notification, toast, flash, banner]
+  - concept: the question that x asks before a stop, which y answers
+    word: confirmation
+    not: [prompt, dialog, modal, popup]
+  - concept: the start or the stop that a key of the screen does to the selected service
+    word: action
+    not: [operation, command, control, job]
+  - concept: making launchd run a service that is not loaded or loaded
+    word: start
+    not: [launch, enable]
+  - concept: removing a service from launchd until the next login
+    word: stop
+    not: [kill, unload, disable, terminate]
+dependencies: []
