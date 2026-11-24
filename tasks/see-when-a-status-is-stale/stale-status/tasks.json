@@ -100,7 +100,7 @@
     },
     {
       "n": 5,
-      "done": false,
+      "done": true,
       "title": "Describe status.stale_after and the stale mark in docs/cli.md",
       "language": "Markdown",
       "testable": false,

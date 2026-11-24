@@ -86,10 +86,11 @@ service from `launchctl list`, and the uptime from `ps`.
 | The state `loaded` | A yellow `◐` |
 | The state `not loaded` | A gray `○` |
 | A last exit other than 0 | The glyph in the list and the `last exit` value are red. |
-| The selected row | A blue `▌`, and a gray background on the name and the summary |
+| The selected row | A blue `▌`, and a gray background on the name, the summary, and the stale mark |
 | A summary of the level `info` | The default color of the terminal |
 | A summary of the level `warn` | Yellow |
 | A summary of the level `error` | Red |
+| A [stale status](#in-the-list-and-the-detail-pane), for example `busy  stale 3m` | The summary is dim, in the color of its level. The stale mark after it is in the default color. Dim is the faint attribute of the terminal. |
 | A template value that the plist does not have, for example `the plist has no WORKER_STATUS_FILE` | Red, in place of the summary |
 | A [failure](#failures) of the status command: `status error`, `status timeout`, or `status invalid` | Red, in place of the summary |
 | The bar of a field with a `progress` | A blue `▰` for each done cell, and a dim `▱` for each other cell. Dim is the faint attribute of the terminal, in its default color. |
@@ -338,6 +339,7 @@ groups:
       command: [cat, '{{.Env.WORKER_STATUS_FILE}}']
       every: 2s
       timeout: 1s
+      stale_after: 30s
 ```
 
 | Setting | What it does | Default |
@@ -345,6 +347,7 @@ groups:
 | `status.command` | The program and its arguments, as a list of texts with the program first. Each text can use the [template values](#template-values). | Required |
 | `status.every` | The time between two runs of the command for one service. The value is a Go duration that is more than 0. | `2s` |
 | `status.timeout` | The time after which svcview stops a run, with each process that the command started. The value is a Go duration that is more than 0. | `1s` |
+| `status.stale_after` | The age of `at` after which svcview marks the status of a service as [stale](#in-the-list-and-the-detail-pane). The value is a Go duration that is more than 0. | No check |
 
 svcview runs the program and its arguments with no shell. Thus `$HOME`, `;`, `|`, `*` and a space in a text reach
 the program as they are. For a shell, write `[sh, -c, '...']`. The command runs with the environment and the working
@@ -423,7 +426,7 @@ The output of a status command is one JSON object of version 1 on stdout:
 | Property | Need | Shape | What the screen shows |
 | --- | --- | --- | --- |
 | `version` | Required | The number `1`. svcview accepts no other version. | Nothing |
-| `at` | Optional | The time of the data, as an RFC 3339 text | The age of `at` in the detail pane |
+| `at` | Optional | The time of the data, as an RFC 3339 text | The age of `at` in the detail pane. svcview compares the age of `at` with `status.stale_after` to find a [stale status](#in-the-list-and-the-detail-pane). |
 | `summary` | Optional | Text | The summary in the row of the service |
 | `level` | Optional | `info`, `warn`, or `error`. The default is `info`. | The color of the summary |
 | `fields` | Optional | A list of objects. Each has the texts `name` and `value`, and can have `progress`, a number from 0 to 1. A `progress` outside 0 to 1 makes the output invalid. | One line for each field under `Status` in the detail pane, with its name and its value, and a bar under the value of a field with `progress` |
@@ -445,12 +448,46 @@ for example `the plist has no WORKER_STATUS_FILE`, and so does a [failure](#fail
 the short name before the first run ends, and after a valid output with no `summary`. svcview cuts a summary that is
 too long for the list with `…`.
 
+A service that crashes or does not respond stops the writes to its status file, but `cat` still prints the last
+file. Thus the row can show `busy` for a service that does nothing. When the group sets `status.stale_after`, svcview
+marks such a status as stale.
+
+A status is stale when the `at` of the last output is older than `stale_after`. These statuses are never stale:
+
+- An output with no `at`, whatever the time at which the run ended.
+- An `at` that is exactly as old as `stale_after`, or newer, or after the current time.
+- A [failure](#failures). The row shows the failure in red in place of the summary.
+- A status of a group with no `stale_after`. svcview has no default `stale_after`.
+
+The row of a stale status shows the summary dim, in the color of its level, and then two spaces and the stale mark
+in the default color. The stale mark is `stale` and the age of `at` in its largest whole unit, rounded down: `45s`,
+`3m` for 3 minutes and 12 seconds, `2h`, or `1d`. An output with no `summary` shows only the stale mark, in the column
+of the summaries.
+
+```
+Workers
+○ 01  busy · ENG-692  stale 3m
+○ 02  idle
+```
+
+svcview runs the status command in each state of the service, so a `not loaded` service shows the stale mark too
+when its `at` is old. svcview checks the age of `at` each time the screen draws. Thus the stale mark shows with no new
+run when `at` gets older than `stale_after`, and the age in the mark grows. The stale mark goes away at the end of the
+first run whose output has an `at` that is not older than `stale_after`. A stale status does not change the runs: the
+command still runs every `every`. [`svcview status <name>`](#test-a-status-command-with-svcview-status) does not mark
+a stale status.
+
+When the summary, the two spaces, and the stale mark do not fit in the list, svcview cuts the summary with `…` and
+shows the whole stale mark. When the list has no room for one cell of the summary beside the short name and the stale
+mark, svcview cuts the row at its end with `…`, as for each other row.
+
 The detail pane shows the line `Status` under the data from launchd, with the age of the status, for example
 `Status 1s ago`. The age is the time since `at` when the output has `at`. In each other case, it is the time since
 the last run ended. The age has the units of `up`, and an `at` after the current time shows `0s`. The age grows
-each time the screen draws, also with no new run. Before the first run of the service ends, the detail pane shows
-no line `Status`. After a failure, the detail pane shows under `Status` the text of the failure, and then its lines,
-and no fields and no events.
+each time the screen draws, also with no new run. For a stale status, the line `Status` shows the age of `at`, for
+example `Status 3m12s ago`, with no stale mark and no dim. Before the first run of the service ends, the detail pane
+shows no line `Status`. After a failure, the detail pane shows under `Status` the text of the failure, and then its
+lines, and no fields and no events.
 
 Under `Status`, the detail pane shows each field of the last valid output on a line of its own, in the order of the
 output: the `name` of the field, and then its `value`. The values of one output start in one column, two spaces
@@ -682,7 +719,7 @@ These errors in `status` stop svcview too. Each error names the file and the gro
 - A `status` that is not a set of settings, or a `status` with no `command`.
 - A setting in `status` that svcview does not know, or a setting that `status` sets two times.
 - A `command` that is not a list of texts, an empty `command`, or a `command` whose program is an empty text.
-- An `every` or a `timeout` that is not a duration, or that is not more than 0.
+- An `every`, a `timeout`, or a `stale_after` that is not a duration, or that is not more than 0.
 - A text of `command` that is not a Go template, or that uses a value or an action that a text cannot use. The
   section [Template values](#template-values) lists them.
 

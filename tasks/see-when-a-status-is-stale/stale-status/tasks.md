@@ -288,19 +288,19 @@ summary with `…` so that the mark shows in full at the end of the row. A row w
 what the row of a stale status shows.
 
 **Acceptance Criteria:**
-- [ ] The example of "The status command" sets `stale_after: 30s`, and its table of settings has `status.stale_after`:
+- [x] The example of "The status command" sets `stale_after: 30s`, and its table of settings has `status.stale_after`:
       the age of `at` after which svcview marks the status as stale, a Go duration more than 0, with the default "No
       check".
-- [ ] "Glyphs and colors" has a row for a stale status: the summary dim in the color of its level, with the mark in
+- [x] "Glyphs and colors" has a row for a stale status: the summary dim in the color of its level, with the mark in
       the default color after it.
-- [ ] The table of properties says that svcview compares `at` with `stale_after`.
-- [ ] "In the list and the detail pane" says when a status is stale (an `at` older than `stale_after`; never without
+- [x] The table of properties says that svcview compares `at` with `stale_after`.
+- [x] "In the list and the detail pane" says when a status is stale (an `at` older than `stale_after`; never without
       `at`, after a failure, or in a group with no `stale_after`), that the mark shows `stale` and the age of `at` in its
       largest unit, that it shows in each state of the service, also `not loaded`, that it shows and grows with no new
       run, that it goes away at the end of the first run with a newer `at`, and that the row cuts a long summary to keep
       the mark. It says that the detail pane shows the age of `at` on the line `Status`.
-- [ ] The errors in `status` name `stale_after` beside `every` and `timeout`.
-- [ ] Each statement matches what Tasks 1 to 4 built.
+- [x] The errors in `status` name `stale_after` beside `every` and `timeout`.
+- [x] Each statement matches what Tasks 1 to 4 built.
 
 **Affected Files/Modules:**
 - `docs/cli.md` — "Glyphs and colors", "The status command", "Output", "In the list and the detail pane", and
