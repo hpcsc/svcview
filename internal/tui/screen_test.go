@@ -108,6 +108,8 @@ var (
 	keyY     = tea.KeyPressMsg{Code: 'y', Text: "y"}
 	keyN     = tea.KeyPressMsg{Code: 'n', Text: "n"}
 	keyQ     = tea.KeyPressMsg{Code: 'q', Text: "q"}
+	keyJ     = tea.KeyPressMsg{Code: 'j', Text: "j"}
+	keyK     = tea.KeyPressMsg{Code: 'k', Text: "k"}
 	ctrlC    = tea.KeyPressMsg{Code: 'c', Mod: tea.ModCtrl}
 )
 
@@ -1990,6 +1992,37 @@ func TestScreen(t *testing.T) {
 			require.Equal(t, []string{"com.example.worker.02", "com.apple.a", "com.example.worker.02"}, []string{selectedName(second), selectedName(third), selectedName(back)})
 		})
 
+		t.Run("j selects the next row in the order of the list, also in the next group, and k the row before it", func(t *testing.T) {
+			settings := groups(t, "Workers", "worker")
+			screen := openWith(t, settings, servicesNamed("com.apple.a", "com.example.worker.02", "com.example.worker.01"), 80, 12)
+
+			second := pressKeys(screen, keyJ)
+			third := pressKeys(second, keyJ)
+			back := pressKeys(third, keyK)
+
+			require.Equal(t, []string{"com.example.worker.02", "com.apple.a", "com.example.worker.02"}, []string{selectedName(second), selectedName(third), selectedName(back)})
+		})
+
+		t.Run("j at the last row keeps the last row selected, and k at the first row keeps the first row selected", func(t *testing.T) {
+			screen := open(t, "gui/501", servicesNamed("com.example.a", "com.example.b"), 80, 12)
+
+			last := pressKeys(screen, keyJ, keyJ)
+			first := pressKeys(last, keyK, keyK)
+
+			require.Equal(t, []string{"com.example.b", "com.example.a"}, []string{selectedName(last), selectedName(first)})
+		})
+
+		t.Run("J and K in upper case do not change the selected service", func(t *testing.T) {
+			screen := open(t, "gui/501", servicesNamed("com.example.a", "com.example.b", "com.example.c"), 80, 12)
+			screen = pressKeys(screen, down)
+			before := screen.View().Content
+
+			afterJ := pressKeys(screen, tea.KeyPressMsg{Code: 'J', Text: "J"})
+			afterK := pressKeys(screen, tea.KeyPressMsg{Code: 'K', Text: "K"})
+
+			require.Equal(t, []string{before, before}, []string{afterJ.View().Content, afterK.View().Content})
+		})
+
 		t.Run("↓ past the last row that the list pane shows scrolls the list over the group lines and the empty lines, so the selected row stays in view", func(t *testing.T) {
 			settings := groups(t, "Workers", "worker")
 			screen := openWith(t, settings, servicesNamed("com.example.worker.1", "com.example.worker.2", "com.example.worker.3", "com.example.worker.4", "com.apple.a", "com.apple.b", "com.apple.c"), 80, 12)
@@ -2252,6 +2285,15 @@ func TestScreen(t *testing.T) {
 			require.NotContains(t, before, "▌")
 		})
 
+		t.Run("with no rows, j and k change nothing", func(t *testing.T) {
+			screen := open(t, "gui/501", servicesNamed(), 80, 12)
+			before := screen.View().Content
+
+			screen = pressKeys(screen, keyJ, keyK)
+
+			require.Equal(t, before, screen.View().Content)
+		})
+
 		t.Run("a refresh keeps the same name selected when a row comes before it", func(t *testing.T) {
 			synctest.Test(t, func(t *testing.T) {
 				read := changingAt(100*time.Millisecond,
@@ -2435,6 +2477,36 @@ func TestScreen(t *testing.T) {
 			})
 		})
 
+		t.Run("with the focus on the detail pane, j moves the text up one line, so the next line shows at the bottom, and k moves it back down one line", func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				run := runsGiving(map[string]status.Result{"com.example.worker.a": {Output: &status.Output{Events: eventsNumbered(10)}}})
+				screen := runSized(t, tui.NewScreen("gui/501", servicesNamed("com.example.worker.a"), run, nil, nil, workersWithStatus(t)), 80, 12, 100*time.Millisecond)
+
+				scrolled := pressKeys(screen, tab, keyJ)
+				back := pressKeys(scrolled, keyK)
+
+				require.Equal(t, [][]string{
+					{"up -          last exit 0", "Status 1m0s ago", "", "Events", "09:00 ● event 01", "09:01 ● event 02"},
+					{"○ not loaded  PID -", "up -          last exit 0", "Status 1m0s ago", "", "Events", "09:00 ● event 01"},
+				}, [][]string{detailPane(scrolled), detailPane(back)})
+			})
+		})
+
+		t.Run("j stops when the last line of the text is at the bottom of the pane, and k stops at the first line", func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				run := runsGiving(map[string]status.Result{"com.example.worker.a": {Output: &status.Output{Events: eventsNumbered(10)}}})
+				screen := runSized(t, tui.NewScreen("gui/501", servicesNamed("com.example.worker.a"), run, nil, nil, workersWithStatus(t)), 80, 12, 100*time.Millisecond)
+
+				bottom := pressKeys(screen, tab, keyJ, keyJ, keyJ, keyJ, keyJ, keyJ, keyJ, keyJ, keyJ, keyJ, keyJ, keyJ)
+				top := pressKeys(bottom, keyK, keyK, keyK, keyK, keyK, keyK, keyK, keyK, keyK, keyK, keyK, keyK, keyJ)
+
+				require.Equal(t, [][]string{
+					{"09:04 ● event 05", "09:05 ● event 06", "09:06 ● event 07", "09:07 ● event 08", "09:08 ● event 09", "09:09 ● event 10"},
+					{"up -          last exit 0", "Status 1m0s ago", "", "Events", "09:00 ● event 01", "09:01 ● event 02"},
+				}, [][]string{detailPane(bottom), detailPane(top)})
+			})
+		})
+
 		t.Run("with no rows, or an error in the list, ↑ and ↓ with the focus on the detail pane change nothing", func(t *testing.T) {
 			failing := func() ([]service.Service, error) {
 				return nil, errors.New("launchctl list: exit status 3")
@@ -2501,6 +2573,23 @@ func TestScreen(t *testing.T) {
 				list := listRows(screen)
 
 				screen = pressKeys(screen, tab, down, down, up, down)
+
+				require.Equal(t, "4", selectedName(screen))
+				require.Equal(t, list, listRows(screen))
+				require.Equal(t, "Status 1m0s ago", detailPane(screen)[0])
+			})
+		})
+
+		t.Run("with the focus on the detail pane, j and k do not change the selected service, and the list does not move", func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				read := servicesNamed("com.example.worker.1", "com.example.worker.2", "com.example.worker.3", "com.example.worker.4", "com.example.worker.5",
+					"com.example.worker.6", "com.example.worker.7", "com.example.worker.8", "com.example.worker.9")
+				run := runsGiving(map[string]status.Result{"com.example.worker.4": {Output: &status.Output{Events: eventsNumbered(10)}}})
+				screen := runSized(t, tui.NewScreen("gui/501", read, run, nil, nil, workersWithStatus(t)), 80, 12, 100*time.Millisecond)
+				screen = pressKeys(screen, down, down, down)
+				list := listRows(screen)
+
+				screen = pressKeys(screen, tab, keyJ, keyJ, keyK, keyJ)
 
 				require.Equal(t, "4", selectedName(screen))
 				require.Equal(t, list, listRows(screen))
@@ -2651,6 +2740,18 @@ func TestScreen(t *testing.T) {
 				screen = pressKeys(screen, tab, question, down, down, escape)
 
 				require.Equal(t, "○ not loaded  PID -", detailPane(screen)[0])
+			})
+		})
+
+		t.Run("while the help shows, j and k do not scroll the detail pane", func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				run := runsGiving(map[string]status.Result{"com.example.worker.a": {Output: &status.Output{Events: eventsNumbered(10)}}})
+				screen := runSized(t, tui.NewScreen("gui/501", servicesNamed("com.example.worker.a"), run, nil, nil, workersWithStatus(t)), 80, 12, 100*time.Millisecond)
+				screen = pressKeys(screen, tab, keyJ, keyJ)
+
+				screen = pressKeys(screen, question, keyJ, keyJ, keyK, escape)
+
+				require.Equal(t, "Status 1m0s ago", detailPane(screen)[0])
 			})
 		})
 	})
@@ -2947,7 +3048,7 @@ func TestScreen(t *testing.T) {
 		})
 
 		t.Run("each key other than y and ctrl+c answers no: it hides the confirmation, calls nothing, and does nothing else", func(t *testing.T) {
-			for _, key := range []tea.KeyPressMsg{keyN, escape, keyQ, up, down, keyX, keyS, question, tab, tea.KeyPressMsg{Code: 'Y', Text: "Y"}} {
+			for _, key := range []tea.KeyPressMsg{keyN, escape, keyQ, up, down, keyJ, keyK, keyX, keyS, question, tab, tea.KeyPressMsg{Code: 'Y', Text: "Y"}} {
 				starts, stops := &serviceCalls{}, &serviceCalls{}
 				screen := openActing(t, readGiving(service.Service{Name: "com.example.a", State: service.Running, PID: 4121}, loaded, running), starts.record, stops.record)
 				screen = pressKeys(screen, down)
@@ -3117,6 +3218,14 @@ func TestScreen(t *testing.T) {
 			screen := open(t, "gui/501", servicesNamed("com.example.a", "com.example.b", "com.example.c"), 80, 12)
 
 			screen = pressKeys(screen, down, question, down, up, up, escape)
+
+			require.Equal(t, "com.example.b", selectedName(screen))
+		})
+
+		t.Run("j and k do not change the selected service while the help shows", func(t *testing.T) {
+			screen := open(t, "gui/501", servicesNamed("com.example.a", "com.example.b", "com.example.c"), 80, 12)
+
+			screen = pressKeys(screen, keyJ, question, keyJ, keyK, keyK, escape)
 
 			require.Equal(t, "com.example.b", selectedName(screen))
 		})

@@ -98,20 +98,20 @@ one line and `k` scrolls it back. While the help shows, they change nothing, and
 answer no. The help lists `k` and `j` on the line of `↑` and `↓`.
 
 **Acceptance Criteria:**
-- [ ] With the focus on the list, `j` selects the next row in the order of the list, also in the next group, and `k`
+- [x] With the focus on the list, `j` selects the next row in the order of the list, also in the next group, and `k`
       the row before it.
-- [ ] `j` at the last row keeps the last row selected, and `k` at the first row keeps the first row selected.
-- [ ] With no rows, `j` and `k` change nothing.
-- [ ] With the focus on the detail pane, `j` moves its text up one line, so the next line shows at the bottom, and `k`
+- [x] `j` at the last row keeps the last row selected, and `k` at the first row keeps the first row selected.
+- [x] With no rows, `j` and `k` change nothing.
+- [x] With the focus on the detail pane, `j` moves its text up one line, so the next line shows at the bottom, and `k`
       moves it back down one line. The scroll stops at the same lines as for `↓` and `↑`.
-- [ ] With the focus on the detail pane, `j` and `k` do not change the selected service, and the list does not move,
+- [x] With the focus on the detail pane, `j` and `k` do not change the selected service, and the list does not move,
       in a list that has more rows than its pane.
-- [ ] While the help shows, `j` and `k` do not change the selected service and do not scroll the detail pane.
-- [ ] While a confirmation shows, `j` and `k` answer no: the confirmation hides, nothing is called, and nothing else
+- [x] While the help shows, `j` and `k` do not change the selected service and do not scroll the detail pane.
+- [x] While a confirmation shows, `j` and `k` answer no: the confirmation hides, nothing is called, and nothing else
       changes.
-- [ ] The help shows `↑ ↓ k j` in the column of the keys, with the action of `↑` and `↓`. The help keeps its 7 lines,
+- [x] The help shows `↑ ↓ k j` in the column of the keys, with the action of `↑` and `↓`. The help keeps its 7 lines,
       and `keys.golden` shows the new line.
-- [ ] e2e: `j` selects the next row, which then starts with `▌`, and `k` then selects the row before it.
+- [x] e2e: `j` selects the next row, which then starts with `▌`, and `k` then selects the row before it.
 
 **Affected Files/Modules:**
 - `internal/tui/screen.go` — `press` handles `j` and `k`; `helpText` names them

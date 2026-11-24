@@ -5,8 +5,8 @@
   "tasks": [
     {
       "n": 1,
-      "done": false,
-      "title": "Make j and k do what ↓ and ↑ do",
+      "done": true,
+      "title": "Make j and k do what \u2193 and \u2191 do",
       "language": "Go",
       "testable": true,
       "certainty": "high",

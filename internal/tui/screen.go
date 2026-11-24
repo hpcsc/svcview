@@ -183,9 +183,9 @@ func (s Screen) press(key tea.KeyPressMsg) (Screen, tea.Cmd) {
 		if svc, ok := s.selectedService(); ok && !s.showHelp && svc.State != service.NotLoaded && !s.actionNotEnded[svc.Name] {
 			s.confirmation = &confirmation{question: "Stop " + terminal.ReplaceControlCharacters(svc.Name) + "? (y/N)", service: svc}
 		}
-	case "up", "down":
+	case "up", "k", "down", "j":
 		step := 1
-		if key.String() == "up" {
+		if key.String() == "up" || key.String() == "k" {
 			step = -1
 		}
 		switch {
@@ -412,7 +412,7 @@ func (s Screen) borderStyle(p pane) ansi.Style {
 
 func (s Screen) helpText() []string {
 	return []string{
-		"↑ ↓       select a service, or scroll the detail pane when it has the focus",
+		"↑ ↓ k j   select a service, or scroll the detail pane when it has the focus",
 		"tab       move the focus to the other pane",
 		"s         start the selected service",
 		"x         stop the selected service, after a confirmation",

@@ -101,6 +101,21 @@ describe('the screen', () => {
     expect(await session.text()).toContain('  ○ com.example.a')
   })
 
+  it('j selects the next row, which then starts with ▌, and k then selects the row before it', async () => {
+    const session = await openCli(scratchDir(), [], { HOME: homeWithPlists(['com.example.a', 'com.example.b']) })
+    await session.waitForText('▌○ com.example.a')
+
+    await session.press('j')
+
+    await session.waitForText('▌○ com.example.b')
+    expect(await session.text()).toContain('  ○ com.example.a')
+
+    await session.press('k')
+
+    await session.waitForText('▌○ com.example.a')
+    expect(await session.text()).toContain('  ○ com.example.b')
+  })
+
   it('shows the name, the PID, the uptime and the last exit of the selected service in the detail pane, and the next service after ↓', async () => {
     const home = homeWithPlists(['com.example.a-running', 'com.example.b-killed'])
     setLaunchctlList(home, [
