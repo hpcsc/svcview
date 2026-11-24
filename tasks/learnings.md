@@ -35,10 +35,10 @@
 - Apply when: A task changes the root action, showScreen, or the terminal check in internal/cli, or wires a new launchd or tui type into the screen.
 ## Run clerk mutants and clerk audit run under mise exec
 - Type: constraint
-- Recorded: 2026-11-23
-- Observed: see-the-status-that-each-service-reports-status-failures
-- Learning: The shell GOROOT points at Go 1.27.1 and go.mod asks for 1.27.4, so clerk mutants from the bare shell fails with 'compile: version go1.27.1 does not match go tool version go1.27.4'. Run mise exec -- clerk mutants and mise exec -- clerk audit run, as go_tool_prefix says for Go commands. An audit round started from the bare shell gets agents that cannot build Go: round 1 of status-failures lost its mutants lens and each runtime check.
-- Apply when: Running clerk mutants, clerk audit run, gopls or another Go tool in this repo.
+- Recorded: 2026-11-24
+- Observed: move-with-the-keys-of-vim-vim-keys
+- Learning: The shell GOROOT points at Go 1.27.1 and go.mod asks for 1.27.4, so a Go build from the bare shell fails with 'compile: version go1.27.1 does not match go tool version go1.27.4'. Run mise exec -- clerk mutants, mise exec -- clerk audit run, and the suite step as mise exec -- bash -c 'task test:unit && task test:e2e': test_command does not carry go_tool_prefix. An audit round started from the bare shell gets agents that cannot build Go (round 1 of status-failures lost its mutants lens and each runtime check), and in vim-keys the first suite run failed to build each package.
+- Apply when: Running clerk mutants, clerk audit run, the suite step or task test:unit, gopls or another Go tool in this repo.
 ## Fake a program that svcview runs with a script first on PATH
 - Type: pattern
 - Recorded: 2026-11-24
@@ -375,3 +375,17 @@
 - Observed: task 5 — see-when-a-status-is-stale-stale-status
 - Learning: findStatusCommand in internal/cli/status.go reads the config through readSettingsAndDomain in internal/cli/root.go, which calls config.Read, as the screen does. Thus a bad value of a new setting stops svcview status with exit 1 too. The stale-status breakdown said that svcview status does not read stale_after, docs/cli.md repeated it, and the audit found the sentence false. Say what svcview status does not show, not that it does not read a setting.
 - Apply when: Planning a setting in a config file, or writing a boundary or docs/cli.md text about what svcview status does with a setting.
+
+## A test that keys change nothing presses each key from its own start state
+- Type: recurring-finding
+- Recorded: 2026-11-24
+- Observed: task 1 — move-with-the-keys-of-vim-vim-keys
+- Learning: Two keys that move in opposite directions cancel out, so a test that presses J and then K, or ↓ and then ↑, and compares the screen with the start passes also when each key moves. The audit raised it in focus-and-scroll and again in vim-keys ('J and K in upper case do not change the selected service'). Press each key on the same start model, for example afterJ := pressKeys(screen, J) and afterK := pressKeys(screen, K), and compare each result with the start, from a row where the key can move.
+- Apply when: A test in internal/tui checks that a key, or a key in upper case, while the help shows, or while a confirmation shows, changes nothing.
+
+## The 1 MiB case of TestStatusSubcommand can time out on a loaded machine
+- Type: constraint
+- Recorded: 2026-11-24
+- Observed: move-with-the-keys-of-vim-vim-keys
+- Learning: Under -race in the full suite, the subtest of TestStatusSubcommand/run for an output larger than 1 MiB can show status timeout in place of status invalid, because yes does not write 1 MiB before the timeout of the status command. In vim-keys it failed once in the suite, on a branch with no change in internal/cli or internal/status, and passed three times alone. Run it alone with -count=1 -race before you treat it as a regression, then run the suite again for the receipt.
+- Apply when: The suite step or task test:unit fails in TestStatusSubcommand with status timeout where the test expects status invalid, on a branch that does not change internal/cli or internal/status.
