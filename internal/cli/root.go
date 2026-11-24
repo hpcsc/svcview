@@ -2,6 +2,7 @@ package cli
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -20,12 +21,18 @@ import (
 const releaseRepository = "hpcsc/svcview"
 
 func Run(ctx context.Context) int {
-	if err := newCommand().Run(ctx, os.Args); err != nil {
-		color.Red("%s", terminal.ReplaceControlCharacters(err.Error()))
-		return 1
-	}
+	return runCommand(ctx, newCommand(), os.Args)
+}
 
-	return 0
+func runCommand(ctx context.Context, command *cli.Command, arguments []string) int {
+	err := command.Run(ctx, arguments)
+	switch {
+	case err == nil:
+		return 0
+	case !errors.Is(err, errStatusNotValid):
+		color.New(color.FgRed).Fprintln(command.Writer, terminal.ReplaceControlCharacters(err.Error()))
+	}
+	return 1
 }
 
 func newCommand() *cli.Command {
@@ -36,6 +43,7 @@ func newCommand() *cli.Command {
 		Commands: []*cli.Command{
 			newVersionCommand(),
 			newUpdateCommand(),
+			newStatusSubcommand(),
 		},
 		Action: showScreenOrHelp,
 	}
@@ -52,16 +60,10 @@ func showScreenOrHelp(ctx context.Context, cmd *cli.Command) error {
 }
 
 func showScreen(ctx context.Context, input io.Reader, output io.Writer) error {
-	home, err := os.UserHomeDir()
+	settings, domain, err := readSettingsAndDomain()
 	if err != nil {
 		return err
 	}
-	uid := os.Getuid()
-	settings, err := config.Read(config.Folder(home, os.Getenv("XDG_CONFIG_HOME")), uid, config.ACLEntries)
-	if err != nil {
-		return err
-	}
-	domain := launchd.NewDomain(home, uid)
 	runs := newStatusRuns(ctx)
 	start := func(svc service.Service) error { return domain.Start(ctx, svc) }
 	stop := func(svc service.Service) error { return domain.Stop(ctx, svc) }
@@ -69,6 +71,19 @@ func showScreen(ctx context.Context, input io.Reader, output io.Writer) error {
 	_, err = tea.NewProgram(screen, tea.WithContext(ctx), tea.WithInput(input), tea.WithOutput(output)).Run()
 	runs.stop()
 	return err
+}
+
+func readSettingsAndDomain() (config.Settings, *launchd.Domain, error) {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return config.Settings{}, nil, err
+	}
+	uid := os.Getuid()
+	settings, err := config.Read(config.Folder(home, os.Getenv("XDG_CONFIG_HOME")), uid, config.ACLEntries)
+	if err != nil {
+		return config.Settings{}, nil, err
+	}
+	return settings, launchd.NewDomain(home, uid), nil
 }
 
 func newVersionCommand() *cli.Command {

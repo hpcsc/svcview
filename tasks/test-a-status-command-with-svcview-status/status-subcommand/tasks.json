@@ -29,7 +29,7 @@
     },
     {
       "n": 2,
-      "done": false,
+      "done": true,
       "title": "Print the template values and the command line of a service with svcview status",
       "language": "Go",
       "testable": true,

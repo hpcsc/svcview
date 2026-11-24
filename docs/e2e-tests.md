@@ -34,7 +34,7 @@ Two helpers start the CLI:
 
 | Helper | Use for | How it works |
 | --- | --- | --- |
-| `runCli(cwd, args, env)` | Commands that print and stop, such as `version` and `update` | Starts the CLI as a child process with pipes. It gives stdout, stderr and the exit status. |
+| `runCli(cwd, args, env)` | Commands that print and stop, such as `version`, `update` and `status` | Starts the CLI as a child process with pipes, with `e2e/fakes` first on `PATH`. It gives stdout, stderr and the exit status. |
 | `openCli(cwd, args, env)` | The screen, and commands that ask for input | Starts `sh -c 'printf "\033[20l"; unset XDG_CONFIG_HOME; <env> <cli> <args>; echo "EXIT:$?"'` in a pseudo-terminal. When the CLI stops, the shell writes its exit status on the screen, so a test can wait for `EXIT:0`. [New line mode](#new-line-mode) tells why the command starts with `printf`, and [the config file](#the-config-file) tells why it unsets `XDG_CONFIG_HOME`. |
 
 `runCli` does not block. The update tests run a fake server in the test process, and that server must
@@ -102,9 +102,9 @@ domain is `gui/0`. The tests compare it with `process.getuid()`.
 
 ### The fake launchctl
 
-svcview runs `launchctl list` at each refresh to get the state of each service. The Docker image has no `launchctl`,
-and a test on a Mac must not read the real services. So `openCli` puts `e2e/fakes` first on `PATH`, and svcview runs
-the fake `launchctl` in that folder:
+svcview runs `launchctl list` at each refresh to get the state of each service, and `svcview status` runs it one
+time. The Docker image has no `launchctl`, and a test on a Mac must not read the real services. So `openCli` and
+`runCli` put `e2e/fakes` first on `PATH`, and svcview runs the fake `launchctl` in that folder:
 
 ```mermaid
 sequenceDiagram
@@ -144,7 +144,8 @@ Docker image has no `ps`, and the real `ps` on a Mac knows nothing of the PIDs o
 - For any other arguments, the fake writes an error to stderr and exits with 64.
 - The fake must stay executable in git (mode `100755`), as the fake `launchctl` must.
 
-A test that passes its own `PATH` to `openCli` replaces the `PATH` with the fakes. Keep `e2e/fakes` first in it.
+A test that passes its own `PATH` to `openCli` or `runCli` replaces the `PATH` with the fakes. Keep `e2e/fakes` first
+in it.
 
 ### The config file
 

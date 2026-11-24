@@ -122,7 +122,7 @@ export function runCli(
 ): Promise<Result> {
   const { XDG_CONFIG_HOME: _, ...inherited } = process.env
   return new Promise((done, fail) => {
-    const child = spawn(executable, args, { cwd, env: { ...inherited, ...env } })
+    const child = spawn(executable, args, { cwd, env: { ...inherited, PATH: `${fakes}:${process.env.PATH}`, ...env } })
     if (input !== undefined) child.stdin.end(input)
     let stdout = ''
     let stderr = ''

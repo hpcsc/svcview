@@ -194,35 +194,35 @@ svcview prints the cause and exits with 1. The subcommand reads no input and doe
 `svcview --help` lists `status`.
 
 **Acceptance Criteria:**
-- [ ] `svcview status <name>` prints the heading `Template values` and one line for each value of
+- [x] `svcview status <name>` prints the heading `Template values` and one line for each value of
       `status.TemplateValues`: the value as a text writes it, and what it gives, or the text of its failure. Then it
       prints the heading `Command line` and the command line.
-- [ ] For a command that uses a template value that the plist does not have, it prints the template values, then
+- [x] For a command that uses a template value that the plist does not have, it prints the template values, then
       the failure under `Command line`, for example `the plist has no WORKER_STATUS_FILE`, and exits with 1. No program
       runs, and the failure shows one time.
-- [ ] With no name, it says that it needs the name of a service and exits with 1. With more than one name, it says
+- [x] With no name, it says that it needs the name of a service and exits with 1. With more than one name, it says
       that it takes one name and exits with 1.
-- [ ] For a name that no service has, it prints a cause that names the name, and says that svcview knows only the
+- [x] For a name that no service has, it prints a cause that names the name, and says that svcview knows only the
       services that have a plist in `~/Library/LaunchAgents`. It exits with 1.
-- [ ] For a service whose group has no status command, also the group `Other`, it prints a cause that names the
+- [x] For a service whose group has no status command, also the group `Other`, it prints a cause that names the
       service and the group, and exits with 1.
-- [ ] It reads the config through the same function as the screen. A `config.yaml` or a file of `conf.d` that
+- [x] It reads the config through the same function as the screen. A `config.yaml` or a file of `conf.d` that
       another user can write, and each other config error, stops it with the error that stops the screen, with exit
       code 1, before it prints a step. `showScreen` and the subcommand get the settings and the domain from one function
       of `internal/cli`.
-- [ ] It reads the services through `Domain.Services`, as the screen does. An error of `launchctl list` stops it with
+- [x] It reads the services through `Domain.Services`, as the screen does. An error of `launchctl list` stops it with
       that error and exit code 1.
-- [ ] It reads no input. With stdin and stdout that are not terminals, it prints the same steps as in a terminal. In
+- [x] It reads no input. With stdin and stdout that are not terminals, it prints the same steps as in a terminal. In
       a terminal, it prints the steps and ends, and opens no screen.
-- [ ] Each control character in a value, a name, a group, the command line or a failure prints as `�`, so a plist,
+- [x] Each control character in a value, a name, a group, the command line or a failure prints as `�`, so a plist,
       a config file or a name cannot send an escape sequence to the terminal.
-- [ ] `svcview --help`, and the help that svcview prints with no command and no terminal, list `status` with its
+- [x] `svcview --help`, and the help that svcview prints with no command and no terminal, list `status` with its
       usage. `svcview status --help` shows that it takes a `<name>`, and runs nothing.
-- [ ] The tests are in `TestStatusSubcommand` in `internal/cli/status_test.go`. They run the command tree of
+- [x] The tests are in `TestStatusSubcommand` in `internal/cli/status_test.go`. They run the command tree of
       `newCommand` with an input that fails the test when svcview reads it, a home folder and a config folder in
       `t.TempDir`, and a fake `launchctl` first on `PATH` that all tests of the package share.
-- [ ] `runCli` puts `e2e/fakes` first on `PATH`, as `openCli` does, and `docs/e2e-tests.md` says so.
-- [ ] e2e, in `e2e/tests/status-subcommand.test.ts`: with `runCli`, `svcview status <name>` prints the template
+- [x] `runCli` puts `e2e/fakes` first on `PATH`, as `openCli` does, and `docs/e2e-tests.md` says so.
+- [x] e2e, in `e2e/tests/status-subcommand.test.ts`: with `runCli`, `svcview status <name>` prints the template
       values with a variable of the plist, and the command line, and exits with 0; a missing variable prints `the plist
       has no` and the variable, writes no marker file of the command, and exits with 1; a name that no service has and a
       service in `Other` each exit with 1 with their cause; a `config.yaml` that all users can write exits with 1 with
