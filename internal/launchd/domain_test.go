@@ -3,10 +3,15 @@
 package launchd_test
 
 import (
+	"context"
+	"errors"
+	"io/fs"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
+	"syscall"
 	"testing"
 	"time"
 
@@ -63,8 +68,11 @@ func TestMain(m *testing.M) {
 	}
 	scripts := map[string]string{
 		"launchctl": "#!/bin/sh\n" +
-			"[ \"$*\" = list ] || exit 64\n" +
-			"exec cat \"$FAKE_LAUNCHCTL_LIST\"\n",
+			"[ \"$*\" = list ] && exec cat \"$FAKE_LAUNCHCTL_LIST\"\n" +
+			"{ printf '%s\\037' \"$@\"; echo; } >> \"$FAKE_LAUNCHCTL_CALLS\"\n" +
+			"printf '%s' \"$FAKE_LAUNCHCTL_STDERR\" >&2\n" +
+			"printf '%s' \"$FAKE_LAUNCHCTL_STDOUT\"\n" +
+			"exit \"${FAKE_LAUNCHCTL_EXIT:-0}\"\n",
 		"ps": "#!/bin/sh\n" +
 			"printf '%s\\n' \"$*\" >> \"$FAKE_PS_CALLS\"\n" +
 			"[ $# -eq 4 ] && [ \"$1 $2 $3\" = '-o pid=,etime= -p' ] || exit 64\n" +
@@ -105,6 +113,28 @@ func fakeLaunchctlList(t *testing.T, fixture string) string {
 	t.Setenv("FAKE_LAUNCHCTL_LIST", output)
 	putFirstOnPath(t, sharedFakes)
 	return output
+}
+
+func fakeLaunchctlCalls(t *testing.T) (calls string) {
+	t.Helper()
+	calls = filepath.Join(t.TempDir(), "launchctl-calls.txt")
+	t.Setenv("FAKE_LAUNCHCTL_CALLS", calls)
+	putFirstOnPath(t, sharedFakes)
+	return calls
+}
+
+func launchctlCalls(t *testing.T, path string) [][]string {
+	t.Helper()
+	data, err := os.ReadFile(path)
+	if errors.Is(err, fs.ErrNotExist) {
+		return nil
+	}
+	require.NoError(t, err)
+	var calls [][]string
+	for line := range strings.Lines(string(data)) {
+		calls = append(calls, strings.Split(strings.TrimSuffix(line, "\x1f\n"), "\x1f"))
+	}
+	return calls
 }
 
 func fakePs(t *testing.T, fixture string) (calls string) {
@@ -779,6 +809,199 @@ func TestDomain(t *testing.T) {
 
 			require.NoError(t, err)
 			require.Equal(t, []service.Service{{Name: "com.example.loaded", State: service.Loaded}}, withoutPlistPath(services))
+		})
+	})
+
+	t.Run("start", func(t *testing.T) {
+		t.Run("a not loaded service runs launchctl bootstrap with the gui domain of the uid and the plist path of the service", func(t *testing.T) {
+			calls := fakeLaunchctlCalls(t)
+			plist := "/Users/me/Library/LaunchAgents/com.example.worker.plist"
+
+			err := launchd.NewDomain(t.TempDir(), 502).Start(t.Context(), service.Service{Name: "com.example.worker", State: service.NotLoaded, PlistPath: plist})
+
+			require.NoError(t, err)
+			require.Equal(t, [][]string{{"bootstrap", "gui/502", plist}}, launchctlCalls(t, calls))
+		})
+
+		t.Run("a loaded service runs launchctl kickstart with the service in the gui domain of the uid", func(t *testing.T) {
+			calls := fakeLaunchctlCalls(t)
+
+			err := launchd.NewDomain(t.TempDir(), 501).Start(t.Context(), service.Service{Name: "com.example.worker", State: service.Loaded, PlistPath: "/Users/me/Library/LaunchAgents/com.example.worker.plist"})
+
+			require.NoError(t, err)
+			require.Equal(t, [][]string{{"kickstart", "gui/501/com.example.worker"}}, launchctlCalls(t, calls))
+		})
+
+		t.Run("a running service runs no command and gives no error", func(t *testing.T) {
+			calls := fakeLaunchctlCalls(t)
+
+			err := launchd.NewDomain(t.TempDir(), 501).Start(t.Context(), service.Service{Name: "com.example.worker", State: service.Running, PID: 4122, PlistPath: "/Users/me/Library/LaunchAgents/com.example.worker.plist"})
+
+			require.NoError(t, err)
+			require.Empty(t, launchctlCalls(t, calls))
+		})
+
+		t.Run("a not loaded service with no plist path runs no command and gives an error that says that the service has no plist", func(t *testing.T) {
+			calls := fakeLaunchctlCalls(t)
+
+			err := launchd.NewDomain(t.TempDir(), 501).Start(t.Context(), service.Service{Name: "com.example.worker", State: service.NotLoaded})
+
+			require.ErrorContains(t, err, "com.example.worker has no plist")
+			require.Empty(t, launchctlCalls(t, calls))
+		})
+
+		t.Run("a name and a plist path with a space, a quote and a $ reach launchctl unchanged", func(t *testing.T) {
+			calls := fakeLaunchctlCalls(t)
+			domain := launchd.NewDomain(t.TempDir(), 501)
+			plist := `/Users/me/Library/Launch Agents/it's "$HOME".plist`
+
+			bootstrapErr := domain.Start(t.Context(), service.Service{Name: "com.example.first", State: service.NotLoaded, PlistPath: plist})
+			kickstartErr := domain.Start(t.Context(), service.Service{Name: `com.example.it's "$HOME"`, State: service.Loaded})
+
+			require.NoError(t, bootstrapErr)
+			require.NoError(t, kickstartErr)
+			require.Equal(t, [][]string{
+				{"bootstrap", "gui/501", plist},
+				{"kickstart", `gui/501/com.example.it's "$HOME"`},
+			}, launchctlCalls(t, calls))
+		})
+
+		t.Run("a launchctl that exits with a code other than 0 gives an error whose text is what it printed, stderr first, with each line kept", func(t *testing.T) {
+			fakeLaunchctlCalls(t)
+			t.Setenv("FAKE_LAUNCHCTL_STDERR", "Bootstrap failed: 5: Input/output error\nTry re-running the command as root for richer errors.\n")
+			t.Setenv("FAKE_LAUNCHCTL_STDOUT", "printed on stdout\n")
+			t.Setenv("FAKE_LAUNCHCTL_EXIT", "5")
+
+			err := launchd.NewDomain(t.TempDir(), 501).Start(t.Context(), service.Service{Name: "com.example.worker", State: service.NotLoaded, PlistPath: "/Users/me/Library/LaunchAgents/com.example.worker.plist"})
+
+			require.EqualError(t, err, "Bootstrap failed: 5: Input/output error\nTry re-running the command as root for richer errors.\nprinted on stdout")
+		})
+
+		t.Run("a launchctl that exits with a code other than 0 and prints nothing gives an error that names the command and the exit code", func(t *testing.T) {
+			fakeLaunchctlCalls(t)
+			t.Setenv("FAKE_LAUNCHCTL_EXIT", "113")
+
+			err := launchd.NewDomain(t.TempDir(), 501).Start(t.Context(), service.Service{Name: "com.example.worker", State: service.Loaded})
+
+			require.EqualError(t, err, "launchctl kickstart gui/501/com.example.worker exited with code 113")
+		})
+
+		t.Run("a launchctl that a signal ends and that prints nothing gives an error that names the command and the signal", func(t *testing.T) {
+			fakeLaunchctl(t, "kill -KILL $$\n")
+
+			err := launchd.NewDomain(t.TempDir(), 501).Start(t.Context(), service.Service{Name: "com.example.worker", State: service.Loaded})
+
+			require.EqualError(t, err, "launchctl kickstart gui/501/com.example.worker ended by SIGKILL")
+		})
+
+		t.Run("with no launchctl on PATH, gives the error that launchctl is not found", func(t *testing.T) {
+			t.Setenv("PATH", t.TempDir())
+
+			err := launchd.NewDomain(t.TempDir(), 501).Start(t.Context(), service.Service{Name: "com.example.worker", State: service.NotLoaded, PlistPath: "/Users/me/Library/LaunchAgents/com.example.worker.plist"})
+
+			require.ErrorIs(t, err, exec.ErrNotFound)
+		})
+
+		t.Run("a launchctl that exits with 0 while a child of it keeps the output open gives no error, and the start does not wait for the child", func(t *testing.T) {
+			fakeLaunchctl(t, "sleep 15 &\nexit 0\n")
+			started := time.Now()
+
+			err := launchd.NewDomain(t.TempDir(), 501).Start(t.Context(), service.Service{Name: "com.example.worker", State: service.Loaded})
+
+			require.NoError(t, err)
+			require.Less(t, time.Since(started), 10*time.Second)
+		})
+
+		t.Run("a child of launchctl that still runs when launchctl exits is killed", func(t *testing.T) {
+			childPid := filepath.Join(t.TempDir(), "child-pid.txt")
+			fakeLaunchctl(t, "sleep 15 >/dev/null 2>&1 &\necho $! > '"+childPid+"'\nexit 0\n")
+
+			err := launchd.NewDomain(t.TempDir(), 501).Start(t.Context(), service.Service{Name: "com.example.worker", State: service.Loaded})
+
+			require.NoError(t, err)
+			data, err := os.ReadFile(childPid)
+			require.NoError(t, err)
+			pid, err := strconv.Atoi(strings.TrimSpace(string(data)))
+			require.NoError(t, err)
+			require.Eventually(t, func() bool { return errors.Is(syscall.Kill(pid, 0), syscall.ESRCH) }, 5*time.Second, 50*time.Millisecond)
+		})
+
+		t.Run("a context that ended before the start runs no command, and gives the error of the context", func(t *testing.T) {
+			calls := fakeLaunchctlCalls(t)
+			ctx, cancel := context.WithCancel(t.Context())
+			cancel()
+
+			err := launchd.NewDomain(t.TempDir(), 501).Start(ctx, service.Service{Name: "com.example.worker", State: service.Loaded})
+
+			require.ErrorIs(t, err, context.Canceled)
+			require.ErrorContains(t, err, "launchctl kickstart gui/501/com.example.worker did not run")
+			require.Empty(t, launchctlCalls(t, calls))
+		})
+	})
+
+	t.Run("stop", func(t *testing.T) {
+		t.Run("a loaded service and a running service each run launchctl bootout with the service in the gui domain of the uid", func(t *testing.T) {
+			calls := fakeLaunchctlCalls(t)
+			domain := launchd.NewDomain(t.TempDir(), 501)
+
+			loadedErr := domain.Stop(t.Context(), service.Service{Name: "com.example.loaded", State: service.Loaded})
+			runningErr := domain.Stop(t.Context(), service.Service{Name: "com.example.running", State: service.Running, PID: 4122})
+
+			require.NoError(t, loadedErr)
+			require.NoError(t, runningErr)
+			require.Equal(t, [][]string{
+				{"bootout", "gui/501/com.example.loaded"},
+				{"bootout", "gui/501/com.example.running"},
+			}, launchctlCalls(t, calls))
+		})
+
+		t.Run("a not loaded service runs no command and gives no error", func(t *testing.T) {
+			calls := fakeLaunchctlCalls(t)
+
+			err := launchd.NewDomain(t.TempDir(), 501).Stop(t.Context(), service.Service{Name: "com.example.worker", State: service.NotLoaded, PlistPath: "/Users/me/Library/LaunchAgents/com.example.worker.plist"})
+
+			require.NoError(t, err)
+			require.Empty(t, launchctlCalls(t, calls))
+		})
+
+		t.Run("a name with a space, a quote and a $ reaches launchctl unchanged", func(t *testing.T) {
+			calls := fakeLaunchctlCalls(t)
+
+			err := launchd.NewDomain(t.TempDir(), 501).Stop(t.Context(), service.Service{Name: `com.example.it's "$HOME"`, State: service.Running, PID: 4122})
+
+			require.NoError(t, err)
+			require.Equal(t, [][]string{{"bootout", `gui/501/com.example.it's "$HOME"`}}, launchctlCalls(t, calls))
+		})
+
+		t.Run("a launchctl that exits with a code other than 0 gives an error whose text is what it printed", func(t *testing.T) {
+			fakeLaunchctlCalls(t)
+			t.Setenv("FAKE_LAUNCHCTL_STDERR", "Boot-out failed: 3: No such process\n")
+			t.Setenv("FAKE_LAUNCHCTL_EXIT", "3")
+
+			err := launchd.NewDomain(t.TempDir(), 501).Stop(t.Context(), service.Service{Name: "com.example.worker", State: service.Loaded})
+
+			require.EqualError(t, err, "Boot-out failed: 3: No such process")
+		})
+
+		t.Run("with no launchctl on PATH, gives the error that launchctl is not found", func(t *testing.T) {
+			t.Setenv("PATH", t.TempDir())
+
+			err := launchd.NewDomain(t.TempDir(), 501).Stop(t.Context(), service.Service{Name: "com.example.worker", State: service.Running, PID: 4122})
+
+			require.ErrorIs(t, err, exec.ErrNotFound)
+		})
+
+		t.Run("a launchctl that does not end before the context of the call ends is killed, also when a child of launchctl keeps the output open, and gives an error that names the command", func(t *testing.T) {
+			fakeLaunchctl(t, "sleep 15\necho never\n")
+			ctx, cancel := context.WithTimeout(t.Context(), 500*time.Millisecond)
+			defer cancel()
+			started := time.Now()
+
+			err := launchd.NewDomain(t.TempDir(), 501).Stop(ctx, service.Service{Name: "com.example.worker", State: service.Running, PID: 4122})
+
+			require.ErrorIs(t, err, context.DeadlineExceeded)
+			require.ErrorContains(t, err, "launchctl bootout gui/501/com.example.worker did not end")
+			require.Less(t, time.Since(started), 10*time.Second)
 		})
 	})
 

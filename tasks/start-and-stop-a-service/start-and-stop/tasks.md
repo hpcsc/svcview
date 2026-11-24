@@ -143,25 +143,25 @@ service that is `loaded` or `running` runs `launchctl bootout gui/<uid>/<name>`,
 `not loaded` runs no command. When launchctl fails, the error holds what it printed.
 
 **Acceptance Criteria:**
-- [ ] `Domain.Start` of a `not loaded` service runs `launchctl bootstrap gui/<uid> <plist path>`, with the uid of the
+- [x] `Domain.Start` of a `not loaded` service runs `launchctl bootstrap gui/<uid> <plist path>`, with the uid of the
       domain and the plist path of the service, and gives no error when launchctl exits with 0.
-- [ ] `Domain.Start` of a `loaded` service runs `launchctl kickstart gui/<uid>/<name>`.
-- [ ] `Domain.Start` of a `running` service runs no command and gives no error.
-- [ ] `Domain.Start` of a `not loaded` service with no plist path runs no command, and gives an error that says that
+- [x] `Domain.Start` of a `loaded` service runs `launchctl kickstart gui/<uid>/<name>`.
+- [x] `Domain.Start` of a `running` service runs no command and gives no error.
+- [x] `Domain.Start` of a `not loaded` service with no plist path runs no command, and gives an error that says that
       the service has no plist.
-- [ ] `Domain.Stop` of a `loaded` and of a `running` service runs `launchctl bootout gui/<uid>/<name>`. `Domain.Stop`
+- [x] `Domain.Stop` of a `loaded` and of a `running` service runs `launchctl bootout gui/<uid>/<name>`. `Domain.Stop`
       of a `not loaded` service runs no command and gives no error.
-- [ ] Each start and each stop runs one launchctl command, and never `kill`, `load`, `unload`, `enable` or `disable`.
-- [ ] launchctl gets each argument as it is, with no shell: a name or a plist path with a space, a quote or a `$`
+- [x] Each start and each stop runs one launchctl command, and never `kill`, `load`, `unload`, `enable` or `disable`.
+- [x] launchctl gets each argument as it is, with no shell: a name or a plist path with a space, a quote or a `$`
       reaches launchctl unchanged.
-- [ ] A launchctl that exits with a code other than 0 gives an error whose text is what launchctl printed, stderr
+- [x] A launchctl that exits with a code other than 0 gives an error whose text is what launchctl printed, stderr
       first and then stdout, with each line kept. When launchctl printed nothing, the text names the command and the
       exit code.
-- [ ] With no launchctl on `PATH`, a start and a stop give the error that launchctl is not found.
-- [ ] A launchctl that does not end within 30 s, or before the context of the call ends, is stopped, and the error
+- [x] With no launchctl on `PATH`, a start and a stop give the error that launchctl is not found.
+- [x] A launchctl that does not end within 30 s, or before the context of the call ends, is stopped, and the error
       names the command and says that it did not end. A child of launchctl that keeps the output open does not keep
       the call waiting. The test ends the context, and does not wait 30 s.
-- [ ] The tests are in `TestDomain`, in a group for the start and a group for the stop. The fake launchctl that all
+- [x] The tests are in `TestDomain`, in a group for the start and a group for the stop. The fake launchctl that all
       tests share records each call other than `list`, as the fake `ps` records its calls.
 
 **Affected Files/Modules:**

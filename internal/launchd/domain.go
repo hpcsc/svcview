@@ -1,6 +1,8 @@
 package launchd
 
 import (
+	"context"
+	"fmt"
 	"path/filepath"
 	"strconv"
 
@@ -47,4 +49,27 @@ func (d *Domain) Services() ([]service.Service, error) {
 
 func (d *Domain) String() string {
 	return "gui/" + strconv.Itoa(d.uid)
+}
+
+func (d *Domain) Start(ctx context.Context, svc service.Service) error {
+	switch {
+	case svc.State == service.Running:
+		return nil
+	case svc.State == service.Loaded:
+		return launchctlCommand{args: []string{"kickstart", d.serviceTarget(svc)}}.run(ctx)
+	case svc.PlistPath == "":
+		return fmt.Errorf("%s has no plist, so svcview cannot start it", svc.Name)
+	}
+	return launchctlCommand{args: []string{"bootstrap", d.String(), svc.PlistPath}}.run(ctx)
+}
+
+func (d *Domain) Stop(ctx context.Context, svc service.Service) error {
+	if svc.State == service.NotLoaded {
+		return nil
+	}
+	return launchctlCommand{args: []string{"bootout", d.serviceTarget(svc)}}.run(ctx)
+}
+
+func (d *Domain) serviceTarget(svc service.Service) string {
+	return d.String() + "/" + svc.Name
 }
