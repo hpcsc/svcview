@@ -71,7 +71,7 @@ This screen has the group `Workers`, with the match `^com\.example\.worker\.` an
 | --- | --- |
 | The header | The domain `gui/<uid>` of the user, and the number of services in each state. |
 | The list | One row for each service that has a plist in `~/Library/LaunchAgents`, in [the groups of the config files](#groups), and then in the group `Other`. Each group starts with a line with its name, and an empty line separates two groups. In each group, the services are sorted by name. Each row starts with the glyph of the state of the service, and a row in a group shows the short name of the service. svcview cuts a name that is too long for the list with `…`. When the list has more lines than the pane, it scrolls to keep the selected row in view. When the selected row is the first row of its group, and the pane has room for more than one line, the line of the group shows too. In a group with a status command, a row shows [the summary of the status](#in-the-list-and-the-detail-pane) after the short name. The list takes 40 percent of the width. At start, the list has [the focus](#the-focus-and-the-scroll). |
-| The detail pane | The selected service. Its title is the full name of the service. The pane shows the state, the PID, the uptime, and the last exit. In a group with a status command, it also shows the age of the status, and the [fields and the events](#in-the-list-and-the-detail-pane) of the last output or the [failure](#failures) of the last run. When the detail pane has [the focus](#the-focus-and-the-scroll), `↑` and `↓` scroll it. |
+| The detail pane | The selected service. Its title is the full name of the service. The pane shows the state, the PID, the uptime, and the last exit. In a group with a status command, it also shows the age of the status, and the [fields and the events](#in-the-list-and-the-detail-pane) of the last output or the [failure](#failures) of the last run. When the detail pane has [the focus](#the-focus-and-the-scroll), `↑` and `↓`, or `k` and `j`, scroll it. |
 | The message line | The [confirmation](#start-and-stop-a-service) of `x`, or what launchctl printed when a start or a stop fails. The line shows above the help line only while it has a text, and the panes are one line shorter while it shows. See [The message line](#the-message-line). |
 | The help line | `s start · x stop · ? help` |
 
@@ -113,12 +113,18 @@ glyph of a different shape, so the screen shows the state without color too.
 
 ### The focus and the scroll
 
-One of the two panes has the focus: the list at start. `tab` moves the focus to the other pane. The border of the
-pane with the focus is blue, and the border of the other pane is dim. When the list has the focus, `↑` and `↓` select
-a service. When the detail pane has the focus, `↑` and `↓` scroll it one line. The scroll stops at the first line, and
-at the line that puts the last line of the text at the bottom of the pane. A text that fits in the pane does not move.
-The selected service stays the same while the detail pane scrolls. While the help shows, `tab`, `↑`, and `↓` change
-nothing, and the focus stays where it is.
+One of the two panes has the focus: the list at start. `tab` moves the focus to the other pane. `l` moves the focus
+to the detail pane, and `h` moves it to the list, so `l` does nothing when the detail pane has the focus, and `h` does
+nothing when the list has the focus. `tab`, `l`, and `h` move the focus also when the list has no rows or shows an
+error. The border of the pane with the focus is blue, and the border of the other pane is dim. When the list has the
+focus, `↑` and `↓` select a service. When the detail pane has the focus, `↑` and `↓` scroll it one line. `k` does
+what `↑` does, and `j` does what `↓` does. The scroll stops at the first line, and at the line that puts the last
+line of the text at the bottom of the pane. A text that fits in the pane does not move. The selected service stays
+the same while the detail pane scrolls. While the help shows, `tab`, `↑`, `↓`, `h`, `j`, `k`, and `l` change nothing,
+and the focus stays where it is.
+
+`h`, `j`, `k`, and `l` are the keys that vim uses to move. Only the lower-case letters move: `H`, `J`, `K`, and `L`
+do nothing. `←` and `→` do not move the focus.
 
 A service that becomes selected shows its detail pane from the first line. svcview does not keep the scroll of a
 service, so a service that is selected again shows from the first line too. When the text of the detail pane gets
@@ -141,8 +147,10 @@ and no rows. When `ps` fails, no service shows an uptime.
 
 | Key | Action |
 | --- | --- |
-| `↑` `↓` | Select a service. The keys move one row at a time in the order of the list, also from one group to the next. When the detail pane has [the focus](#the-focus-and-the-scroll), scroll it one line. |
+| `↑` `↓`, or `k` `j` | Select a service. The keys move one row at a time in the order of the list, also from one group to the next. When the detail pane has [the focus](#the-focus-and-the-scroll), scroll it one line. |
 | `tab` | Move the focus to the other pane. |
+| `l` | Move the focus to the detail pane. When the detail pane has the focus, `l` does nothing. |
+| `h` | Move the focus to the list. When the list has the focus, `h` does nothing. |
 | `s` | Start the selected service. See [Start and stop a service](#start-and-stop-a-service). |
 | `x` | Stop the selected service, after a confirmation. `y` answers yes to the confirmation, and each other key answers no. |
 | `?` | Show the help, which lists all keys, or hide it. |
@@ -170,7 +178,8 @@ gives each argument to `launchctl` as it is, with no shell.
 
 `y` stops the service that the confirmation names. This is the service that was selected when you pressed `x`, also
 when a refresh changed the selected row while the confirmation showed. Each other key answers no, and does nothing
-else: for example, `q` does not quit, and `↓` does not select another row. `ctrl+c` quits.
+else: for example, `q` does not quit, `↓` and `j` do not select another row, and `l` does not move the focus.
+`ctrl+c` quits.
 
 A stop runs `bootout`, not `launchctl kill`. `bootout` removes the service from launchd, so launchd does not start
 it again, also when its plist has `KeepAlive`. The service stays `not loaded` until the next login, or until `s`
@@ -519,7 +528,8 @@ Events
 
 Each control character in the name or the value of a field, or in the text of an event, shows as `�`. Thus an output
 cannot send an escape sequence to the terminal. When the detail pane has [the focus](#the-focus-and-the-scroll), `↑`
-and `↓` scroll it to the lines that do not fit in the pane. It cuts each line at the width of the pane with `…`.
+and `↓`, or `k` and `j`, scroll it to the lines that do not fit in the pane. It cuts each line at the width of the
+pane with `…`.
 
 #### Failures
 
@@ -567,9 +577,9 @@ closes, and on `SIGTERM`. Thus no process that the command starts runs longer th
 of `sh -c 'sleep 30 &'`. A process that leaves the process group, for example with `setsid`, does not stop.
 
 svcview keeps the last 20 lines of stderr and the first 20 lines of an output that is not valid, and a maximum of
-4096 bytes of each line. When the detail pane has [the focus](#the-focus-and-the-scroll), `↑` and `↓` scroll it to
-the lines that do not fit in the pane. It cuts each line at the width of the pane with `…`. Each control character in
-a line shows as `�`.
+4096 bytes of each line. When the detail pane has [the focus](#the-focus-and-the-scroll), `↑` and `↓`, or `k` and
+`j`, scroll it to the lines that do not fit in the pane. It cuts each line at the width of the pane with `…`. Each
+control character in a line shows as `�`.
 
 [`svcview status <name>`](#test-a-status-command-with-svcview-status) runs the status command of one service one time,
 shows its failure with the same words, and exits with 1.

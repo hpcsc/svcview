@@ -205,17 +205,17 @@ do, that `l` and `h` move the focus to the detail pane and to the list, and what
 confirmation shows.
 
 **Acceptance Criteria:**
-- [ ] The table of "Keys" names `k` and `j` in the row of `↑` and `↓`, and has a row for `l` and a row for `h`, each
+- [x] The table of "Keys" names `k` and `j` in the row of `↑` and `↓`, and has a row for `l` and a row for `h`, each
       with its action and with the pane where it changes nothing.
-- [ ] "The focus and the scroll" says that `l` moves the focus to the detail pane and `h` to the list, that `j` and
+- [x] "The focus and the scroll" says that `l` moves the focus to the detail pane and `h` to the list, that `j` and
       `k` select and scroll as `↓` and `↑` do, and that while the help shows, `h`, `j`, `k`, and `l` change nothing,
       as `tab`, `↑`, and `↓` do.
-- [ ] Each place in `docs/cli.md` that says which keys select a service or scroll the detail pane names `k` and `j`
+- [x] Each place in `docs/cli.md` that says which keys select a service or scroll the detail pane names `k` and `j`
       beside `↑` and `↓`, or links to "The focus and the scroll".
-- [ ] The confirmation section still says that each key other than `y` answers no, which covers `h`, `j`, `k`, and
+- [x] The confirmation section still says that each key other than `y` answers no, which covers `h`, `j`, `k`, and
       `l`.
-- [ ] The help line at the bottom of the screen stays `s start · x stop · ? help` in the docs.
-- [ ] Each statement matches what Tasks 1 and 2 built.
+- [x] The help line at the bottom of the screen stays `s start · x stop · ? help` in the docs.
+- [x] Each statement matches what Tasks 1 and 2 built.
 
 **Affected Files/Modules:**
 - `docs/cli.md` — the table of parts, "The focus and the scroll", and "Keys"

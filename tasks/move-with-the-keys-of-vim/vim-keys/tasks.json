@@ -65,7 +65,7 @@
     },
     {
       "n": 3,
-      "done": false,
+      "done": true,
       "title": "Describe h, j, k and l in docs/cli.md",
       "language": "Markdown",
       "testable": false,
