@@ -1,0 +1,89 @@
+{
+  "story": "h j k l move in the screen as in vim",
+  "story_id": "launchd-tui/US-016",
+  "tasks_file": "tasks/move-with-the-keys-of-vim/vim-keys/tasks.md",
+  "tasks": [
+    {
+      "n": 1,
+      "done": false,
+      "title": "Make j and k do what ↓ and ↑ do",
+      "language": "Go",
+      "testable": true,
+      "certainty": "high",
+      "blast_radius": "low",
+      "patterns_to_follow": [
+        "internal/tui/screen.go:186-197",
+        "internal/tui/screen.go:413-423",
+        "internal/tui/screen_test.go:100-112",
+        "internal/tui/screen_test.go:1982-1991",
+        "internal/tui/screen_test.go:2071-2093",
+        "internal/tui/screen_test.go:2245-2253",
+        "internal/tui/screen_test.go:2408-2422",
+        "internal/tui/screen_test.go:2494-2509",
+        "internal/tui/screen_test.go:2646-2655",
+        "internal/tui/screen_test.go:2949-2965",
+        "internal/tui/screen_test.go:3079-3085",
+        "internal/tui/screen_test.go:3116-3122",
+        "e2e/tests/screen.test.ts:94-102"
+      ],
+      "depends_on": [],
+      "affected_files": [
+        "internal/tui/screen.go",
+        "internal/tui/screen_test.go",
+        "internal/tui/testdata/keys.golden",
+        "e2e/tests/screen.test.ts"
+      ]
+    },
+    {
+      "n": 2,
+      "done": false,
+      "title": "Move the focus to the detail pane with l and to the list with h",
+      "language": "Go",
+      "testable": true,
+      "certainty": "high",
+      "blast_radius": "low",
+      "patterns_to_follow": [
+        "internal/tui/screen.go:67-79",
+        "internal/tui/screen.go:174-177",
+        "internal/tui/screen.go:413-423",
+        "internal/tui/screen_test.go:2324-2405",
+        "internal/tui/screen_test.go:2408-2422",
+        "internal/tui/screen_test.go:2949-2965",
+        "internal/tui/screen_test.go:3079-3085",
+        "e2e/tests/screen.test.ts:126-154",
+        "task:1"
+      ],
+      "depends_on": [
+        1
+      ],
+      "affected_files": [
+        "internal/tui/screen.go",
+        "internal/tui/screen_test.go",
+        "internal/tui/testdata/keys.golden",
+        "e2e/tests/screen.test.ts"
+      ]
+    },
+    {
+      "n": 3,
+      "done": false,
+      "title": "Describe h, j, k and l in docs/cli.md",
+      "language": "Markdown",
+      "testable": false,
+      "certainty": "high",
+      "blast_radius": "low",
+      "patterns_to_follow": [
+        "docs/cli.md:74",
+        "docs/cli.md:114-128",
+        "docs/cli.md:140-150",
+        "docs/cli.md:166-173"
+      ],
+      "depends_on": [
+        2
+      ],
+      "affected_files": [
+        "docs/cli.md"
+      ]
+    }
+  ],
+  "design_file": "tasks/move-with-the-keys-of-vim/vim-keys/design.yaml"
+}

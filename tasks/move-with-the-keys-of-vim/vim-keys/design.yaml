@@ -1,0 +1,27 @@
+design: planned
+types:
+  - name: Screen
+    package: internal/tui
+    change: changed
+    does: the Bubble Tea model of the screen of svcview
+    owns:
+      - j does what ↓ does, and k does what ↑ does - with the focus on the list they select the next or the previous service, and with the focus on the detail pane they scroll it one line
+      - l moves the focus to the detail pane, and h moves the focus to the list
+      - l with the focus on the detail pane, and h with the focus on the list, change nothing
+      - l and h move the focus also when the list has no rows or shows a read error, as tab does
+      - while the help shows, h, j, k and l change nothing, as tab, ↑ and ↓ do
+      - while a confirmation shows, h, j, k and l answer no, as each key other than y and ctrl+c does
+      - the help lists k and j on the line of ↑ and ↓, and l and h each on a line of its own with its action
+    fields: [focus, detailTop, selected, showHelp, confirmation]
+    methods: [Init, Update, View]
+words:
+  - concept: the pane that ↑, ↓, j and k act on, which tab, l and h move
+    word: focus
+    not: [active pane, current pane, selection, cursor]
+  - concept: the list or the detail pane
+    word: pane
+    not: [panel, view, window, section]
+  - concept: moving the text of the detail pane up or down one line
+    word: scroll
+    not: [page, pan, move]
+dependencies: []
