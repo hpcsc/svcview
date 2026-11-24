@@ -64,7 +64,8 @@ func showScreen(ctx context.Context, input io.Reader, output io.Writer) error {
 	domain := launchd.NewDomain(home, uid)
 	runs := newStatusRuns(ctx)
 	start := func(svc service.Service) error { return domain.Start(ctx, svc) }
-	screen := tui.NewScreen(domain.String(), domain.Services, runs.run, start, settings)
+	stop := func(svc service.Service) error { return domain.Stop(ctx, svc) }
+	screen := tui.NewScreen(domain.String(), domain.Services, runs.run, start, stop, settings)
 	_, err = tea.NewProgram(screen, tea.WithContext(ctx), tea.WithInput(input), tea.WithOutput(output)).Run()
 	runs.stop()
 	return err

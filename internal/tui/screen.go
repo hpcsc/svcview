@@ -45,6 +45,11 @@ type actionEnded struct {
 	err  error
 }
 
+type confirmation struct {
+	question string
+	service  service.Service
+}
+
 type row struct {
 	service    service.Service
 	group      config.Group
@@ -78,6 +83,7 @@ type Screen struct {
 	read           func() ([]service.Service, error)
 	runStatus      func(status.Command, service.Service) status.Result
 	start          func(service.Service) error
+	stop           func(service.Service) error
 	settings       config.Settings
 	groupOrder     []config.Group
 	lastRead       servicesRead
@@ -86,6 +92,7 @@ type Screen struct {
 	runNotEnded    map[string]bool
 	actionNotEnded map[string]bool
 	message        string
+	confirmation   *confirmation
 	selected       string
 	listTop        int
 	detailTop      int
@@ -95,12 +102,13 @@ type Screen struct {
 	height         int
 }
 
-func NewScreen(domain string, read func() ([]service.Service, error), runStatus func(status.Command, service.Service) status.Result, start func(service.Service) error, settings config.Settings) Screen {
+func NewScreen(domain string, read func() ([]service.Service, error), runStatus func(status.Command, service.Service) status.Result, start, stop func(service.Service) error, settings config.Settings) Screen {
 	return Screen{
 		domain:         domain,
 		read:           read,
 		runStatus:      runStatus,
 		start:          start,
+		stop:           stop,
 		settings:       settings,
 		groupOrder:     slices.Concat(settings.Groups, []config.Group{config.Other}),
 		statuses:       map[string]status.Result{},
@@ -120,34 +128,10 @@ func (s Screen) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		s.width, s.height = msg.Width, msg.Height
 	case tea.KeyPressMsg:
-		s.message = ""
-		switch msg.String() {
-		case "q", "ctrl+c":
-			return s, tea.Quit
-		case "?":
-			s.showHelp = !s.showHelp
-		case "esc":
-			s.showHelp = false
-		case "tab":
-			if !s.showHelp {
-				s.focus = s.focus.other()
-			}
-		case "s":
-			if svc, ok := s.selectedService(); ok && !s.showHelp && svc.State != service.Running {
-				cmd = s.actionOn(svc, s.start)
-			}
-		case "up", "down":
-			step := 1
-			if msg.String() == "up" {
-				step = -1
-			}
-			switch {
-			case s.showHelp:
-			case s.focus == detailPane:
-				s.detailTop += step
-			default:
-				s.selected = s.selectedAfterMove(step)
-			}
+		if s.confirmation != nil {
+			s, cmd = s.answer(msg)
+		} else {
+			s, cmd = s.press(msg)
 		}
 	case servicesRead:
 		firstRead := !s.hasRead
@@ -176,6 +160,55 @@ func (s Screen) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	s.detailTop = s.detailTopInView()
 	s.listTop = s.listTopInView()
 	return s, cmd
+}
+
+func (s Screen) press(key tea.KeyPressMsg) (Screen, tea.Cmd) {
+	s.message = ""
+	switch key.String() {
+	case "q", "ctrl+c":
+		return s, tea.Quit
+	case "?":
+		s.showHelp = !s.showHelp
+	case "esc":
+		s.showHelp = false
+	case "tab":
+		if !s.showHelp {
+			s.focus = s.focus.other()
+		}
+	case "s":
+		if svc, ok := s.selectedService(); ok && !s.showHelp && svc.State != service.Running {
+			return s, s.actionOn(svc, s.start)
+		}
+	case "x":
+		if svc, ok := s.selectedService(); ok && !s.showHelp && svc.State != service.NotLoaded && !s.actionNotEnded[svc.Name] {
+			s.confirmation = &confirmation{question: "Stop " + terminal.ReplaceControlCharacters(svc.Name) + "? (y/N)", service: svc}
+		}
+	case "up", "down":
+		step := 1
+		if key.String() == "up" {
+			step = -1
+		}
+		switch {
+		case s.showHelp:
+		case s.focus == detailPane:
+			s.detailTop += step
+		default:
+			s.selected = s.selectedAfterMove(step)
+		}
+	}
+	return s, nil
+}
+
+func (s Screen) answer(key tea.KeyPressMsg) (Screen, tea.Cmd) {
+	answered := *s.confirmation
+	s.confirmation = nil
+	switch key.String() {
+	case "ctrl+c":
+		return s, tea.Quit
+	case "y":
+		return s, s.actionOn(answered.service, s.stop)
+	}
+	return s, nil
 }
 
 func (s Screen) View() tea.View {
@@ -345,10 +378,14 @@ func (s Screen) paneHeight() int {
 }
 
 func (s Screen) messageLines() []string {
-	if s.message == "" {
+	text := s.message
+	if s.confirmation != nil {
+		text = s.confirmation.question
+	}
+	if text == "" {
 		return nil
 	}
-	return []string{ansi.Truncate(" "+s.message, s.width, "…")}
+	return []string{ansi.Truncate(" "+text, s.width, "…")}
 }
 
 func (s Screen) panes() []string {

@@ -354,26 +354,26 @@ of its domain, so a yes runs `launchctl bootout gui/<uid>/<name>`. An error of t
 an error of a start does.
 
 **Acceptance Criteria:**
-- [ ] `x` on a `loaded` and on a `running` service shows `Stop <name>? (y/N)` on the message line, with the full name
+- [x] `x` on a `loaded` and on a `running` service shows `Stop <name>? (y/N)` on the message line, with the full name
       of the service, and calls nothing yet.
-- [ ] `y` hides the confirmation and calls the stop one time with the service that the confirmation names, also when
+- [x] `y` hides the confirmation and calls the stop one time with the service that the confirmation names, also when
       a refresh changed the selected row, or removed the service from the list, while the confirmation showed.
-- [ ] Each key other than `y` and `ctrl+c` answers no, for example `n`, `esc`, `q`, `↓` and `x`: it hides the
+- [x] Each key other than `y` and `ctrl+c` answers no, for example `n`, `esc`, `q`, `↓` and `x`: it hides the
       confirmation, calls nothing, and does nothing else. `ctrl+c` quits while the confirmation shows.
-- [ ] `x` on a `not loaded` service shows no confirmation and calls nothing.
-- [ ] `x` calls nothing and asks nothing while the help shows, with no rows, while the list shows a read error, and
+- [x] `x` on a `not loaded` service shows no confirmation and calls nothing.
+- [x] `x` calls nothing and asks nothing while the help shows, with no rows, while the list shows a read error, and
       while the start or the stop of the service has not ended.
-- [ ] After a stop ends, the row shows the state that the next read gives, no later than one `refresh` after the stop
+- [x] After a stop ends, the row shows the state that the next read gives, no later than one `refresh` after the stop
       ends. The screen starts no service on its own: later reads that show the service `not loaded` call nothing.
-- [ ] An error of the stop shows on the message line as an error of a start does. An error that ends while a
+- [x] An error of the stop shows on the message line as an error of a start does. An error that ends while a
       confirmation shows does not hide the confirmation, and shows after the answer.
-- [ ] The confirmation shows each control character of the name as `�`, and is cut with `…` at the width of the
+- [x] The confirmation shows each control character of the name as `�`, and is cut with `…` at the width of the
       terminal.
-- [ ] `tui.NewScreen` takes the stop, and `internal/cli/root.go` gives it the stop of the domain with the context of
+- [x] `tui.NewScreen` takes the stop, and `internal/cli/root.go` gives it the stop of the domain with the context of
       svcview.
-- [ ] A new golden file shows a screen with a confirmation. The subtest "another key does not end the screen" uses a
+- [x] A new golden file shows a screen with a confirmation. The subtest "another key does not end the screen" uses a
       key that the screen does not handle, in place of `x`.
-- [ ] e2e: `x` and `y` on a `running` service record `bootout gui/<uid>/<name>`; `x` and `n` record nothing; `x` on
+- [x] e2e: `x` and `y` on a `running` service record `bootout gui/<uid>/<name>`; `x` and `n` record nothing; `x` on
       a `not loaded` service shows no confirmation and records nothing. After `x`, `y` and a new output of
       `launchctl list` without the service, the row shows `○` at the next refresh, still shows it at the refresh after
       that, and the calls hold only the `bootout`.

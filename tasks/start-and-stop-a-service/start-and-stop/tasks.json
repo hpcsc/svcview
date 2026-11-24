@@ -112,7 +112,7 @@
     },
     {
       "n": 5,
-      "done": false,
+      "done": true,
       "title": "Stop the selected service with x after a confirmation",
       "language": "Go",
       "testable": true,
