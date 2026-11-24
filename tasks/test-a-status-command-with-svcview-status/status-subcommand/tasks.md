@@ -373,16 +373,16 @@ that its status command works, and this is a second path that runs a program fro
 with no read of the svcview code.
 
 **Acceptance Criteria:**
-- [ ] A section under "The status command" describes `svcview status <name>`: it reads the config files and the
+- [x] A section under "The status command" describes `svcview status <name>`: it reads the config files and the
       services as the screen does, runs the status command of the service one time with the timeout of its group, and
       prints the four parts in order, with an example of each part.
-- [ ] It gives the exit codes: 0 for a valid status; 1 for a status error, a status timeout, a status invalid, a
+- [x] It gives the exit codes: 0 for a valid status; 1 for a status error, a status timeout, a status invalid, a
       template value that the plist does not have, a name that no service has, a service whose group has no status
       command, no name, and a config error.
-- [ ] It says that the subcommand reads no input and needs no terminal, so a script or an installer can run it.
-- [ ] It says that the template values show each variable of `EnvironmentVariables`, also a value that holds a
+- [x] It says that the subcommand reads no input and needs no terminal, so a script or an installer can run it.
+- [x] It says that the template values show each variable of `EnvironmentVariables`, also a value that holds a
       token, and that each control character shows as `�`.
-- [ ] The section "Template values" and the section "Failures" link to it.
+- [x] The section "Template values" and the section "Failures" link to it.
 
 **Affected Files/Modules:**
 - `docs/cli.md` — the section on `svcview status`

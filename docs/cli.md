@@ -389,6 +389,9 @@ A text can use the functions of Go templates and variables, for example `{{.Name
 template value needs `$` there, for example `{{with .PlistPath}}{{$.Name}}{{end}}`. A text that uses a value in an
 `if` or a `with` also needs that value in the plist.
 
+[`svcview status <name>`](#test-a-status-command-with-svcview-status) shows each template value of a service, and the
+command line that the values make.
+
 These texts stop svcview at start, with an error that names the file, the group and the text:
 
 - A template value other than the five above, for example `{{.Label}}` or `{{.Env}}`.
@@ -531,6 +534,9 @@ svcview keeps the last 20 lines of stderr and the first 20 lines of an output th
 the lines that do not fit in the pane. It cuts each line at the width of the pane with `…`. Each control character in
 a line shows as `�`.
 
+[`svcview status <name>`](#test-a-status-command-with-svcview-status) runs the status command of one service one time,
+shows its failure with the same words, and exits with 1.
+
 #### A fast status command
 
 svcview runs the status command of each service every few seconds, so the command must be fast. A program that
@@ -543,6 +549,105 @@ starts a large runtime for each run, for example a BEAM VM or a JVM, is too slow
 The service must write the file in one step. It writes a temporary file in the same folder, and then renames the
 temporary file to the name of the status file. A rename in one folder replaces the file in one step, so `cat` never
 reads half a file.
+
+#### Test a status command with `svcview status`
+
+`svcview status <name>` runs the status command of one service one time, and prints each step. Use it to test a status
+command before you ship it, for example in the install script of a program.
+
+```shell
+svcview status com.example.worker.01
+```
+
+svcview reads the config files and the services as the screen does: `config.yaml`, each file of `conf.d`, and the
+plists in `~/Library/LaunchAgents`. It finds the service with that name and the group of the service. Then it runs the
+status command of the group one time, with the `timeout` of the group, and prints four parts in this order:
+
+| Part | What it shows |
+| --- | --- |
+| `Template values` | Each [template value](#template-values) of the service, as a text writes it, and the value that it gives. A value that the plist does not have shows why, for example `the plist has no StandardErrorPath`. The list has one `{{.Env.X}}` for each variable of `EnvironmentVariables`, in the order of the names, also when the command does not use it. |
+| `Command line` | The program and its arguments after svcview applies the template values. A text that a shell reads in another way is in single quotes. A `status timeout` shows the same text. |
+| `Output` | What the program printed on stdout, line by line, a maximum of 1 MiB. When the program printed nothing on stdout, this part says so. |
+| `Result` | `valid` and what svcview read from the output, or the [failure](#failures) of the run. |
+
+For a valid output, `Result` shows `at` as an RFC 3339 time, or `the output has no at`. Then it shows `summary`,
+`level` (`info` when the output has none), each field with its `name`, its `value` and its `progress`, and each event
+with its `at`, its `level` and its `text`, in the order of the output:
+
+```
+Template values
+  {{.Name}}                    com.example.worker.01
+  {{.Env.WORKER_STATUS_FILE}}  /Users/me/worker/status.json
+  {{.Env.WORKER_TOKEN}}        tk_7f3a9c
+  {{.StdoutPath}}              /Users/me/Library/Logs/worker.out.log
+  {{.StderrPath}}              the plist has no StandardErrorPath
+  {{.PlistPath}}               /Users/me/Library/LaunchAgents/com.example.worker.01.plist
+
+Command line
+  cat /Users/me/worker/status.json
+
+Output
+  {"version": 1, "at": "2026-11-23T09:12:00Z", "summary": "busy · ENG-692 · 12m",
+   "fields": [{"name": "mode", "value": "busy"}, {"name": "step", "value": "review · 12m / 20m", "progress": 0.6}],
+   "events": [{"at": "2026-11-23T09:04:40Z", "level": "info", "text": "step review"}]}
+
+Result
+  valid
+  at       2026-11-23T09:12:00Z
+  summary  busy · ENG-692 · 12m
+  level    info
+  fields
+    mode  busy
+    step  review · 12m / 20m (progress 0.6)
+  events
+    2026-11-23T09:04:40Z  info   step review
+```
+
+For a failure, `Result` shows the word that the row shows, then the text that the detail pane shows, and then the
+lines of the failure:
+
+```
+Output
+  busy
+
+Result
+  status invalid
+  the output is not valid JSON: invalid character 'b' at start of value
+    busy
+```
+
+A template value that the plist does not have stops svcview before the run. `Command line` then shows why, for example
+`the plist has no WORKER_STATUS_FILE`. svcview runs no program, and prints no `Output` and no `Result`.
+
+svcview exits with 0 only when the status is valid. It exits with 1 in each other case:
+
+- a `status error`, a `status timeout` or a `status invalid`
+- a template value that the plist does not have
+- a name that no service has. svcview knows only the services that have a plist in `~/Library/LaunchAgents`.
+- a service whose group has no status command, also a service in the group `Other`
+- no name, or more than one name
+- an [error](#errors) in a config file, also in the group of another service, and an error of `launchctl list`
+- `SIGINT`, `SIGTERM` or `SIGHUP` during the run. svcview stops the program with each process that it started, and
+  prints no `valid`.
+
+When svcview stops before `Template values`, it prints the cause and no part: no name or more than one name, a name
+that no service has, a group with no status command, and an error. It prints the failure of the status one time, in the part where the
+failure happens, and does not print it again as an error. `Template values` also shows why a path has no value. Thus
+a command that uses `{{.StderrPath}}` of a plist with no `StandardErrorPath` shows `the plist has no
+StandardErrorPath` in `Template values`, and again under `Command line`, which names the value that stops the
+command line.
+
+`svcview status` reads no input and needs no terminal. It prints the same text when stdout is a file or a pipe, so a
+script or an installer can run it and read its exit code. The text is for a person: the parts have no color, and
+their layout is not a contract. A script must read only the exit code. In a terminal, a cause that stops svcview
+shows in red, as each other error of svcview does.
+
+`Template values` shows each variable of `EnvironmentVariables`, also a value that holds a token or a password, as
+`WORKER_TOKEN` above shows. Do not put the text where other people can read it. Each control character in the text,
+other than the new line of `Output`, shows as `�`. Thus a plist, a config file or an output cannot send an escape
+sequence to the terminal.
+
+`svcview status` does not start, stop, or change a service.
 
 ### Errors
 
