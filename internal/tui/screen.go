@@ -476,6 +476,9 @@ func (s Screen) rowText(r row, nameWidth int, background ansi.Color, width int) 
 	statusStyle := s.textStyle(color, background)
 	if statusText != "" && mark != "" {
 		statusStyle, mark = statusStyle.Faint(), "  "+mark
+		if room := width - ansi.StringWidth(name+mark); room > 0 {
+			statusText = ansi.Truncate(statusText, room, "…")
+		}
 	}
 	plain := s.textStyle(nil, background)
 	padding := strings.Repeat(" ", max(width-ansi.StringWidth(name+statusText+mark), 0))

@@ -1278,6 +1278,77 @@ func TestScreen(t *testing.T) {
 				require.Equal(t, []string{"▌○ a  busy  stale 3m", "▌○ a  idle"}, []string{listRows(draws[0])[1], listRows(draws[1])[1]})
 			})
 		})
+
+		t.Run("in a terminal of 80 columns, a stale row whose summary is too long cuts the summary with … and keeps it dim in the color of its level, then shows the whole stale mark, and a row that is not stale or whose summary fits is cut as before", func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				drawTime := time.Now().Add(time.Second)
+				read := servicesNamed("com.example.worker.a", "com.example.worker.b", "com.example.worker.c", "com.example.worker.d")
+				run := runsGiving(map[string]status.Result{
+					"com.example.worker.a": summaryAt("busy · ENG-692 · 12m", status.LevelInfo, drawTime.Add(-3*time.Minute)),
+					"com.example.worker.b": summaryAt("busy · ENG-692 · 12m", status.LevelWarn, drawTime.Add(-2*time.Hour)),
+					"com.example.worker.c": summaryAt("busy · ENG-692 · review · 12m", status.LevelInfo, drawTime.Add(-10*time.Second)),
+					"com.example.worker.d": summaryAt("idle", status.LevelInfo, drawTime.Add(-3*time.Minute)),
+				})
+
+				draws := drawsAt(t, tui.NewScreen("gui/501", read, run, nil, nil, workersStaleAfter(t, 30*time.Second)), 80, 12, time.Second)
+
+				require.Equal(t, []string{
+					"Workers",
+					"▌○ a  busy · ENG-…  stale 3m",
+					"○ b  busy · ENG-…  stale 2h",
+					"○ c  busy · ENG-692 · revi…",
+					"○ d  idle  stale 3m",
+				}, listRows(draws[0])[:5])
+				require.Contains(t, draws[0].View().Content, "\x1b[100;2mbusy · ENG-…\x1b[m\x1b[100m  stale 3m\x1b[m")
+				require.Contains(t, draws[0].View().Content, "\x1b[33;2mbusy · ENG-…\x1b[m  stale 2h ")
+			})
+		})
+
+		t.Run("shows each control character of a cut stale summary as �, and sends no control character to the terminal", func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				drawTime := time.Now().Add(time.Second)
+				run := runsGiving(map[string]status.Result{"com.example.worker.a": summaryAt("busy\x1b[2J\nnext · ENG-692 · 12m", status.LevelInfo, drawTime.Add(-3*time.Minute))})
+
+				draws := drawsAt(t, tui.NewScreen("gui/501", servicesNamed("com.example.worker.a"), run, nil, nil, workersStaleAfter(t, 30*time.Second)), 80, 12, time.Second)
+
+				require.Equal(t, "▌○ a  busy�[2J�ne…  stale 3m", listRows(draws[0])[1])
+				require.NotContains(t, draws[0].View().Content, "\x1b[2J")
+			})
+		})
+
+		t.Run("with no room for one cell of a stale summary beside the short name and the stale mark, cuts the line at its end with …, as any row", func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				drawTime := time.Now().Add(time.Second)
+				settings := workersStaleAfter(t, 30*time.Second, "Jobs", `^com\.example\.job\.`)
+				settings.Groups[1].Status = statusCommand(t)
+				settings.Groups[1].Status.StaleAfter = 30 * time.Second
+				run := runsGiving(map[string]status.Result{
+					"com.example.worker.report-runner": summaryAt("busy", status.LevelInfo, drawTime.Add(-3*time.Minute)),
+					"com.example.job.report-runners":   summaryAt("busy", status.LevelInfo, drawTime.Add(-3*time.Minute)),
+				})
+
+				draws := drawsAt(t, tui.NewScreen("gui/501", servicesNamed("com.example.worker.report-runner", "com.example.job.report-runners"), run, nil, nil, settings), 80, 12, time.Second)
+
+				require.Equal(t, []string{
+					"Workers",
+					"▌○ report-runner  busy  sta…",
+					"",
+					"Jobs",
+					"○ report-runners  busy  st…",
+				}, listRows(draws[0])[:5])
+			})
+		})
+
+		t.Run("in a list pane with room for one cell of a stale summary, shows … in place of the summary and the whole stale mark", func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				drawTime := time.Now().Add(time.Second)
+				run := runsGiving(map[string]status.Result{"com.example.worker.nightly-sync": summaryAt("busy", status.LevelInfo, drawTime.Add(-3*time.Minute))})
+
+				draws := drawsAt(t, tui.NewScreen("gui/501", servicesNamed("com.example.worker.nightly-sync"), run, nil, nil, workersStaleAfter(t, 30*time.Second)), 80, 12, time.Second)
+
+				require.Equal(t, "▌○ nightly-sync  …  stale 3m", listRows(draws[0])[1])
+			})
+		})
 	})
 
 	t.Run("detail pane", func(t *testing.T) {

@@ -252,13 +252,13 @@ and no text shows an age in one unit.
 summary with `…` so that the mark shows in full at the end of the row. A row with no mark is cut as before, at its end.
 
 **Acceptance Criteria:**
-- [ ] In a terminal of 80 columns, a stale row whose summary is `busy · ENG-692 · 12m` shows a cut summary that ends
+- [x] In a terminal of 80 columns, a stale row whose summary is `busy · ENG-692 · 12m` shows a cut summary that ends
       with `…`, then two spaces and the whole mark, for example `stale 3m`, and the line fits in the pane.
-- [ ] The cut summary stays dim, in the color of its level, also on the background of the selected row.
-- [ ] Each control character of a cut summary shows as `�`, and no control character reaches the terminal.
-- [ ] A row that is not stale and whose summary is too long is cut at its end with `…`, as before.
-- [ ] A stale row whose summary fits is not cut.
-- [ ] In a pane too narrow for the short name and the mark, the line is cut at its end with `…`, as any row.
+- [x] The cut summary stays dim, in the color of its level, also on the background of the selected row.
+- [x] Each control character of a cut summary shows as `�`, and no control character reaches the terminal.
+- [x] A row that is not stale and whose summary is too long is cut at its end with `…`, as before.
+- [x] A stale row whose summary fits is not cut.
+- [x] In a pane too narrow for the short name and the mark, the line is cut at its end with `…`, as any row.
 
 **Affected Files/Modules:**
 - `internal/tui/screen.go` — the row cuts the summary of a stale status to make room for the mark

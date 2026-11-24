@@ -77,7 +77,7 @@
     },
     {
       "n": 4,
-      "done": false,
+      "done": true,
       "title": "Keep the stale mark in view when the summary is too long for the row",
       "language": "Go",
       "testable": true,
