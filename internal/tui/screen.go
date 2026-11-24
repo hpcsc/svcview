@@ -175,6 +175,14 @@ func (s Screen) press(key tea.KeyPressMsg) (Screen, tea.Cmd) {
 		if !s.showHelp {
 			s.focus = s.focus.other()
 		}
+	case "l":
+		if !s.showHelp {
+			s.focus = detailPane
+		}
+	case "h":
+		if !s.showHelp {
+			s.focus = listPane
+		}
 	case "s":
 		if svc, ok := s.selectedService(); ok && !s.showHelp && svc.State != service.Running {
 			return s, s.actionOn(svc, s.start)
@@ -414,6 +422,8 @@ func (s Screen) helpText() []string {
 	return []string{
 		"↑ ↓ k j   select a service, or scroll the detail pane when it has the focus",
 		"tab       move the focus to the other pane",
+		"l         move the focus to the detail pane",
+		"h         move the focus to the list",
 		"s         start the selected service",
 		"x         stop the selected service, after a confirmation",
 		"?         show or hide this help",

@@ -168,6 +168,41 @@ describe('the screen', () => {
     expect(screen).toContain('╭ com.example.worker.01 ─')
   })
 
+  it('l gives the focus to the detail pane, and j then scrolls it with the same service selected; h gives the focus back to the list, and j then selects the next row', async () => {
+    const home = homeWithPlists(['com.example.worker.02'])
+    const statusFile = join(scratchDir(), 'status.json')
+    const events = Array.from({ length: 40 }, (_, i) => ({
+      at: `2026-11-23T09:${String(i).padStart(2, '0')}:00Z`,
+      level: 'info',
+      text: `event ${String(i + 1).padStart(2, '0')}`,
+    }))
+    writeFileSync(statusFile, `${JSON.stringify({ version: 1, events })}\n`)
+    addPlist(home, 'com.example.worker.01', { WORKER_STATUS_FILE: statusFile })
+    writeConfig(
+      join(home, '.config', 'svcview'),
+      `groups:\n  - name: Workers\n    match: '^com\\.example\\.worker\\.'\n    status:\n      command: [cat, '{{.Env.WORKER_STATUS_FILE}}']\n`,
+    )
+    const session = await openCli(scratchDir(), [], { HOME: home, TZ: 'UTC' })
+    await session.waitForText('│ 09:00 ● event 01 ')
+    expect(await session.text()).not.toContain('event 40')
+
+    await session.press('l')
+    for (let presses = 0; presses < 20 && !(await session.text()).includes('event 40'); presses++) {
+      await session.press('j')
+    }
+
+    await session.waitForText('│ 09:39 ● event 40 ')
+    const scrolled = await session.text()
+    expect(scrolled).not.toContain('not loaded  PID -')
+    expect(scrolled).toContain('▌○ 01')
+
+    await session.press('h')
+    await session.press('j')
+
+    await session.waitForText('▌○ 02')
+    expect(await session.text()).toContain('╭ com.example.worker.02 ─')
+  })
+
   it('? shows all keys, and q ends svcview while the help shows', async () => {
     const session = await openCli(scratchDir(), [], { HOME: homeWithPlists(['com.example.worker']) })
     await session.waitForText('com.example.worker')

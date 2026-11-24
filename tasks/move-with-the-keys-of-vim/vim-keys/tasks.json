@@ -36,7 +36,7 @@
     },
     {
       "n": 2,
-      "done": false,
+      "done": true,
       "title": "Move the focus to the detail pane with l and to the list with h",
       "language": "Go",
       "testable": true,

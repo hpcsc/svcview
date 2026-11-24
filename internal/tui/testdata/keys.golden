@@ -4,6 +4,8 @@
 ╭ Help ────────────────────────────────────────────────────────────────────────╮
 │ ↑ ↓ k j   select a service, or scroll the detail pane when it has the focus  │
 │ tab       move the focus to the other pane                                   │
+│ l         move the focus to the detail pane                                  │
+│ h         move the focus to the list                                         │
 │ s         start the selected service                                         │
 │ x         stop the selected service, after a confirmation                    │
 │ ?         show or hide this help                                             │

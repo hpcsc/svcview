@@ -153,20 +153,20 @@ the focus, and `h` when the list has the focus, change nothing. While the help s
 confirmation shows, they answer no. The help lists `l` and `h`, each on a line of its own with its action.
 
 **Acceptance Criteria:**
-- [ ] `l` moves the focus to the detail pane: its border is blue, and the border of the list is dim. `h` then moves the
+- [x] `l` moves the focus to the detail pane: its border is blue, and the border of the list is dim. `h` then moves the
       focus back to the list.
-- [ ] `l` with the focus on the detail pane, and `h` with the focus on the list, change nothing: the screen shows the
+- [x] `l` with the focus on the detail pane, and `h` with the focus on the list, change nothing: the screen shows the
       same as before the key.
-- [ ] After `l`, `↓` and `j` scroll the detail pane, and after `h`, they select the next service.
-- [ ] `l` and `h` move the focus also when the list has no rows, or shows a read error, as `tab` does.
-- [ ] While the help shows, `l` and `h` change nothing, and after the help hides, the focus is where it was before the
+- [x] After `l`, `↓` and `j` scroll the detail pane, and after `h`, they select the next service.
+- [x] `l` and `h` move the focus also when the list has no rows, or shows a read error, as `tab` does.
+- [x] While the help shows, `l` and `h` change nothing, and after the help hides, the focus is where it was before the
       help showed.
-- [ ] While a confirmation shows, `l` and `h` answer no: the confirmation hides, nothing is called, and nothing else
+- [x] While a confirmation shows, `l` and `h` answer no: the confirmation hides, nothing is called, and nothing else
       changes.
-- [ ] The help shows `l` with `move the focus to the detail pane` and `h` with `move the focus to the list`, in this
+- [x] The help shows `l` with `move the focus to the detail pane` and `h` with `move the focus to the list`, in this
       order, on the lines after `tab`. The golden test of the help opens a terminal tall enough to show each of its 9
       lines, and `keys.golden` shows them all.
-- [ ] e2e: `l` gives the focus to the detail pane, and `j` then scrolls it with the same service selected; `h` gives
+- [x] e2e: `l` gives the focus to the detail pane, and `j` then scrolls it with the same service selected; `h` gives
       the focus back to the list, and `j` then selects the next row.
 
 **Affected Files/Modules:**

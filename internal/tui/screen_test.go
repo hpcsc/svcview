@@ -110,6 +110,8 @@ var (
 	keyQ     = tea.KeyPressMsg{Code: 'q', Text: "q"}
 	keyJ     = tea.KeyPressMsg{Code: 'j', Text: "j"}
 	keyK     = tea.KeyPressMsg{Code: 'k', Text: "k"}
+	keyL     = tea.KeyPressMsg{Code: 'l', Text: "l"}
+	keyH     = tea.KeyPressMsg{Code: 'h', Text: "h"}
 	ctrlC    = tea.KeyPressMsg{Code: 'c', Mod: tea.ModCtrl}
 )
 
@@ -2444,6 +2446,83 @@ func TestScreen(t *testing.T) {
 
 			require.Equal(t, [][]string{{dimBorder, blueBorder}, {dimBorder, blueBorder}}, [][]string{borderStyles(noRows), borderStyles(readError)})
 		})
+
+		t.Run("l moves the focus to the detail pane: its border is blue, and the border of the list is dim, and h then moves the focus back to the list", func(t *testing.T) {
+			screen := open(t, "gui/501", servicesNamed("com.example.a"), 80, 12)
+
+			detail := pressKeys(screen, keyL)
+			list := pressKeys(detail, keyH)
+
+			require.Equal(t, [][]string{{dimBorder, blueBorder}, {blueBorder, dimBorder}}, [][]string{borderStyles(detail), borderStyles(list)})
+		})
+
+		t.Run("l with the focus on the detail pane, and h with the focus on the list, change nothing", func(t *testing.T) {
+			screen := open(t, "gui/501", servicesNamed("com.example.a", "com.example.b"), 80, 12)
+			onList := screen.View().Content
+			detail := pressKeys(screen, keyL)
+			onDetail := detail.View().Content
+
+			require.Equal(t, []string{onList, onDetail}, []string{pressKeys(screen, keyH).View().Content, pressKeys(detail, keyL).View().Content})
+		})
+
+		t.Run("after l, ↓ and j scroll the detail pane with the same service selected, and after h, they each select the next service", func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				run := runsGiving(map[string]status.Result{
+					"com.example.worker.a": {Output: &status.Output{Events: eventsNumbered(10)}},
+					"com.example.worker.b": {Output: &status.Output{Events: eventsNumbered(10)}},
+					"com.example.worker.c": {Output: &status.Output{Events: eventsNumbered(10)}},
+				})
+				screen := runSized(t, tui.NewScreen("gui/501", servicesNamed("com.example.worker.a", "com.example.worker.b", "com.example.worker.c"), run, nil, nil, workersWithStatus(t)), 80, 12, 100*time.Millisecond)
+
+				scrolled := pressKeys(screen, keyL, down, keyJ)
+				selected := pressKeys(scrolled, keyH, down, keyJ)
+
+				require.Equal(t, [][]string{{"a", "Status 1m0s ago"}, {"c", "○ not loaded  PID -"}}, [][]string{
+					{selectedName(scrolled), detailPane(scrolled)[0]},
+					{selectedName(selected), detailPane(selected)[0]},
+				})
+			})
+		})
+
+		t.Run("l and h move the focus also when the list has no rows, or shows an error", func(t *testing.T) {
+			failing := func() ([]service.Service, error) {
+				return nil, errors.New("launchctl list: exit status 3")
+			}
+
+			noRows := pressKeys(open(t, "gui/501", servicesNamed(), 80, 12), keyL)
+			readError := pressKeys(open(t, "gui/501", failing, 80, 12), keyL)
+
+			require.Equal(t, [][]string{{dimBorder, blueBorder}, {dimBorder, blueBorder}, {blueBorder, dimBorder}, {blueBorder, dimBorder}}, [][]string{
+				borderStyles(noRows),
+				borderStyles(readError),
+				borderStyles(pressKeys(noRows, keyH)),
+				borderStyles(pressKeys(readError, keyH)),
+			})
+		})
+
+		t.Run("while the help shows, l and h change nothing, and after the help hides, the focus is where it was before the help showed", func(t *testing.T) {
+			screen := open(t, "gui/501", servicesNamed("com.example.a"), 80, 12)
+			helpOverList := pressKeys(screen, question)
+			helpOverDetail := pressKeys(screen, keyL, question)
+
+			afterL := pressKeys(helpOverList, keyL)
+			afterH := pressKeys(helpOverDetail, keyH)
+
+			require.Equal(t, []string{helpOverList.View().Content, helpOverDetail.View().Content}, []string{afterL.View().Content, afterH.View().Content})
+			require.Equal(t, [][]string{{blueBorder, dimBorder}, {dimBorder, blueBorder}}, [][]string{
+				borderStyles(pressKeys(afterL, escape)),
+				borderStyles(pressKeys(afterH, escape)),
+			})
+		})
+
+		t.Run("H and L in upper case do not move the focus", func(t *testing.T) {
+			screen := open(t, "gui/501", servicesNamed("com.example.a"), 80, 12)
+
+			onList := pressKeys(screen, tea.KeyPressMsg{Code: 'L', Text: "L"})
+			onDetail := pressKeys(screen, tab, tea.KeyPressMsg{Code: 'H', Text: "H"})
+
+			require.Equal(t, [][]string{{blueBorder, dimBorder}, {dimBorder, blueBorder}}, [][]string{borderStyles(onList), borderStyles(onDetail)})
+		})
 	})
 
 	t.Run("scroll", func(t *testing.T) {
@@ -3048,7 +3127,7 @@ func TestScreen(t *testing.T) {
 		})
 
 		t.Run("each key other than y and ctrl+c answers no: it hides the confirmation, calls nothing, and does nothing else", func(t *testing.T) {
-			for _, key := range []tea.KeyPressMsg{keyN, escape, keyQ, up, down, keyJ, keyK, keyX, keyS, question, tab, tea.KeyPressMsg{Code: 'Y', Text: "Y"}} {
+			for _, key := range []tea.KeyPressMsg{keyN, escape, keyQ, up, down, keyJ, keyK, keyL, keyH, keyX, keyS, question, tab, tea.KeyPressMsg{Code: 'Y', Text: "Y"}} {
 				starts, stops := &serviceCalls{}, &serviceCalls{}
 				screen := openActing(t, readGiving(service.Service{Name: "com.example.a", State: service.Running, PID: 4121}, loaded, running), starts.record, stops.record)
 				screen = pressKeys(screen, down)
@@ -3061,6 +3140,23 @@ func TestScreen(t *testing.T) {
 				require.Nil(t, cmd, key.String())
 				require.Equal(t, before, screen.View().Content, key.String())
 				require.Empty(t, starts.get(), key.String())
+				require.Empty(t, stops.get(), key.String())
+			}
+		})
+
+		t.Run("with the focus on the detail pane, h and l answer no, and the focus stays on the detail pane", func(t *testing.T) {
+			for _, key := range []tea.KeyPressMsg{keyH, keyL} {
+				stops := &serviceCalls{}
+				screen := openActing(t, readGiving(running), nil, stops.record)
+				screen = pressKeys(screen, tab)
+				before := screen.View().Content
+
+				screen = pressKeys(screen, keyX)
+				screen, cmd := screen.Update(key)
+				runAll(cmd)
+
+				require.Nil(t, cmd, key.String())
+				require.Equal(t, before, screen.View().Content, key.String())
 				require.Empty(t, stops.get(), key.String())
 			}
 		})
@@ -3178,7 +3274,7 @@ func TestScreen(t *testing.T) {
 		})
 
 		t.Run("? shows each key of the screen with its action, in place of the panes", func(t *testing.T) {
-			screen := open(t, "gui/501", servicesNamed("com.example.worker"), 80, 13)
+			screen := open(t, "gui/501", servicesNamed("com.example.worker"), 80, 15)
 
 			screen = pressKeys(screen, question)
 
