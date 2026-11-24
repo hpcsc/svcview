@@ -1,5 +1,5 @@
 import { spawn } from 'node:child_process'
-import { chmodSync, mkdirSync, mkdtempSync, renameSync, rmSync, writeFileSync } from 'node:fs'
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -67,6 +67,12 @@ export function setLaunchctlOutput(home: string, output: string): void {
   writeFileSync(`${path}.new`, output)
   // one rename, so the fake never prints half of the file while the screen is open
   renameSync(`${path}.new`, path)
+}
+
+export function launchctlCalls(home: string): string[] {
+  const path = join(home, 'launchctl-calls.txt')
+  if (!existsSync(path)) return []
+  return readFileSync(path, 'utf8').split('\n').filter((line) => line !== '')
 }
 
 export function homeWithPlists(names: string[]): string {

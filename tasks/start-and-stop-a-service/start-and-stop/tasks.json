@@ -48,7 +48,7 @@
     },
     {
       "n": 3,
-      "done": false,
+      "done": true,
       "title": "Start the selected service with s",
       "language": "Go",
       "testable": true,

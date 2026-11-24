@@ -236,24 +236,24 @@ domain, so `s` runs `launchctl bootstrap` or `launchctl kickstart`. The screen g
 its keys while the start runs. The row shows the new state at the next refresh after the start ends.
 
 **Acceptance Criteria:**
-- [ ] `s` on a `not loaded` service and on a `loaded` service calls the start one time, with the service of the
+- [x] `s` on a `not loaded` service and on a `loaded` service calls the start one time, with the service of the
       selected row. `s` on a `running` service calls nothing.
-- [ ] The screen reads, refreshes and takes keys while a start runs: a start that lasts longer than `refresh` does
+- [x] The screen reads, refreshes and takes keys while a start runs: a start that lasts longer than `refresh` does
       not move the next read.
-- [ ] While the start of a service has not ended, `s` on that service calls nothing, and `s` on another service still
+- [x] While the start of a service has not ended, `s` on that service calls nothing, and `s` on another service still
       calls the start.
-- [ ] `s` calls nothing while the help shows, with no rows, and while the list shows a read error.
-- [ ] After a start ends, the row shows the state that the next read gives, no later than one `refresh` after the
+- [x] `s` calls nothing while the help shows, with no rows, and while the list shows a read error.
+- [x] After a start ends, the row shows the state that the next read gives, no later than one `refresh` after the
       start ends. The end of a start starts no read.
-- [ ] `tui.NewScreen` takes the start, and `internal/cli/root.go` gives it the start of the domain with the context
+- [x] `tui.NewScreen` takes the start, and `internal/cli/root.go` gives it the start of the domain with the context
       of svcview.
-- [ ] The e2e fake launchctl adds each call other than `list` to `$HOME/launchctl-calls.txt`, one line with its
+- [x] The e2e fake launchctl adds each call other than `list` to `$HOME/launchctl-calls.txt`, one line with its
       arguments for each call, and exits with 0. A helper in `e2e/testUtils.ts` gives the calls of a home folder.
-- [ ] e2e: `s` on a `not loaded` service records `bootstrap gui/<uid> <home>/Library/LaunchAgents/<name>.plist`;
+- [x] e2e: `s` on a `not loaded` service records `bootstrap gui/<uid> <home>/Library/LaunchAgents/<name>.plist`;
       `s` on a `loaded` service records `kickstart gui/<uid>/<name>`; `s` on a `running` service records nothing.
       After `s`, a new output of `launchctl list` that shows the service `running` shows its `●` at the next
       refresh, with no key press.
-- [ ] `docs/e2e-tests.md`, "The fake launchctl", says that the fake records each other call, and names the helper.
+- [x] `docs/e2e-tests.md`, "The fake launchctl", says that the fake records each other call, and names the helper.
 
 **Affected Files/Modules:**
 - `internal/tui/screen.go` — `s`, the start, and the services whose start or stop has not ended

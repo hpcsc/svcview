@@ -40,6 +40,11 @@ type statusTick struct {
 	group config.Group
 }
 
+type actionEnded struct {
+	name string
+	err  error
+}
+
 type row struct {
 	service    service.Service
 	group      config.Group
@@ -69,33 +74,37 @@ func (p pane) other() pane {
 }
 
 type Screen struct {
-	domain      string
-	read        func() ([]service.Service, error)
-	runStatus   func(status.Command, service.Service) status.Result
-	settings    config.Settings
-	groupOrder  []config.Group
-	lastRead    servicesRead
-	hasRead     bool
-	statuses    map[string]status.Result
-	runNotEnded map[string]bool
-	selected    string
-	listTop     int
-	detailTop   int
-	focus       pane
-	showHelp    bool
-	width       int
-	height      int
+	domain         string
+	read           func() ([]service.Service, error)
+	runStatus      func(status.Command, service.Service) status.Result
+	start          func(service.Service) error
+	settings       config.Settings
+	groupOrder     []config.Group
+	lastRead       servicesRead
+	hasRead        bool
+	statuses       map[string]status.Result
+	runNotEnded    map[string]bool
+	actionNotEnded map[string]bool
+	selected       string
+	listTop        int
+	detailTop      int
+	focus          pane
+	showHelp       bool
+	width          int
+	height         int
 }
 
-func NewScreen(domain string, read func() ([]service.Service, error), runStatus func(status.Command, service.Service) status.Result, settings config.Settings) Screen {
+func NewScreen(domain string, read func() ([]service.Service, error), runStatus func(status.Command, service.Service) status.Result, start func(service.Service) error, settings config.Settings) Screen {
 	return Screen{
-		domain:      domain,
-		read:        read,
-		runStatus:   runStatus,
-		settings:    settings,
-		groupOrder:  slices.Concat(settings.Groups, []config.Group{config.Other}),
-		statuses:    map[string]status.Result{},
-		runNotEnded: map[string]bool{},
+		domain:         domain,
+		read:           read,
+		runStatus:      runStatus,
+		start:          start,
+		settings:       settings,
+		groupOrder:     slices.Concat(settings.Groups, []config.Group{config.Other}),
+		statuses:       map[string]status.Result{},
+		runNotEnded:    map[string]bool{},
+		actionNotEnded: map[string]bool{},
 	}
 }
 
@@ -120,6 +129,10 @@ func (s Screen) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "tab":
 			if !s.showHelp {
 				s.focus = s.focus.other()
+			}
+		case "s":
+			if svc, ok := s.selectedService(); ok && !s.showHelp && svc.State != service.Running {
+				cmd = s.actionOn(svc, s.start)
 			}
 		case "up", "down":
 			step := 1
@@ -147,6 +160,8 @@ func (s Screen) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case runEnded:
 		delete(s.runNotEnded, msg.name)
 		s.statuses[msg.name] = msg.result
+	case actionEnded:
+		delete(s.actionNotEnded, msg.name)
 	case refresh:
 		return s, s.readServices
 	}
@@ -206,6 +221,16 @@ func (s Screen) runStatusOf(r row) tea.Cmd {
 	}
 }
 
+func (s Screen) actionOn(svc service.Service, action func(service.Service) error) tea.Cmd {
+	if s.actionNotEnded[svc.Name] {
+		return nil
+	}
+	s.actionNotEnded[svc.Name] = true
+	return func() tea.Msg {
+		return actionEnded{name: svc.Name, err: action(svc)}
+	}
+}
+
 func (s Screen) rowOf(svc service.Service) row {
 	group := s.settings.GroupOf(svc.Name)
 	return row{service: svc, group: group, groupIndex: slices.Index(s.groupOrder, group)}
@@ -256,6 +281,14 @@ func (s Screen) listTopInView() int {
 func (s Screen) detailTopInView() int {
 	shown := max(s.paneHeight()-2, 0)
 	return max(min(s.detailTop, len(s.selectedDetailText())-shown), 0)
+}
+
+func (s Screen) selectedService() (service.Service, bool) {
+	at := s.selectedAt()
+	if at < 0 {
+		return service.Service{}, false
+	}
+	return s.rows()[at].service, true
 }
 
 func (s Screen) selectedAt() int {

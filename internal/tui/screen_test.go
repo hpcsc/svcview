@@ -61,7 +61,7 @@ func openWith(t *testing.T, settings config.Settings, read func() ([]service.Ser
 
 func openIn(t *testing.T, domain string, settings config.Settings, read func() ([]service.Service, error), width, height int) tea.Model {
 	t.Helper()
-	var screen tea.Model = tui.NewScreen(domain, read, nil, settings)
+	var screen tea.Model = tui.NewScreen(domain, read, nil, nil, settings)
 	start := screen.Init()
 	require.NotNil(t, start)
 	screen, _ = screen.Update(tea.WindowSizeMsg{Width: width, Height: height})
@@ -103,6 +103,7 @@ var (
 	question = tea.KeyPressMsg{Code: '?', Text: "?"}
 	escape   = tea.KeyPressMsg{Code: tea.KeyEscape}
 	tab      = tea.KeyPressMsg{Code: tea.KeyTab}
+	keyS     = tea.KeyPressMsg{Code: 's', Text: "s"}
 )
 
 var (
@@ -187,7 +188,7 @@ func readsInTurn(reads ...func() ([]service.Service, error)) func() ([]service.S
 
 func openWithTick(t *testing.T, read func() ([]service.Service, error)) (tea.Model, tea.Cmd) {
 	t.Helper()
-	var screen tea.Model = tui.NewScreen("gui/501", read, nil, refreshEvery2s)
+	var screen tea.Model = tui.NewScreen("gui/501", read, nil, nil, refreshEvery2s)
 	start := screen.Init()
 	screen, _ = screen.Update(tea.WindowSizeMsg{Width: 80, Height: 12})
 	return screen.Update(start())
@@ -197,6 +198,11 @@ func openWithTick(t *testing.T, read func() ([]service.Service, error)) (tea.Mod
 func readAgain(screen tea.Model, tick tea.Cmd) (tea.Model, tea.Cmd) {
 	screen, read := screen.Update(tick())
 	return screen.Update(read())
+}
+
+func readNow(screen tea.Model) tea.Model {
+	screen, _ = screen.Update(screen.Init()())
+	return screen
 }
 
 // runFor must run in a synctest bubble: it waits a minute on the clock of the bubble.
@@ -271,6 +277,31 @@ func (r *runStarts) get() map[string][]time.Duration {
 	return r.byName
 }
 
+type readTimes struct {
+	lock  sync.Mutex
+	start time.Time
+	times []time.Duration
+}
+
+func newReadTimes() *readTimes {
+	return &readTimes{start: time.Now()}
+}
+
+func (r *readTimes) recording(read func() ([]service.Service, error)) func() ([]service.Service, error) {
+	return func() ([]service.Service, error) {
+		r.lock.Lock()
+		r.times = append(r.times, time.Since(r.start))
+		r.lock.Unlock()
+		return read()
+	}
+}
+
+func (r *readTimes) get() []time.Duration {
+	r.lock.Lock()
+	defer r.lock.Unlock()
+	return slices.Clone(r.times)
+}
+
 func runsGiving(results map[string]status.Result) func(status.Command, service.Service) status.Result {
 	return func(_ status.Command, svc service.Service) status.Result {
 		result := results[svc.Name]
@@ -278,6 +309,41 @@ func runsGiving(results map[string]status.Result) func(status.Command, service.S
 			result.Ended = time.Now()
 		}
 		return result
+	}
+}
+
+type serviceCalls struct {
+	lock     sync.Mutex
+	services []service.Service
+}
+
+func (c *serviceCalls) record(svc service.Service) error {
+	c.lock.Lock()
+	defer c.lock.Unlock()
+	c.services = append(c.services, svc)
+	return nil
+}
+
+func (c *serviceCalls) get() []service.Service {
+	c.lock.Lock()
+	defer c.lock.Unlock()
+	return slices.Clone(c.services)
+}
+
+func openStarting(t *testing.T, read func() ([]service.Service, error), start func(service.Service) error) tea.Model {
+	t.Helper()
+	var screen tea.Model = tui.NewScreen("gui/501", read, nil, start, refreshEvery2s)
+	first := screen.Init()
+	screen, _ = screen.Update(tea.WindowSizeMsg{Width: 80, Height: 12})
+	screen, _ = screen.Update(first())
+	return screen
+}
+
+func runAll(cmds ...tea.Cmd) {
+	for _, cmd := range cmds {
+		if cmd != nil {
+			cmd()
+		}
 	}
 }
 
@@ -330,7 +396,7 @@ func TestScreen(t *testing.T) {
 		})
 
 		t.Run("shows no rows before the size of the terminal is known", func(t *testing.T) {
-			var screen tea.Model = tui.NewScreen("gui/501", servicesNamed("com.example.worker"), nil, refreshEvery2s)
+			var screen tea.Model = tui.NewScreen("gui/501", servicesNamed("com.example.worker"), nil, nil, refreshEvery2s)
 			screen, _ = screen.Update(screen.Init()())
 
 			require.Empty(t, screen.View().Content)
@@ -382,7 +448,7 @@ func TestScreen(t *testing.T) {
 		})
 
 		t.Run("shows no counts before the first read ends", func(t *testing.T) {
-			var screen tea.Model = tui.NewScreen("gui/501", servicesNamed("com.example.worker"), nil, refreshEvery2s)
+			var screen tea.Model = tui.NewScreen("gui/501", servicesNamed("com.example.worker"), nil, nil, refreshEvery2s)
 			screen, _ = screen.Update(tea.WindowSizeMsg{Width: 80, Height: 12})
 
 			lines := strings.Split(ansi.Strip(screen.View().Content), "\n")
@@ -565,7 +631,7 @@ func TestScreen(t *testing.T) {
 			synctest.Test(t, func(t *testing.T) {
 				read := changingAt(100*time.Millisecond, servicesNamed("com.example.worker"), servicesNamed("com.example.worker", "com.example.added"))
 
-				screen := runFor(t, tui.NewScreen("gui/501", read, nil, refreshEvery2s), 2100*time.Millisecond)
+				screen := runFor(t, tui.NewScreen("gui/501", read, nil, nil, refreshEvery2s), 2100*time.Millisecond)
 
 				require.Contains(t, screen.View().Content, "com.example.added")
 			})
@@ -575,7 +641,7 @@ func TestScreen(t *testing.T) {
 			synctest.Test(t, func(t *testing.T) {
 				read := changingAt(100*time.Millisecond, servicesNamed("com.example.worker"), servicesNamed("com.example.worker", "com.example.added"))
 
-				screen := runFor(t, tui.NewScreen("gui/501", read, nil, refreshEvery2s), 1900*time.Millisecond)
+				screen := runFor(t, tui.NewScreen("gui/501", read, nil, nil, refreshEvery2s), 1900*time.Millisecond)
 
 				require.Contains(t, screen.View().Content, "com.example.worker")
 				require.NotContains(t, screen.View().Content, "com.example.added")
@@ -586,7 +652,7 @@ func TestScreen(t *testing.T) {
 			synctest.Test(t, func(t *testing.T) {
 				read := changingAt(100*time.Millisecond, servicesNamed("com.example.worker", "com.example.removed"), servicesNamed("com.example.worker"))
 
-				screen := runFor(t, tui.NewScreen("gui/501", read, nil, refreshEvery2s), 2100*time.Millisecond)
+				screen := runFor(t, tui.NewScreen("gui/501", read, nil, nil, refreshEvery2s), 2100*time.Millisecond)
 
 				require.Contains(t, screen.View().Content, "com.example.worker")
 				require.NotContains(t, screen.View().Content, "com.example.removed")
@@ -599,7 +665,7 @@ func TestScreen(t *testing.T) {
 					readGiving(service.Service{Name: "com.example.worker", State: service.Loaded}),
 					readGiving(service.Service{Name: "com.example.worker", State: service.Running}))
 
-				screen := runFor(t, tui.NewScreen("gui/501", read, nil, refreshEvery2s), 2100*time.Millisecond)
+				screen := runFor(t, tui.NewScreen("gui/501", read, nil, nil, refreshEvery2s), 2100*time.Millisecond)
 
 				require.Contains(t, ansi.Strip(screen.View().Content), "● com.example.worker")
 			})
@@ -611,7 +677,7 @@ func TestScreen(t *testing.T) {
 					readGiving(service.Service{Name: "com.example.worker", State: service.Loaded}),
 					readGiving(service.Service{Name: "com.example.worker", State: service.Running}))
 
-				screen := runFor(t, tui.NewScreen("gui/501", read, nil, refreshEvery2s), 2100*time.Millisecond)
+				screen := runFor(t, tui.NewScreen("gui/501", read, nil, nil, refreshEvery2s), 2100*time.Millisecond)
 
 				require.Contains(t, ansi.Strip(screen.View().Content), "● 1 running   ◐ 0 loaded   ○ 0 not loaded")
 			})
@@ -623,7 +689,7 @@ func TestScreen(t *testing.T) {
 					readGiving(service.Service{Name: "com.example.worker", State: service.Running, PID: 4122, Uptime: new(time.Hour)}),
 					readGiving(service.Service{Name: "com.example.worker", State: service.Running, PID: 4123, Uptime: new(5 * time.Second), LastExit: service.LastExit{Signal: "SIGKILL"}}))
 
-				screen := runFor(t, tui.NewScreen("gui/501", read, nil, refreshEvery2s), 2100*time.Millisecond)
+				screen := runFor(t, tui.NewScreen("gui/501", read, nil, nil, refreshEvery2s), 2100*time.Millisecond)
 
 				content := ansi.Strip(screen.View().Content)
 				require.Contains(t, content, "● running     PID 4123")
@@ -638,7 +704,7 @@ func TestScreen(t *testing.T) {
 				}
 				read := changingAt(100*time.Millisecond, failing, servicesNamed("com.example.worker"))
 
-				screen := runFor(t, tui.NewScreen("gui/501", read, nil, refreshEvery2s), 2100*time.Millisecond)
+				screen := runFor(t, tui.NewScreen("gui/501", read, nil, nil, refreshEvery2s), 2100*time.Millisecond)
 
 				require.Contains(t, screen.View().Content, "com.example.worker")
 				require.NotContains(t, screen.View().Content, "permission denied")
@@ -649,7 +715,7 @@ func TestScreen(t *testing.T) {
 			synctest.Test(t, func(t *testing.T) {
 				read := changingAt(100*time.Millisecond, servicesNamed("com.example.worker"), servicesNamed("com.example.worker", "com.example.added"))
 
-				screen := runFor(t, tui.NewScreen("gui/501", read, nil, config.Settings{Refresh: 5 * time.Second}), 5100*time.Millisecond)
+				screen := runFor(t, tui.NewScreen("gui/501", read, nil, nil, config.Settings{Refresh: 5 * time.Second}), 5100*time.Millisecond)
 
 				require.Contains(t, screen.View().Content, "com.example.added")
 			})
@@ -659,7 +725,7 @@ func TestScreen(t *testing.T) {
 			synctest.Test(t, func(t *testing.T) {
 				read := changingAt(100*time.Millisecond, servicesNamed("com.example.worker"), servicesNamed("com.example.worker", "com.example.added"))
 
-				screen := runFor(t, tui.NewScreen("gui/501", read, nil, config.Settings{Refresh: 5 * time.Second}), 4900*time.Millisecond)
+				screen := runFor(t, tui.NewScreen("gui/501", read, nil, nil, config.Settings{Refresh: 5 * time.Second}), 4900*time.Millisecond)
 
 				require.Contains(t, screen.View().Content, "com.example.worker")
 				require.NotContains(t, screen.View().Content, "com.example.added")
@@ -680,7 +746,7 @@ func TestScreen(t *testing.T) {
 					return []service.Service{{Name: "com.example.worker"}}, nil
 				}
 
-				runFor(t, tui.NewScreen("gui/501", slow, nil, refreshEvery2s), 20*time.Second)
+				runFor(t, tui.NewScreen("gui/501", slow, nil, nil, refreshEvery2s), 20*time.Second)
 
 				require.Equal(t, int32(1), mostAtOnce.Load())
 				require.GreaterOrEqual(t, reads.Load(), int32(3))
@@ -707,7 +773,7 @@ func TestScreen(t *testing.T) {
 					return status.Result{}
 				}
 
-				runFor(t, tui.NewScreen("gui/501", readGiving(services...), run, workersWithStatus(t, "Databases", "redis")), 100*time.Millisecond)
+				runFor(t, tui.NewScreen("gui/501", readGiving(services...), run, nil, workersWithStatus(t, "Databases", "redis")), 100*time.Millisecond)
 
 				require.ElementsMatch(t, services[:3], ran)
 			})
@@ -728,7 +794,7 @@ func TestScreen(t *testing.T) {
 					return summary("busy", status.LevelInfo)
 				}
 
-				screen := runSized(t, tui.NewScreen("gui/501", read, run, workersWithStatus(t)), 80, 12, 5*time.Second)
+				screen := runSized(t, tui.NewScreen("gui/501", read, run, nil, workersWithStatus(t)), 80, 12, 5*time.Second)
 
 				require.Equal(t, []string{"Workers", "▌● a  busy", "○ b  busy"}, listRows(screen)[:3])
 				require.Equal(t, map[string][]time.Duration{
@@ -754,7 +820,7 @@ func TestScreen(t *testing.T) {
 					return status.Result{}
 				}
 
-				runFor(t, tui.NewScreen("gui/501", servicesNamed("com.example.worker.a", "homebrew.mxcl.redis"), run, settings), 6500*time.Millisecond)
+				runFor(t, tui.NewScreen("gui/501", servicesNamed("com.example.worker.a", "homebrew.mxcl.redis"), run, nil, settings), 6500*time.Millisecond)
 
 				require.Equal(t, map[string][]time.Duration{
 					"com.example.worker.a": {0, 2 * time.Second, 4 * time.Second, 6 * time.Second},
@@ -779,7 +845,7 @@ func TestScreen(t *testing.T) {
 					return status.Result{}
 				}
 
-				runFor(t, tui.NewScreen("gui/501", servicesNamed("com.example.worker.a"), run, workersWithStatus(t)), 9*time.Second)
+				runFor(t, tui.NewScreen("gui/501", servicesNamed("com.example.worker.a"), run, nil, workersWithStatus(t)), 9*time.Second)
 
 				require.Equal(t, map[string][]time.Duration{"com.example.worker.a": {0, 4 * time.Second, 8 * time.Second}}, starts.get())
 				require.Equal(t, int32(1), mostAtOnce.Load())
@@ -797,7 +863,7 @@ func TestScreen(t *testing.T) {
 					return status.Result{}
 				}
 
-				runFor(t, tui.NewScreen("gui/501", read, run, settings), 7*time.Second)
+				runFor(t, tui.NewScreen("gui/501", read, run, nil, settings), 7*time.Second)
 
 				require.Equal(t, map[string][]time.Duration{
 					"com.example.worker.a": {0, 3 * time.Second, 6 * time.Second},
@@ -813,7 +879,7 @@ func TestScreen(t *testing.T) {
 				settings.Groups[0].Status = statusEvery(t, 3*time.Second)
 				run := runsGiving(map[string]status.Result{"com.example.worker.a": summary("busy", status.LevelInfo)})
 
-				screen := runFor(t, tui.NewScreen("gui/501", servicesNamed("com.example.worker.a"), run, settings), 2500*time.Millisecond)
+				screen := runFor(t, tui.NewScreen("gui/501", servicesNamed("com.example.worker.a"), run, nil, settings), 2500*time.Millisecond)
 
 				require.Equal(t, []string{"Workers", "▌○ a  busy"}, listRows(screen)[:2])
 				require.Equal(t, "Status 1m2s ago", detailPane(screen)[2])
@@ -834,7 +900,7 @@ func TestScreen(t *testing.T) {
 					return status.Result{}
 				}
 
-				runFor(t, tui.NewScreen("gui/501", read, run, settings), 4500*time.Millisecond)
+				runFor(t, tui.NewScreen("gui/501", read, run, nil, settings), 4500*time.Millisecond)
 
 				require.Equal(t, map[string][]time.Duration{"com.example.worker.a": {3 * time.Second}}, starts.get())
 			})
@@ -850,7 +916,7 @@ func TestScreen(t *testing.T) {
 					"com.example.worker.dddd": {Failure: &status.Failure{Kind: status.FailureKindTemplateValue, Text: "the plist has no WORKER_STATUS_FILE"}},
 				})
 
-				screen := runSized(t, tui.NewScreen("gui/501", read, run, workersWithStatus(t)), 80, 14, 100*time.Millisecond)
+				screen := runSized(t, tui.NewScreen("gui/501", read, run, nil, workersWithStatus(t)), 80, 14, 100*time.Millisecond)
 
 				requireGolden(t, "status-summaries", screen)
 				require.Equal(t, []string{
@@ -874,7 +940,7 @@ func TestScreen(t *testing.T) {
 					"com.example.worker.bb": summary("idle", status.LevelWarn),
 				})
 
-				screen := runSized(t, tui.NewScreen("gui/501", read, run, workersWithStatus(t)), 80, 12, 100*time.Millisecond, down)
+				screen := runSized(t, tui.NewScreen("gui/501", read, run, nil, workersWithStatus(t)), 80, 12, 100*time.Millisecond, down)
 
 				requireGolden(t, "status-selected", screen)
 			})
@@ -895,7 +961,7 @@ func TestScreen(t *testing.T) {
 					return status.Result{}
 				}
 
-				screen := runSized(t, tui.NewScreen("gui/501", read, run, workersWithStatus(t, "Databases", "redis")), 80, 14, 100*time.Millisecond)
+				screen := runSized(t, tui.NewScreen("gui/501", read, run, nil, workersWithStatus(t, "Databases", "redis")), 80, 14, 100*time.Millisecond)
 
 				require.Equal(t, []string{
 					"Workers",
@@ -918,7 +984,7 @@ func TestScreen(t *testing.T) {
 					"com.example.worker.b": {Failure: &status.Failure{Kind: status.FailureKindError, Text: "ended by SIGTERM"}},
 				})
 
-				screen := runSized(t, tui.NewScreen("gui/501", read, run, workersWithStatus(t)), 80, 12, 100*time.Millisecond)
+				screen := runSized(t, tui.NewScreen("gui/501", read, run, nil, workersWithStatus(t)), 80, 12, 100*time.Millisecond)
 
 				requireGolden(t, "status-error", screen)
 				require.Equal(t, []string{"Workers", "▌○ a  status error", "○ b  status error"}, listRows(screen)[:3])
@@ -933,7 +999,7 @@ func TestScreen(t *testing.T) {
 					"com.example.worker.b": {Failure: &status.Failure{Kind: status.FailureKindError, Text: "exit code 3"}},
 				})
 
-				screen := runSized(t, tui.NewScreen("gui/501", read, run, workersWithStatus(t)), 80, 12, 100*time.Millisecond)
+				screen := runSized(t, tui.NewScreen("gui/501", read, run, nil, workersWithStatus(t)), 80, 12, 100*time.Millisecond)
 
 				requireGolden(t, "status-timeout", screen)
 				require.Equal(t, []string{"Workers", "▌○ a  status timeout", "○ b  status error"}, listRows(screen)[:3])
@@ -949,7 +1015,7 @@ func TestScreen(t *testing.T) {
 					"com.example.worker.b": {Failure: &status.Failure{Kind: status.FailureKindTimeout, Text: "sleep 30"}},
 				})
 
-				screen := runSized(t, tui.NewScreen("gui/501", read, run, workersWithStatus(t)), 80, 13, 100*time.Millisecond)
+				screen := runSized(t, tui.NewScreen("gui/501", read, run, nil, workersWithStatus(t)), 80, 13, 100*time.Millisecond)
 
 				requireGolden(t, "status-invalid", screen)
 				require.Equal(t, []string{"Workers", "▌○ a  status invalid", "○ b  status timeout"}, listRows(screen)[:3])
@@ -965,7 +1031,7 @@ func TestScreen(t *testing.T) {
 					"com.example.worker.b": {Failure: &status.Failure{Kind: status.FailureKindTemplateValue, Text: "no\x1b[2Jfile"}},
 				})
 
-				screen := runSized(t, tui.NewScreen("gui/501", read, run, workersWithStatus(t)), 80, 12, 100*time.Millisecond)
+				screen := runSized(t, tui.NewScreen("gui/501", read, run, nil, workersWithStatus(t)), 80, 12, 100*time.Millisecond)
 
 				require.Equal(t, []string{"Workers", "▌○ a  busy�[2J�next · a sum…", "○ b  no�[2Jfile"}, listRows(screen)[:3])
 				require.NotContains(t, screen.View().Content, "\x1b[2J")
@@ -1077,7 +1143,7 @@ func TestScreen(t *testing.T) {
 					"com.example.worker.a": {Ended: start, Output: &status.Output{At: new(start.Add(-3 * time.Minute)), Summary: "busy"}},
 				})
 
-				screen := runSized(t, tui.NewScreen("gui/501", read, run, workersWithStatus(t)), 80, 12, 100*time.Millisecond)
+				screen := runSized(t, tui.NewScreen("gui/501", read, run, nil, workersWithStatus(t)), 80, 12, 100*time.Millisecond)
 				time.Sleep(time.Until(start.Add(2 * time.Hour)))
 
 				requireGolden(t, "status-detail", screen)
@@ -1095,7 +1161,7 @@ func TestScreen(t *testing.T) {
 					"com.example.worker.c": {Ended: start.Add(-14 * time.Second), Failure: &status.Failure{Kind: status.FailureKindTemplateValue, Text: "the plist has no WORKER_STATUS_FILE"}},
 				})
 
-				screen := runSized(t, tui.NewScreen("gui/501", read, run, workersWithStatus(t)), 80, 12, 100*time.Millisecond)
+				screen := runSized(t, tui.NewScreen("gui/501", read, run, nil, workersWithStatus(t)), 80, 12, 100*time.Millisecond)
 				time.Sleep(time.Until(start.Add(3 * time.Minute)))
 
 				var ages []string
@@ -1122,7 +1188,7 @@ func TestScreen(t *testing.T) {
 						"com.example.worker.a": {Ended: start, Output: &status.Output{At: new(start.Add(time.Minute + at))}},
 					})
 
-					screen := runSized(t, tui.NewScreen("gui/501", read, run, workersWithStatus(t)), 80, 12, 100*time.Millisecond)
+					screen := runSized(t, tui.NewScreen("gui/501", read, run, nil, workersWithStatus(t)), 80, 12, 100*time.Millisecond)
 					time.Sleep(time.Until(start.Add(time.Minute)))
 
 					require.Equal(t, text, detailPane(screen)[2], at)
@@ -1140,7 +1206,7 @@ func TestScreen(t *testing.T) {
 					return status.Result{Ended: start}
 				}
 
-				screen := runSized(t, tui.NewScreen("gui/501", read, run, workersWithStatus(t)), 80, 12, 100*time.Millisecond)
+				screen := runSized(t, tui.NewScreen("gui/501", read, run, nil, workersWithStatus(t)), 80, 12, 100*time.Millisecond)
 				time.Sleep(time.Until(start.Add(5 * time.Minute)))
 				before := detailPane(screen)[2]
 				time.Sleep(7 * time.Second)
@@ -1158,7 +1224,7 @@ func TestScreen(t *testing.T) {
 					"com.example.worker.b": {Failure: &status.Failure{Kind: status.FailureKindTemplateValue, Text: "the plist has no WORKER_STATUS_FILE"}},
 				})
 
-				screen := runSized(t, tui.NewScreen("gui/501", read, run, workersWithStatus(t)), 80, 14, 100*time.Millisecond)
+				screen := runSized(t, tui.NewScreen("gui/501", read, run, nil, workersWithStatus(t)), 80, 14, 100*time.Millisecond)
 
 				require.Equal(t, [][]string{
 					{"exit�[2J code 3", "first", "", "third�[2J line", ""},
@@ -1185,7 +1251,7 @@ func TestScreen(t *testing.T) {
 					}}},
 				})
 
-				screen := runSized(t, tui.NewScreen("gui/501", read, run, workersWithStatus(t)), 80, 14, 100*time.Millisecond)
+				screen := runSized(t, tui.NewScreen("gui/501", read, run, nil, workersWithStatus(t)), 80, 14, 100*time.Millisecond)
 
 				require.Equal(t, [][]string{
 					{"mode    busy", "ticket  ENG-692", "done    14", "failed  1", ""},
@@ -1207,7 +1273,7 @@ func TestScreen(t *testing.T) {
 					}}},
 				})
 
-				screen := runSized(t, tui.NewScreen("gui/501", read, run, workersWithStatus(t)), 80, 14, 100*time.Millisecond)
+				screen := runSized(t, tui.NewScreen("gui/501", read, run, nil, workersWithStatus(t)), 80, 14, 100*time.Millisecond)
 
 				require.Equal(t, []string{
 					"Status      s",
@@ -1229,7 +1295,7 @@ func TestScreen(t *testing.T) {
 					}}},
 				})
 
-				screen := runSized(t, tui.NewScreen("gui/501", read, run, workersWithStatus(t)), 80, 12, 100*time.Millisecond)
+				screen := runSized(t, tui.NewScreen("gui/501", read, run, nil, workersWithStatus(t)), 80, 12, 100*time.Millisecond)
 
 				require.Equal(t, []string{"failed", "mode    busy", ""}, detailPane(screen)[3:])
 			})
@@ -1242,7 +1308,7 @@ func TestScreen(t *testing.T) {
 					"com.example.worker.a": {Output: &status.Output{Fields: []status.Field{{Name: "", Value: "busy"}, {Name: "", Value: "ENG-692"}}}},
 				})
 
-				screen := runSized(t, tui.NewScreen("gui/501", read, run, workersWithStatus(t)), 80, 12, 100*time.Millisecond)
+				screen := runSized(t, tui.NewScreen("gui/501", read, run, nil, workersWithStatus(t)), 80, 12, 100*time.Millisecond)
 
 				require.Equal(t, []string{"  busy", "  ENG-692", ""}, detailPane(screen)[3:])
 			})
@@ -1258,7 +1324,7 @@ func TestScreen(t *testing.T) {
 					}}},
 				})
 
-				screen := runSized(t, tui.NewScreen("gui/501", read, run, workersWithStatus(t)), 80, 12, 100*time.Millisecond)
+				screen := runSized(t, tui.NewScreen("gui/501", read, run, nil, workersWithStatus(t)), 80, 12, 100*time.Millisecond)
 
 				require.Equal(t, []string{"mo�[2Jde  busy�[2J�next", "ticket    ENG-692", ""}, detailPane(screen)[3:])
 				require.NotContains(t, screen.View().Content, "\x1b[2J")
@@ -1271,7 +1337,7 @@ func TestScreen(t *testing.T) {
 				read := servicesNamed("com.example.worker.a")
 				run := runsGiving(map[string]status.Result{"com.example.worker.a": {Ended: start, Output: &status.Output{Summary: "busy"}}})
 
-				screen := runSized(t, tui.NewScreen("gui/501", read, run, workersWithStatus(t)), 80, 12, 100*time.Millisecond)
+				screen := runSized(t, tui.NewScreen("gui/501", read, run, nil, workersWithStatus(t)), 80, 12, 100*time.Millisecond)
 				time.Sleep(time.Until(start.Add(5 * time.Minute)))
 
 				require.Equal(t, []string{"Status 5m0s ago", "", "", ""}, detailPane(screen)[2:])
@@ -1289,7 +1355,7 @@ func TestScreen(t *testing.T) {
 					return status.Result{Ended: time.Now(), Output: &status.Output{Fields: []status.Field{{Name: "ticket", Value: "ENG-692"}, {Name: "step", Value: "review"}}}}
 				}
 
-				screen := runSized(t, tui.NewScreen("gui/501", read, run, workersWithStatus(t)), 80, 12, 2500*time.Millisecond)
+				screen := runSized(t, tui.NewScreen("gui/501", read, run, nil, workersWithStatus(t)), 80, 12, 2500*time.Millisecond)
 
 				require.Equal(t, []string{"ticket  ENG-692", "step    review", ""}, detailPane(screen)[3:])
 			})
@@ -1305,7 +1371,7 @@ func TestScreen(t *testing.T) {
 					}}},
 				})
 
-				screen := runSized(t, tui.NewScreen("gui/501", read, run, workersWithStatus(t)), 80, 12, 100*time.Millisecond)
+				screen := runSized(t, tui.NewScreen("gui/501", read, run, nil, workersWithStatus(t)), 80, 12, 100*time.Millisecond)
 
 				require.Equal(t, []string{"ticket  ENG-692", "step    review · 12m / 20m", "        ▰▰▰▰▰▰▱▱▱▱"}, detailPane(screen)[3:])
 			})
@@ -1322,7 +1388,7 @@ func TestScreen(t *testing.T) {
 					}}},
 				})
 
-				screen := runSized(t, tui.NewScreen("gui/501", read, run, workersWithStatus(t)), 80, 13, 100*time.Millisecond)
+				screen := runSized(t, tui.NewScreen("gui/501", read, run, nil, workersWithStatus(t)), 80, 13, 100*time.Millisecond)
 
 				require.Equal(t, []string{"mode    busy", "done    14", "        ▰▰▰▰▰▰▰▰▰▰", "failed  1"}, detailPane(screen)[3:])
 			})
@@ -1345,7 +1411,7 @@ func TestScreen(t *testing.T) {
 						"com.example.worker.a": {Output: &status.Output{Fields: []status.Field{{Name: "step", Value: "review", Progress: &progress}}}},
 					})
 
-					screen := runSized(t, tui.NewScreen("gui/501", read, run, workersWithStatus(t)), 80, 12, 100*time.Millisecond)
+					screen := runSized(t, tui.NewScreen("gui/501", read, run, nil, workersWithStatus(t)), 80, 12, 100*time.Millisecond)
 
 					require.Equal(t, "      "+bar, detailPane(screen)[4], progress)
 				})
@@ -1359,7 +1425,7 @@ func TestScreen(t *testing.T) {
 					"com.example.worker.a": {Output: &status.Output{Fields: []status.Field{{Name: "step", Value: "review", Progress: new(0.6)}}}},
 				})
 
-				screen := runSized(t, tui.NewScreen("gui/501", read, run, workersWithStatus(t)), 80, 12, 100*time.Millisecond)
+				screen := runSized(t, tui.NewScreen("gui/501", read, run, nil, workersWithStatus(t)), 80, 12, 100*time.Millisecond)
 
 				require.Contains(t, screen.View().Content, "      \x1b[34m▰▰▰▰▰▰\x1b[m\x1b[2m▱▱▱▱\x1b[m")
 			})
@@ -1378,7 +1444,7 @@ func TestScreen(t *testing.T) {
 					}},
 				})
 
-				screen := runSized(t, tui.NewScreen("gui/501", read, run, workersWithStatus(t)), 80, 14, 100*time.Millisecond)
+				screen := runSized(t, tui.NewScreen("gui/501", read, run, nil, workersWithStatus(t)), 80, 14, 100*time.Millisecond)
 
 				require.Equal(t, []string{"mode  busy", "", "Events", "09:04 ● step review", "09:00 ● claimed ENG-692"}, detailPane(screen)[3:])
 			})
@@ -1397,7 +1463,7 @@ func TestScreen(t *testing.T) {
 					}}},
 				})
 
-				screen := runSized(t, tui.NewScreen("gui/501", read, run, workersWithStatus(t)), 80, 16, 100*time.Millisecond)
+				screen := runSized(t, tui.NewScreen("gui/501", read, run, nil, workersWithStatus(t)), 80, 16, 100*time.Millisecond)
 
 				require.Equal(t, []string{"", "Events", "00:05 ● a", "07:09 ● b", "13:45 ● c", "23:59 ● d", "14:30 ● e"}, detailPane(screen)[3:])
 			})
@@ -1415,7 +1481,7 @@ func TestScreen(t *testing.T) {
 					}}},
 				})
 
-				screen := runSized(t, tui.NewScreen("gui/501", read, run, workersWithStatus(t)), 80, 12, 100*time.Millisecond)
+				screen := runSized(t, tui.NewScreen("gui/501", read, run, nil, workersWithStatus(t)), 80, 12, 100*time.Millisecond)
 
 				require.Equal(t, []string{"", "Events", "09:04 ● step review"}, detailPane(screen)[3:])
 			})
@@ -1432,7 +1498,7 @@ func TestScreen(t *testing.T) {
 					}}},
 				})
 
-				screen := runSized(t, tui.NewScreen("gui/501", read, run, workersWithStatus(t)), 80, 14, 100*time.Millisecond)
+				screen := runSized(t, tui.NewScreen("gui/501", read, run, nil, workersWithStatus(t)), 80, 14, 100*time.Millisecond)
 
 				content := screen.View().Content
 				require.Equal(t, []bool{true, true, true}, []bool{
@@ -1452,7 +1518,7 @@ func TestScreen(t *testing.T) {
 					}}},
 				})
 
-				screen := runSized(t, tui.NewScreen("gui/501", read, run, workersWithStatus(t)), 80, 12, 100*time.Millisecond)
+				screen := runSized(t, tui.NewScreen("gui/501", read, run, nil, workersWithStatus(t)), 80, 12, 100*time.Millisecond)
 
 				require.Equal(t, []string{"", "Events", "09:04 ● step�[2J�review"}, detailPane(screen)[3:])
 				require.NotContains(t, screen.View().Content, "\x1b[2J")
@@ -1466,7 +1532,7 @@ func TestScreen(t *testing.T) {
 					"com.example.worker.a": {Output: &status.Output{Fields: []status.Field{{Name: "mode", Value: "busy"}}}},
 				})
 
-				screen := runSized(t, tui.NewScreen("gui/501", read, run, workersWithStatus(t)), 80, 12, 100*time.Millisecond)
+				screen := runSized(t, tui.NewScreen("gui/501", read, run, nil, workersWithStatus(t)), 80, 12, 100*time.Millisecond)
 
 				require.Equal(t, []string{"mode  busy", "", ""}, detailPane(screen)[3:])
 			})
@@ -1486,7 +1552,7 @@ func TestScreen(t *testing.T) {
 					return status.Result{Ended: time.Now(), Failure: &status.Failure{Kind: status.FailureKindError, Text: "exit code 3", Lines: []string{"broken"}}}
 				}
 
-				screen := runSized(t, tui.NewScreen("gui/501", read, run, workersWithStatus(t)), 80, 14, 2500*time.Millisecond)
+				screen := runSized(t, tui.NewScreen("gui/501", read, run, nil, workersWithStatus(t)), 80, 14, 2500*time.Millisecond)
 
 				require.Equal(t, []string{"exit code 3", "broken", "", "", ""}, detailPane(screen)[3:])
 			})
@@ -1505,7 +1571,7 @@ func TestScreen(t *testing.T) {
 					}}},
 				})
 
-				screen := runSized(t, tui.NewScreen("gui/501", read, run, workersWithStatus(t)), 80, 16, 100*time.Millisecond)
+				screen := runSized(t, tui.NewScreen("gui/501", read, run, nil, workersWithStatus(t)), 80, 16, 100*time.Millisecond)
 
 				requireGolden(t, "status-fields", screen)
 			})
@@ -1531,7 +1597,7 @@ func TestScreen(t *testing.T) {
 					}},
 				})
 
-				screen := runSized(t, tui.NewScreen("gui/501", read, run, workersWithStatus(t)), 80, 19, 100*time.Millisecond)
+				screen := runSized(t, tui.NewScreen("gui/501", read, run, nil, workersWithStatus(t)), 80, 19, 100*time.Millisecond)
 
 				requireGolden(t, "status-fields-events", screen)
 			})
@@ -1545,7 +1611,7 @@ func TestScreen(t *testing.T) {
 					return status.Result{Ended: time.Now()}
 				}
 
-				screen := runSized(t, tui.NewScreen("gui/501", read, run, workersWithStatus(t, "Databases", "redis")), 80, 14, 100*time.Millisecond)
+				screen := runSized(t, tui.NewScreen("gui/501", read, run, nil, workersWithStatus(t, "Databases", "redis")), 80, 14, 100*time.Millisecond)
 
 				require.Equal(t, [][]string{
 					{"○ not loaded  PID -", "up -          last exit 0", ""},
@@ -1577,7 +1643,7 @@ func TestScreen(t *testing.T) {
 		})
 
 		t.Run("shows no service before the first read ends", func(t *testing.T) {
-			var screen tea.Model = tui.NewScreen("gui/501", servicesNamed("com.example.worker"), nil, refreshEvery2s)
+			var screen tea.Model = tui.NewScreen("gui/501", servicesNamed("com.example.worker"), nil, nil, refreshEvery2s)
 			screen, _ = screen.Update(tea.WindowSizeMsg{Width: 80, Height: 12})
 
 			lines := strings.Split(ansi.Strip(screen.View().Content), "\n")
@@ -1670,7 +1736,7 @@ func TestScreen(t *testing.T) {
 					servicesNamed("com.example.worker.01", "com.example.worker.02", "com.apple.a", "homebrew.mxcl.redis"),
 					servicesNamed("com.example.worker.01", "com.apple.a", "homebrew.mxcl.redis"))
 
-				screen := runFor(t, tui.NewScreen("gui/501", read, nil, settings), 2100*time.Millisecond, down)
+				screen := runFor(t, tui.NewScreen("gui/501", read, nil, nil, settings), 2100*time.Millisecond, down)
 
 				require.Equal(t, "com.apple.a", selectedName(screen))
 			})
@@ -1683,7 +1749,7 @@ func TestScreen(t *testing.T) {
 					servicesNamed("com.example.worker.01", "com.apple.a", "homebrew.mxcl.redis"),
 					servicesNamed("com.example.worker.01", "com.example.worker.02", "com.apple.a", "homebrew.mxcl.redis"))
 
-				screen := runFor(t, tui.NewScreen("gui/501", read, nil, settings), 2100*time.Millisecond, down)
+				screen := runFor(t, tui.NewScreen("gui/501", read, nil, nil, settings), 2100*time.Millisecond, down)
 
 				require.Contains(t, screen.View().Content, "com.example.worker.02")
 				require.Equal(t, "com.apple.a", selectedName(screen))
@@ -1817,7 +1883,7 @@ func TestScreen(t *testing.T) {
 					servicesNamed("com.example.1", "com.example.2", "com.example.3", "com.example.4", "com.example.5", "com.example.6", "com.example.7", "com.example.8", "com.example.9"),
 					servicesNamed("com.example.1", "com.example.2", "com.example.3", "com.example.4", "com.example.5", "com.example.6", "com.example.7"))
 
-				screen := runFor(t, tui.NewScreen("gui/501", read, nil, refreshEvery2s), 2100*time.Millisecond, down, down, down, down, down, down, down, down)
+				screen := runFor(t, tui.NewScreen("gui/501", read, nil, nil, refreshEvery2s), 2100*time.Millisecond, down, down, down, down, down, down, down, down)
 
 				require.Equal(t, []string{
 					"○ com.example.2",
@@ -1851,7 +1917,7 @@ func TestScreen(t *testing.T) {
 					servicesNamed("com.example.1", "com.example.2", "com.example.3", "com.example.4", "com.example.5", "com.example.6", "com.example.7"),
 					servicesNamed("com.example.1", "com.example.2", "com.example.7"))
 
-				screen := runFor(t, tui.NewScreen("gui/501", read, nil, refreshEvery2s), 2100*time.Millisecond, down, down, down, down, down, down)
+				screen := runFor(t, tui.NewScreen("gui/501", read, nil, nil, refreshEvery2s), 2100*time.Millisecond, down, down, down, down, down, down)
 
 				require.Equal(t, []string{
 					"Other",
@@ -1880,7 +1946,7 @@ func TestScreen(t *testing.T) {
 					servicesNamed("com.example.b", "com.example.c"),
 					servicesNamed("com.example.a", "com.example.b", "com.example.c"))
 
-				screen := runFor(t, tui.NewScreen("gui/501", read, nil, refreshEvery2s), 2100*time.Millisecond, down)
+				screen := runFor(t, tui.NewScreen("gui/501", read, nil, nil, refreshEvery2s), 2100*time.Millisecond, down)
 
 				require.Contains(t, screen.View().Content, "com.example.a")
 				require.Equal(t, "com.example.c", selectedName(screen))
@@ -1893,7 +1959,7 @@ func TestScreen(t *testing.T) {
 					servicesNamed("com.example.a", "com.example.b", "com.example.c"),
 					servicesNamed("com.example.b", "com.example.c"))
 
-				screen := runFor(t, tui.NewScreen("gui/501", read, nil, refreshEvery2s), 2100*time.Millisecond, down)
+				screen := runFor(t, tui.NewScreen("gui/501", read, nil, nil, refreshEvery2s), 2100*time.Millisecond, down)
 
 				require.NotContains(t, screen.View().Content, "com.example.a")
 				require.Equal(t, "com.example.b", selectedName(screen))
@@ -1906,7 +1972,7 @@ func TestScreen(t *testing.T) {
 					servicesNamed("com.example.a", "com.example.b", "com.example.c"),
 					servicesNamed("com.example.a", "com.example.c"))
 
-				screen := runFor(t, tui.NewScreen("gui/501", read, nil, refreshEvery2s), 2100*time.Millisecond, down)
+				screen := runFor(t, tui.NewScreen("gui/501", read, nil, nil, refreshEvery2s), 2100*time.Millisecond, down)
 
 				require.Equal(t, "com.example.c", selectedName(screen))
 			})
@@ -1918,7 +1984,7 @@ func TestScreen(t *testing.T) {
 					servicesNamed("com.example.a", "com.example.b", "com.example.c"),
 					servicesNamed("com.example.a", "com.example.b"))
 
-				screen := runFor(t, tui.NewScreen("gui/501", read, nil, refreshEvery2s), 2100*time.Millisecond, down, down)
+				screen := runFor(t, tui.NewScreen("gui/501", read, nil, nil, refreshEvery2s), 2100*time.Millisecond, down, down)
 
 				require.Equal(t, "com.example.b", selectedName(screen))
 			})
@@ -1973,7 +2039,7 @@ func TestScreen(t *testing.T) {
 			synctest.Test(t, func(t *testing.T) {
 				read := changingAt(100*time.Millisecond, servicesNamed("com.example.a"), servicesNamed("com.example.a", "com.example.added"))
 
-				screen := runFor(t, tui.NewScreen("gui/501", read, nil, refreshEvery2s), 2100*time.Millisecond, tab)
+				screen := runFor(t, tui.NewScreen("gui/501", read, nil, nil, refreshEvery2s), 2100*time.Millisecond, tab)
 
 				require.Contains(t, screen.View().Content, "com.example.added")
 				require.Equal(t, []string{dimBorder, blueBorder}, borderStyles(screen))
@@ -1986,7 +2052,7 @@ func TestScreen(t *testing.T) {
 				settings.Groups[0].Status = statusEvery(t, time.Second)
 				run := runsGiving(map[string]status.Result{"com.example.worker.a": summary("busy", status.LevelInfo)})
 
-				screen := runFor(t, tui.NewScreen("gui/501", servicesNamed("com.example.worker.a"), run, settings), 1500*time.Millisecond, tab)
+				screen := runFor(t, tui.NewScreen("gui/501", servicesNamed("com.example.worker.a"), run, nil, settings), 1500*time.Millisecond, tab)
 
 				require.Equal(t, "Status 1m0s ago", detailPane(screen)[2])
 				require.Equal(t, []string{dimBorder, blueBorder}, borderStyles(screen))
@@ -2030,7 +2096,7 @@ func TestScreen(t *testing.T) {
 		t.Run("with the focus on the detail pane, ↓ moves the text up one line, so the next line shows at the bottom, and ↑ moves it back down one line", func(t *testing.T) {
 			synctest.Test(t, func(t *testing.T) {
 				run := runsGiving(map[string]status.Result{"com.example.worker.a": {Output: &status.Output{Events: eventsNumbered(10)}}})
-				screen := runSized(t, tui.NewScreen("gui/501", servicesNamed("com.example.worker.a"), run, workersWithStatus(t)), 80, 12, 100*time.Millisecond)
+				screen := runSized(t, tui.NewScreen("gui/501", servicesNamed("com.example.worker.a"), run, nil, workersWithStatus(t)), 80, 12, 100*time.Millisecond)
 
 				scrolled := pressKeys(screen, tab, down)
 				back := pressKeys(scrolled, up)
@@ -2045,7 +2111,7 @@ func TestScreen(t *testing.T) {
 		t.Run("↓ stops when the last line of the text is at the bottom of the pane, and ↑ stops at the first line", func(t *testing.T) {
 			synctest.Test(t, func(t *testing.T) {
 				run := runsGiving(map[string]status.Result{"com.example.worker.a": {Output: &status.Output{Events: eventsNumbered(10)}}})
-				screen := runSized(t, tui.NewScreen("gui/501", servicesNamed("com.example.worker.a"), run, workersWithStatus(t)), 80, 12, 100*time.Millisecond)
+				screen := runSized(t, tui.NewScreen("gui/501", servicesNamed("com.example.worker.a"), run, nil, workersWithStatus(t)), 80, 12, 100*time.Millisecond)
 
 				bottom := pressKeys(screen, tab, down, down, down, down, down, down, down, down, down, down, down, down)
 				top := pressKeys(bottom, up, up, up, up, up, up, up, up, up, up, up, up, down)
@@ -2075,7 +2141,7 @@ func TestScreen(t *testing.T) {
 					return nil, errors.New("exit status 3")
 				}
 				rows := servicesNamed("com.example.a")
-				var screen tea.Model = tui.NewScreen("gui/501", readsInTurn(rows, failing, rows), nil, refreshEvery2s)
+				var screen tea.Model = tui.NewScreen("gui/501", readsInTurn(rows, failing, rows), nil, nil, refreshEvery2s)
 				start := screen.Init()
 				screen, _ = screen.Update(tea.WindowSizeMsg{Width: 80, Height: 7})
 				screen, tick := screen.Update(start())
@@ -2105,7 +2171,7 @@ func TestScreen(t *testing.T) {
 					Fields: []status.Field{{Name: "mode", Value: "busy"}, {Name: "step", Value: "review", Progress: new(0.6)}},
 					Events: eventsNumbered(4),
 				}}})
-				screen := runSized(t, tui.NewScreen("gui/501", servicesNamed("com.example.worker.a", "com.example.worker.b"), run, workersWithStatus(t)), 80, 12, 100*time.Millisecond)
+				screen := runSized(t, tui.NewScreen("gui/501", servicesNamed("com.example.worker.a", "com.example.worker.b"), run, nil, workersWithStatus(t)), 80, 12, 100*time.Millisecond)
 
 				screen = pressKeys(screen, tab, down, down, down)
 
@@ -2118,7 +2184,7 @@ func TestScreen(t *testing.T) {
 				read := servicesNamed("com.example.worker.1", "com.example.worker.2", "com.example.worker.3", "com.example.worker.4", "com.example.worker.5",
 					"com.example.worker.6", "com.example.worker.7", "com.example.worker.8", "com.example.worker.9")
 				run := runsGiving(map[string]status.Result{"com.example.worker.4": {Output: &status.Output{Events: eventsNumbered(10)}}})
-				screen := runSized(t, tui.NewScreen("gui/501", read, run, workersWithStatus(t)), 80, 12, 100*time.Millisecond)
+				screen := runSized(t, tui.NewScreen("gui/501", read, run, nil, workersWithStatus(t)), 80, 12, 100*time.Millisecond)
 				screen = pressKeys(screen, down, down, down)
 				list := listRows(screen)
 
@@ -2136,7 +2202,7 @@ func TestScreen(t *testing.T) {
 					"com.example.worker.a": {Output: &status.Output{Events: eventsNumbered(10)}},
 					"com.example.worker.b": {Output: &status.Output{Events: eventsNumbered(10)}},
 				})
-				screen := runSized(t, tui.NewScreen("gui/501", servicesNamed("com.example.worker.a", "com.example.worker.b"), run, workersWithStatus(t)), 80, 12, 100*time.Millisecond)
+				screen := runSized(t, tui.NewScreen("gui/501", servicesNamed("com.example.worker.a", "com.example.worker.b"), run, nil, workersWithStatus(t)), 80, 12, 100*time.Millisecond)
 
 				screen = pressKeys(screen, down, down, down)
 
@@ -2155,7 +2221,7 @@ func TestScreen(t *testing.T) {
 					"com.example.worker.a": {Output: &status.Output{Events: eventsNumbered(10)}},
 					"com.example.worker.b": {Output: &status.Output{Events: eventsNumbered(10)}},
 				})
-				screen := runSized(t, tui.NewScreen("gui/501", read, run, workersWithStatus(t)), 80, 12, 100*time.Millisecond)
+				screen := runSized(t, tui.NewScreen("gui/501", read, run, nil, workersWithStatus(t)), 80, 12, 100*time.Millisecond)
 
 				next := pressKeys(screen, tab, down, down, tab, down)
 				first := pressKeys(next, up)
@@ -2178,7 +2244,7 @@ func TestScreen(t *testing.T) {
 					"com.example.worker.c": {Output: &status.Output{Events: eventsNumbered(10)}},
 				})
 
-				screen := runFor(t, tui.NewScreen("gui/501", read, run, workersWithStatus(t)), 2100*time.Millisecond, down, tab, down, down)
+				screen := runFor(t, tui.NewScreen("gui/501", read, run, nil, workersWithStatus(t)), 2100*time.Millisecond, down, tab, down, down)
 
 				require.Equal(t, []string{"c", "● running     PID 4124"}, []string{selectedName(screen), detailPane(screen)[0]})
 			})
@@ -2198,7 +2264,7 @@ func TestScreen(t *testing.T) {
 					}}}
 				}
 
-				screen := runFor(t, tui.NewScreen("gui/501", servicesNamed("com.example.worker.a"), run, settings), 1500*time.Millisecond, tab, down, down, down, down, down, down, down, down, down)
+				screen := runFor(t, tui.NewScreen("gui/501", servicesNamed("com.example.worker.a"), run, nil, settings), 1500*time.Millisecond, tab, down, down, down, down, down, down, down, down, down)
 
 				require.Equal(t, []string{"line 3", "line 4", "line 5", "line 6", "line 7", "line 8"}, detailPane(screen))
 			})
@@ -2216,7 +2282,7 @@ func TestScreen(t *testing.T) {
 					return status.Result{Ended: time.Now(), Failure: &status.Failure{Kind: status.FailureKindError, Text: "exit code 3"}}
 				}
 
-				screen := runFor(t, tui.NewScreen("gui/501", servicesNamed("com.example.worker.a"), run, settings), 1500*time.Millisecond, tab, down, down, down, down, down)
+				screen := runFor(t, tui.NewScreen("gui/501", servicesNamed("com.example.worker.a"), run, nil, settings), 1500*time.Millisecond, tab, down, down, down, down, down)
 
 				require.Equal(t, []string{"○ not loaded  PID -", "up -          last exit 0", "Status 1m0s ago", "exit code 3", "", ""}, detailPane(screen))
 			})
@@ -2225,7 +2291,7 @@ func TestScreen(t *testing.T) {
 		t.Run("a terminal that gets higher shows more lines with no empty line under the last line, and a terminal that gets lower keeps the scroll where it is", func(t *testing.T) {
 			synctest.Test(t, func(t *testing.T) {
 				run := runsGiving(map[string]status.Result{"com.example.worker.a": {Output: &status.Output{Events: eventsNumbered(10)}}})
-				screen := runSized(t, tui.NewScreen("gui/501", servicesNamed("com.example.worker.a"), run, workersWithStatus(t)), 80, 12, 100*time.Millisecond)
+				screen := runSized(t, tui.NewScreen("gui/501", servicesNamed("com.example.worker.a"), run, nil, workersWithStatus(t)), 80, 12, 100*time.Millisecond)
 				screen = pressKeys(screen, tab, down, down, down, down, down, down, down, down, down)
 
 				higher, _ := screen.Update(tea.WindowSizeMsg{Width: 80, Height: 14})
@@ -2244,7 +2310,7 @@ func TestScreen(t *testing.T) {
 				settings.Groups[0].Status = statusEvery(t, time.Second)
 				run := runsGiving(map[string]status.Result{"com.example.worker.a": {Output: &status.Output{Events: eventsNumbered(10)}}})
 
-				screen := runFor(t, tui.NewScreen("gui/501", servicesNamed("com.example.worker.a"), run, settings), 2500*time.Millisecond, tab, down, down)
+				screen := runFor(t, tui.NewScreen("gui/501", servicesNamed("com.example.worker.a"), run, nil, settings), 2500*time.Millisecond, tab, down, down)
 				before := detailPane(screen)
 				time.Sleep(7 * time.Second)
 
@@ -2268,7 +2334,7 @@ func TestScreen(t *testing.T) {
 		t.Run("while the help shows, ↑ and ↓ do not scroll the detail pane", func(t *testing.T) {
 			synctest.Test(t, func(t *testing.T) {
 				run := runsGiving(map[string]status.Result{"com.example.worker.a": {Output: &status.Output{Events: eventsNumbered(10)}}})
-				screen := runSized(t, tui.NewScreen("gui/501", servicesNamed("com.example.worker.a"), run, workersWithStatus(t)), 80, 12, 100*time.Millisecond)
+				screen := runSized(t, tui.NewScreen("gui/501", servicesNamed("com.example.worker.a"), run, nil, workersWithStatus(t)), 80, 12, 100*time.Millisecond)
 
 				screen = pressKeys(screen, tab, question, down, down, escape)
 
@@ -2277,13 +2343,118 @@ func TestScreen(t *testing.T) {
 		})
 	})
 
+	t.Run("start a service", func(t *testing.T) {
+		notLoaded := service.Service{Name: "com.example.a", State: service.NotLoaded, PlistPath: "/Users/me/Library/LaunchAgents/com.example.a.plist"}
+		loaded := service.Service{Name: "com.example.b", State: service.Loaded, PlistPath: "/Users/me/Library/LaunchAgents/com.example.b.plist"}
+		running := service.Service{Name: "com.example.c", State: service.Running, PID: 4122, PlistPath: "/Users/me/Library/LaunchAgents/com.example.c.plist"}
+
+		t.Run("s on a not loaded service and on a loaded service calls the start one time with the service of the selected row", func(t *testing.T) {
+			starts := &serviceCalls{}
+			screen := openStarting(t, readGiving(notLoaded, loaded), starts.record)
+
+			screen, startA := screen.Update(keyS)
+			screen = pressKeys(screen, down)
+			_, startB := screen.Update(keyS)
+			runAll(startA, startB)
+
+			require.Equal(t, []service.Service{notLoaded, loaded}, starts.get())
+		})
+
+		t.Run("s on a running service calls nothing", func(t *testing.T) {
+			starts := &serviceCalls{}
+			screen := openStarting(t, readGiving(running), starts.record)
+
+			_, cmd := screen.Update(keyS)
+			runAll(cmd)
+
+			require.Empty(t, starts.get())
+		})
+
+		t.Run("while the start of a service has not ended, s on that service calls nothing, and s on another service still calls the start", func(t *testing.T) {
+			starts := &serviceCalls{}
+			screen := openStarting(t, readGiving(notLoaded, loaded), starts.record)
+
+			screen, first := screen.Update(keyS)
+			screen, again := screen.Update(keyS)
+			screen = pressKeys(screen, down)
+			_, other := screen.Update(keyS)
+			runAll(first, again, other)
+
+			require.Equal(t, []service.Service{notLoaded, loaded}, starts.get())
+		})
+
+		t.Run("after the start of a service ends, s on that service calls the start again", func(t *testing.T) {
+			starts := &serviceCalls{}
+			screen := openStarting(t, readGiving(notLoaded), starts.record)
+
+			screen, first := screen.Update(keyS)
+			screen, _ = screen.Update(first())
+			_, again := screen.Update(keyS)
+			runAll(again)
+
+			require.Equal(t, []service.Service{notLoaded, notLoaded}, starts.get())
+		})
+
+		t.Run("s calls nothing while the help shows, with no rows, and while the list shows a read error", func(t *testing.T) {
+			starts := &serviceCalls{}
+			failing := func() ([]service.Service, error) {
+				return []service.Service{notLoaded}, errors.New("launchctl list: exit status 3")
+			}
+
+			_, inHelp := pressKeys(openStarting(t, readGiving(notLoaded), starts.record), question).Update(keyS)
+			_, noRows := openStarting(t, readGiving(), starts.record).Update(keyS)
+			_, readError := readNow(openStarting(t, readsInTurn(readGiving(notLoaded), failing), starts.record)).Update(keyS)
+			runAll(inHelp, noRows, readError)
+
+			require.Empty(t, starts.get())
+		})
+
+		t.Run("the screen reads every 2 s and takes keys while a start runs, and a start that lasts longer than the refresh does not move the next read", func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				reads := newReadTimes()
+				read := reads.recording(readGiving(notLoaded, loaded))
+				starts := &serviceCalls{}
+				start := func(svc service.Service) error {
+					_ = starts.record(svc)
+					time.Sleep(5 * time.Second)
+					return nil
+				}
+
+				screen := runFor(t, tui.NewScreen("gui/501", read, nil, start, refreshEvery2s), 6500*time.Millisecond, keyS, down)
+
+				require.Equal(t, []service.Service{notLoaded}, starts.get())
+				require.Equal(t, []time.Duration{0, 2 * time.Second, 4 * time.Second, 6 * time.Second}, reads.get())
+				require.Equal(t, "com.example.b", selectedName(screen))
+			})
+		})
+
+		t.Run("after a start ends, the row shows the state that the next refresh reads, and the end of the start starts no read", func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				reads := newReadTimes()
+				read := reads.recording(changingAt(time.Second, readGiving(loaded), readGiving(service.Service{Name: "com.example.b", State: service.Running, PID: 4123})))
+				starts := &serviceCalls{}
+				start := func(svc service.Service) error {
+					_ = starts.record(svc)
+					time.Sleep(time.Second)
+					return nil
+				}
+
+				screen := runFor(t, tui.NewScreen("gui/501", read, nil, start, refreshEvery2s), 2500*time.Millisecond, keyS)
+
+				require.Equal(t, []service.Service{loaded}, starts.get())
+				require.Equal(t, []time.Duration{0, 2 * time.Second}, reads.get())
+				require.Contains(t, ansi.Strip(screen.View().Content), "▌● com.example.b")
+			})
+		})
+	})
+
 	t.Run("keys", func(t *testing.T) {
 		t.Run("q ends the screen", func(t *testing.T) {
-			require.NoError(t, runWithInput(t, tui.NewScreen("gui/501", servicesNamed("com.example.worker"), nil, refreshEvery2s), "q"))
+			require.NoError(t, runWithInput(t, tui.NewScreen("gui/501", servicesNamed("com.example.worker"), nil, nil, refreshEvery2s), "q"))
 		})
 
 		t.Run("ctrl+c ends the screen", func(t *testing.T) {
-			require.NoError(t, runWithInput(t, tui.NewScreen("gui/501", servicesNamed("com.example.worker"), nil, refreshEvery2s), "\x03"))
+			require.NoError(t, runWithInput(t, tui.NewScreen("gui/501", servicesNamed("com.example.worker"), nil, nil, refreshEvery2s), "\x03"))
 		})
 
 		t.Run("? shows each key of the screen with its action, in place of the panes", func(t *testing.T) {
@@ -2332,7 +2503,7 @@ func TestScreen(t *testing.T) {
 		})
 
 		t.Run("q ends the screen while the help shows", func(t *testing.T) {
-			require.NoError(t, runWithInput(t, tui.NewScreen("gui/501", servicesNamed("com.example.worker"), nil, refreshEvery2s), "?q"))
+			require.NoError(t, runWithInput(t, tui.NewScreen("gui/501", servicesNamed("com.example.worker"), nil, nil, refreshEvery2s), "?q"))
 		})
 
 		t.Run("the help line at the bottom of the screen shows s start, x stop and ? help, under the panes and under the help", func(t *testing.T) {

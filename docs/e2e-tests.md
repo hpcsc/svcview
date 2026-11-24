@@ -122,7 +122,11 @@ sequenceDiagram
 ```
 
 - For `list`, the fake prints the file `launchctl-list.txt` in the home folder. svcview gives the fake its own `HOME`.
-- For any other arguments, the fake writes an error to stderr and exits with 64.
+- For any other arguments, such as `bootstrap gui/<uid> <plist path>` for the start of a service, the fake adds one
+  line with its arguments to the file `launchctl-calls.txt` in the home folder, and exits with 0. It does not change
+  `launchctl-list.txt`: a test that wants the row to show a new state writes the new output with `setLaunchctlList`.
+- `launchctlCalls(home)` gives the lines of `launchctl-calls.txt`, one for each call, or no lines when svcview did not
+  call the fake. A start runs in the background, so a test waits for the calls with `expect.poll`.
 - `setLaunchctlList` writes the file to a new name and renames it over the old file. So the fake never prints half
   of the file while the screen is open.
 - The fake must stay executable in git (mode `100755`): the Docker image copies the mode with the file.
