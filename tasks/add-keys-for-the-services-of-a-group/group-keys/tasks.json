@@ -161,7 +161,7 @@
     },
     {
       "n": 7,
-      "done": false,
+      "done": true,
       "title": "Describe the actions of a group in docs/cli.md",
       "language": "Markdown",
       "testable": false,

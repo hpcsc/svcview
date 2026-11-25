@@ -498,26 +498,26 @@ of an action, the confirmation, the help line and the help, the texts that an ac
 errors of `actions` that stop svcview at start, and that `svcview status` shows and runs no action.
 
 **Acceptance Criteria:**
-- [ ] The table of the settings of a group lists `actions`, and a section on the actions of a group has a table of
+- [x] The table of the settings of a group lists `actions`, and a section on the actions of a group has a table of
       `key`, `name`, `command` and `confirm`, with the example of the proposal: the key `L`, the name `worker log`,
       and the command `[less, +F, '{{.Env.WORKER_LOG}}']`.
-- [ ] The section says that a key is one character that prints and that is not a space, that the case counts, which
+- [x] The section says that a key is one character that prints and that is not a space, that the case counts, which
       keys of svcview an action cannot take, that no two actions of one group can have the same key, and that two
       groups can each have an action with the same key.
-- [ ] The section says that the key acts only on a selected service of its group, in each state of the service, also
+- [x] The section says that the key acts only on a selected service of its group, in each state of the service, also
       while a start, a stop or a restart of the service has not ended, and does nothing while the help shows and while
       the list shows an error; that svcview gives the terminal to the command with no shell, with the environment and
       the working folder of svcview, with no deadline, and shows the screen again when the command ends; and that a
       `ctrl-c` that the command gets does not end svcview.
-- [ ] The section of the template values says that a text of the command of an action can use them, and that a value
+- [x] The section of the template values says that a text of the command of an action can use them, and that a value
       that the plist does not have shows on the message line, for example `the plist has no WORKER_LOG`, and runs no
       command.
-- [ ] The Keys table, the help line, the confirmation, and the section of the message line describe the keys of the
+- [x] The Keys table, the help line, the confirmation, and the section of the message line describe the keys of the
       actions, the question `Run <name> for <service>? (y/N)`, and the texts of a command that exits with a code
       other than 0, ends by a signal, or cannot start.
-- [ ] The section Errors lists each error of `actions`, and says that each one names the file and the group.
-- [ ] The text says that `svcview status` shows and runs no action, and does not say that it does not read them.
-- [ ] Each link in `docs/cli.md` points to a heading that exists.
+- [x] The section Errors lists each error of `actions`, and says that each one names the file and the group.
+- [x] The text says that `svcview status` shows and runs no action, and does not say that it does not read them.
+- [x] Each link in `docs/cli.md` points to a heading that exists.
 
 **Affected Files/Modules:**
 - `docs/cli.md` — the actions of a group, the keys, the help line, the message line, and the errors

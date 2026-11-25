@@ -72,8 +72,8 @@ This screen has the group `Workers`, with the match `^com\.example\.worker\.` an
 | The header | The domain `gui/<uid>` of the user, and the number of services in each state. |
 | The list | One row for each service that has a plist in `~/Library/LaunchAgents`, in [the groups of the config files](#groups), and then in the group `Other`. Each group starts with a line with its name, and an empty line separates two groups. In each group, the services are sorted by name. Each row starts with the glyph of the state of the service, and a row in a group shows the short name of the service. svcview cuts a name that is too long for the list with `…`. When the list has more lines than the pane, it scrolls to keep the selected row in view. When the selected row is the first row of its group, and the pane has room for more than one line, the line of the group shows too. In a group with a status command, a row shows [the summary of the status](#in-the-list-and-the-detail-pane) after the short name. The list takes 40 percent of the width. At start, the list has [the focus](#the-focus-and-the-scroll). |
 | The detail pane | The selected service. Its title is the full name of the service. The pane shows the state, the PID, the uptime, and the last exit. In a group with a status command, it also shows the age of the status, and the [fields and the events](#in-the-list-and-the-detail-pane) of the last output or the [failure](#failures) of the last run. When the detail pane has [the focus](#the-focus-and-the-scroll), `↑` and `↓`, or `k` and `j`, scroll it. |
-| The message line | The [confirmation](#start-stop-and-restart-a-service) of `x` or of `r`, what launchctl printed when a start, a stop or a restart fails, the text of `r` on a `not loaded` service, the text of `o` on a service with [no log path](#the-log-of-a-service), or why `less` failed. The line shows above the help line only while it has a text, and the panes are one line shorter while it shows. See [The message line](#the-message-line). |
-| The help line | `s start · x stop · r restart · o log · ? help` |
+| The message line | The [confirmation](#start-stop-and-restart-a-service) of `x` or of `r`, what launchctl printed when a start, a stop or a restart fails, the text of `r` on a `not loaded` service, the text of `o` on a service with [no log path](#the-log-of-a-service), or why `less` failed. After the key of an [action](#the-actions-of-a-group), the confirmation of the action, a template value that the plist does not have, or why the command failed. The line shows above the help line only while it has a text, and the panes are one line shorter while it shows. See [The message line](#the-message-line). |
+| The help line | `s start · x stop · r restart · o log · ? help`. When the selected service is in a group with [actions](#the-actions-of-a-group), the key and the name of each action show after `o log`, for example `s start · x stop · r restart · o log · L worker log · ? help`. |
 
 The name of a service is the `Label` of its plist. svcview gets the state, the PID, and the last exit of each
 service from `launchctl list`, and the uptime from `ps`.
@@ -124,7 +124,8 @@ the same while the detail pane scrolls. While the help shows, `tab`, `↑`, `↓
 and the focus stays where it is.
 
 `h`, `j`, `k`, and `l` are the keys that vim uses to move. Only the lower-case letters move: `H`, `J`, `K`, and `L`
-do nothing. `←` and `→` do not move the focus.
+do not move, and a group can give each of them to an [action](#the-actions-of-a-group). `←` and `→` do not move the
+focus.
 
 A service that becomes selected shows its detail pane from the first line. svcview does not keep the scroll of a
 service, so a service that is selected again shows from the first line too. When the text of the detail pane gets
@@ -155,7 +156,8 @@ and no rows. When `ps` fails, no service shows an uptime.
 | `x` | Stop the selected service, after a confirmation. `y` answers yes to the confirmation, and each other key answers no. |
 | `r` | Restart the selected service, after a confirmation. `y` answers yes to the confirmation, and each other key answers no. |
 | `o` | Show the log of the selected service. See [The log of a service](#the-log-of-a-service). |
-| `?` | Show the help, which lists all keys, or hide it. |
+| The key of an action, for example `L` | Run the command of the action on the selected service, when the service is in the group of the action. See [The actions of a group](#the-actions-of-a-group). |
+| `?` | Show the help, which lists all keys, also the keys of the actions of the group of the selected service, or hide it. |
 | `esc` | Hide the help. |
 | `q` or `ctrl+c` | Quit. |
 
@@ -268,6 +270,15 @@ svcview cannot start `less`, it says why, for example
 `run less +F -- /Users/me/Library/Logs/worker.out.log: exec: "less": executable file not found in $PATH`. The text
 of `o` on a service with [no log path](#the-log-of-a-service) shows on the message line too.
 
+After the key of an [action](#the-actions-of-a-group), the message line shows the confirmation of an action with
+`confirm`, for example `Run worker log for com.example.worker.01? (y/N)`, and a template value that the plist does
+not have, for example `the plist has no WORKER_LOG`. When the command of the action exits with a code other than 0,
+the message line names the command line and the exit code, for example
+`less +F /Users/me/worker/01.log exited with code 1`. When a signal ends the command, it names the signal, for example
+`less +F /Users/me/worker/01.log ended by SIGTERM`. When svcview cannot start the program, it says why, for example
+`run worker-log /Users/me/worker/01.log: exec: "worker-log": executable file not found in $PATH`. The command line is
+the program and its arguments after svcview applies the template values, with a space between them.
+
 The message line shows the lines of the text on one line, with a space between them. It shows each control
 character as `�`, and cuts a text that is wider than the terminal with `…`. It has no color.
 
@@ -317,7 +328,7 @@ groups:
 | Setting | What it does | Default |
 | --- | --- | --- |
 | `refresh` | The time between two reads of the services. One `refresh` after each read ends, svcview reads the plists and runs `launchctl list` and `ps` again. The value is a Go duration that is more than 0, for example `500ms`, `5s`, or `1m30s`. Only `config.yaml` can set `refresh`. | `2s` |
-| `groups` | The groups of the list, in the order of the list. Each group has a `name` and a `match`, and can have a `status`. | No groups |
+| `groups` | The groups of the list, in the order of the list. Each group has a `name` and a `match`, and can have a `status` and `actions`. | No groups |
 
 ### A file in conf.d
 
@@ -378,6 +389,7 @@ Each entry in `groups` is a group of the list, with these settings:
 | `name` | The name of the group, which the list shows on the line of the group. Two names that differ in case, for example `Workers` and `workers`, are two names. |
 | `match` | A [Go regular expression](https://pkg.go.dev/regexp/syntax). The group holds each service whose name the expression matches. A match in any part of the name counts, unless the expression has `^` or `$`. |
 | `status` | Optional. The [status command](#the-status-command) of the services of the group. |
+| `actions` | Optional. The [actions](#the-actions-of-a-group) of the services of the group: keys that run a command on the selected service. |
 
 These rules put each service in one group:
 
@@ -441,7 +453,8 @@ runs the command of each service of the group every `every`. The command runs in
 #### Template values
 
 svcview applies Go `text/template` to each text of the command, also to the program. The values come from the plist
-of the service.
+of the service. A text of the `command` of an [action](#the-actions-of-a-group) can use the same values, with the same
+rules.
 
 | Value | Content |
 | --- | --- |
@@ -461,6 +474,9 @@ shows the reason in red:
 | `{{.StderrPath}}` | `the plist has no StandardErrorPath` |
 | `{{.PlistPath}}` | `the service has no plist` |
 
+For the command of an [action](#the-actions-of-a-group), svcview runs no command, and the message line shows the same
+reason, for example `the plist has no WORKER_LOG`.
+
 A text can use the functions of Go templates and variables, for example `{{.Name | printf "%s.json"}}` or
 `{{$file := .Env.WORKER_STATUS_FILE}}{{$file}}`. In the body of a `with`, `.` is the value of the `with`, so a
 template value needs `$` there, for example `{{with .PlistPath}}{{$.Name}}{{end}}`. A text that uses a value in an
@@ -469,7 +485,8 @@ template value needs `$` there, for example `{{with .PlistPath}}{{$.Name}}{{end}
 [`svcview status <name>`](#test-a-status-command-with-svcview-status) shows each template value of a service, and the
 command line that the values make.
 
-These texts stop svcview at start, with an error that names the file, the group and the text:
+These texts in a status command, or in the command of an action, stop svcview at start, with an error that names the
+file, the group and the text:
 
 - A template value other than the five above, for example `{{.Label}}` or `{{.Env}}`.
 - `range`, `define`, `block`, and `{{template ...}}`.
@@ -638,9 +655,10 @@ The parse error names the place in the output as a JSON pointer, and says what v
 
 svcview starts each status command in a process group of its own. It stops that process group with `SIGKILL` at
 `timeout`, when the program ends, and when svcview quits. svcview quits on `q` and `ctrl+c`, when its terminal
-closes, and on `SIGTERM` and `SIGINT`. While [`less`](#the-log-of-a-service) has the terminal, svcview ignores
-`SIGINT`, so a `ctrl-c` that `less` gets does not end svcview. A `SIGTERM` or a close of the terminal then stops each
-status run at once, and svcview quits when `less` ends. Thus no process that the command starts runs longer than the
+closes, and on `SIGTERM` and `SIGINT`. While [`less`](#the-log-of-a-service) or the command of an
+[action](#the-actions-of-a-group) has the terminal, svcview ignores `SIGINT`, so a `ctrl-c` that the program gets does
+not end svcview. A `SIGTERM` or a close of the terminal then stops each status run at once, and svcview quits when the
+program ends. Thus no process that the command starts runs longer than the
 run, for example the `sleep` of `sh -c 'sleep 30 &'`. A process that leaves the process group, for example with
 `setsid`, does not stop.
 
@@ -762,7 +780,105 @@ shows in red, as each other error of svcview does.
 other than the new line of `Output`, shows as `�`. Thus a plist, a config file or an output cannot send an escape
 sequence to the terminal.
 
-`svcview status` does not start, stop, or change a service.
+`svcview status` does not start, stop, or change a service. It shows no [action](#the-actions-of-a-group) of a group
+and runs none. It reads the `actions` of each config file, as the screen does, so an [error](#errors) in `actions`
+stops it with exit code 1.
+
+### The actions of a group
+
+A group can give the services of the group keys of their own, for example a key that opens the log of a worker. Each
+entry in `actions` is one action: a key that runs a command on the selected service.
+
+```yaml
+groups:
+  - name: Workers
+    match: ^com\.example\.worker\.
+    actions:
+      - key: L
+        name: worker log
+        command: [less, +F, '{{.Env.WORKER_LOG}}']
+      - key: R
+        name: reset worker
+        command: ['{{.Env.WORKER_HOME}}/bin/reset', '{{.Name}}']
+        confirm: true
+```
+
+| Setting | What it does | Default |
+| --- | --- | --- |
+| `key` | The key of the action, for example `L`. | Required |
+| `name` | The text that the help line and the help show after the key, for example `worker log`. The text must not be empty. | Required |
+| `command` | The program and its arguments, as a list of texts with the program first, for example `[less, +F, '{{.Env.WORKER_LOG}}']`. Each text can use the [template values](#template-values). | Required |
+| `confirm` | `true` makes the key ask for a confirmation before svcview runs the command. The value is `true` or `false`. | `false` |
+
+#### The key of an action
+
+A key is one character that prints and that is not a space, for example `L`, `E`, `1` or `!`. Names of keys such as
+`ctrl+l`, `f2`, `enter`, `tab`, `esc` or `space` are not keys of an action. The case counts, so `L` and `l` are two
+keys. Write a key that is not a letter or a digit in single quotes, for example `key: '!'`: with no quotes, YAML
+reads some of these characters as a part of its syntax.
+
+An action cannot take a key of svcview. The keys of svcview are `?`, `h`, `j`, `k`, `l`, `o`, `q`, `r`, `s` and `x`,
+and `/`, which svcview keeps for a filter of the list. These keys in upper case, for example `L`, `S` and `X`, are not
+keys of svcview. `y` answers a confirmation only while a confirmation shows, so an action can take `y`.
+
+No two actions of one group can have the same key. Two groups can each have an action with the same key: the key runs
+the action of the group of the selected service. Two actions of one group can have the same name.
+
+#### What the key does
+
+The key of an action acts only while a service of the group of the action is selected, and only on that service. On a
+service of another group, or of `Other`, the key does nothing.
+
+The key applies the [template values](#template-values) of the selected service to each text of `command`, and gives
+the terminal to the command line, as `o` gives it to `less`. svcview runs the program with no shell, with the
+environment and the working folder of svcview, and with no deadline. Thus `$HOME`, `;`, `|`, `*` and a space in a
+text reach the program as they are. For a shell, write `[sh, -c, '...']`. When the command ends, the screen shows
+again with the same service selected and the same focus. A `ctrl-c` that the command gets does not end svcview.
+
+While the command runs, svcview draws nothing, reads no key, reads no services, and starts no status run, as while
+`less` runs. svcview does not show what the command prints: the screen covers it when the screen shows again.
+
+The key works on a service in each state, also while a start, a stop or a restart of the service runs. The key does
+nothing while the help shows, and while the list shows an error. While a confirmation shows, the key answers no, as
+each key other than `y` does.
+
+When a text of `command` uses a template value that the plist of the selected service does not have, svcview runs no
+command, and the message line shows the reason:
+
+```
+ the plist has no WORKER_LOG
+```
+
+svcview does not check that the program exists before you press the key. When the program cannot start, exits with a
+code other than 0, or ends by a signal, the [message line](#the-message-line) says so.
+
+#### The confirmation of an action
+
+With `confirm: true`, the key asks for a confirmation on the message line, with the name of the action and the full
+name of the service:
+
+```
+ Run reset worker for com.example.worker.01? (y/N)
+```
+
+svcview applies the template values before it asks. When the plist does not have a template value of the command,
+the message line shows the reason, and svcview asks nothing. `y` gives the terminal to the command line of the service
+that the confirmation names. This is the service that was selected when you pressed the key, also when a refresh
+changed the selected row while the confirmation showed. Each other key answers no, and does nothing else, as for `x`
+and `r`. `ctrl+c` quits.
+
+#### The help line and the help
+
+When the selected service is in a group with actions, the help line shows the key and the name of each action of the
+group after `o log`, in the order of the file:
+
+```
+ s start · x stop · r restart · o log · L worker log · R reset worker · ? help
+```
+
+`?` lists the same actions on the lines after `o`. With no selected service, while the list shows an error, and with
+a service of a group with no actions or of `Other`, the help line and the help show only the keys of svcview. Each
+control character of a name shows as `�`. svcview cuts a help line that is wider than the terminal at its end.
 
 ### Errors
 
@@ -800,6 +916,22 @@ These errors in `status` stop svcview too. Each error names the file and the gro
 - An `every`, a `timeout`, or a `stale_after` that is not a duration, or that is not more than 0.
 - A text of `command` that is not a Go template, or that uses a value or an action that a text cannot use. The
   section [Template values](#template-values) lists them.
+
+These errors in `actions` stop svcview too. Each error names the file and the group, and an error in one action names
+the action by its place in `actions`, for example `action 2 of group "Workers"`.
+
+- An `actions` that is not a list, or an entry that is not a set of settings such as `key: L`.
+- A setting in an action that svcview does not know, or a setting that an action sets two times.
+- An action with no `key`, no `name`, or no `command`.
+- A `key` that is not one character that prints, or that is a space, for example `ctrl+l`, `LL`, or `' '`.
+- A `key` that is a [key of svcview](#the-key-of-an-action), for example `s`. The error names the key.
+- Two actions of one group with the same key. The error names the second action and the key, and gives the line of the
+  first action.
+- A `name` that is empty, or that is not text.
+- A `command` that is not a list of texts, an empty `command`, or a `command` whose program is an empty text.
+- A text of `command` that is not a Go template, or that the check of a status command refuses. The section
+  [Template values](#template-values) lists these texts.
+- A `confirm` other than `true` or `false`, for example `yes` or `'true'`.
 
 ### A config file that another user can write
 
