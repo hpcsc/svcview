@@ -94,7 +94,7 @@
     },
     {
       "n": 4,
-      "done": false,
+      "done": true,
       "title": "Keep the filter with enter",
       "language": "Go",
       "testable": true,

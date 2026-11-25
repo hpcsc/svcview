@@ -3,6 +3,8 @@ import { setTimeout as sleep } from 'node:timers/promises'
 import { describe, expect, it } from 'vitest'
 import { homeWithPlists, launchctlCalls, openCli, scratchDir, setLaunchctlList, writeConfig } from '../testUtils'
 
+const uid = process.getuid?.()
+
 describe('the filter of the list', () => {
   it('on a running service, / and the text proxy show the filter line /proxy, the screen stays open, launchctl gets no call, and esc then hides the filter line', async () => {
     const home = homeWithPlists(['com.example.proxy'])
@@ -68,5 +70,30 @@ describe('the filter of the list', () => {
 
     await session.waitForText('▌○ com.example.worker')
     expect(await session.text()).not.toContain('no service matches')
+  })
+
+  it('with three not loaded services, /, a filter that two of them contain, enter and ↓ select the second of them, s runs launchctl bootstrap with its plist, and esc shows each service again', async () => {
+    const home = homeWithPlists(['com.example.a-worker', 'com.example.b-other', 'com.example.c-worker'])
+    const session = await openCli(scratchDir(), [], { HOME: home })
+    await session.waitForText('▌○ com.example.a-worker')
+
+    await session.type('/')
+    await session.type('worker')
+    await session.waitForText('enter keep the filter')
+    await session.press('enter')
+    await session.waitForText('? help')
+    expect(await session.text()).not.toContain('com.example.b-other')
+    await session.press('down')
+    await session.waitForText('▌○ com.example.c-worker')
+    await session.type('s')
+
+    await expect
+      .poll(() => launchctlCalls(home))
+      .toEqual([`bootstrap gui/${uid} ${join(home, 'Library', 'LaunchAgents', 'com.example.c-worker.plist')}`])
+
+    await session.press('esc')
+
+    await session.waitForText('○ com.example.b-other')
+    expect(await session.text()).not.toContain(' /worker')
   })
 })

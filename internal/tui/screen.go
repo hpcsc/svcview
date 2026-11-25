@@ -198,7 +198,11 @@ func (s Screen) press(key tea.KeyPressMsg) (Screen, tea.Cmd) {
 	case "?":
 		s.showHelp = !s.showHelp
 	case "esc":
-		s.showHelp = false
+		if s.showHelp {
+			s.showHelp = false
+		} else {
+			s.filter = ""
+		}
 	case "tab":
 		if !s.showHelp {
 			s.focus = s.focus.other()
@@ -301,6 +305,8 @@ func (s Screen) pressInFilterLine(key tea.KeyPressMsg) (Screen, tea.Cmd) {
 		return s, tea.Quit
 	case "esc":
 		s.filter, s.filterLineOpen = "", false
+	case "enter":
+		s.filterLineOpen = false
 	case "backspace":
 		_, size := utf8.DecodeLastRuneInString(s.filter)
 		s.filter = s.filter[:len(s.filter)-size]
@@ -524,10 +530,13 @@ func (s Screen) paneHeight() int {
 }
 
 func (s Screen) filterLines() []string {
-	if !s.filterLineOpen {
+	if !s.filterLineOpen && s.filter == "" {
 		return nil
 	}
-	cursor := ansi.NewStyle().Reverse(true).Styled(" ")
+	cursor := ""
+	if s.filterLineOpen {
+		cursor = ansi.NewStyle().Reverse(true).Styled(" ")
+	}
 	return []string{ansi.Truncate(" /"+terminal.ReplaceControlCharacters(s.filter)+cursor, s.width, "…")}
 }
 
@@ -566,7 +575,7 @@ func (s Screen) borderStyle(p pane) ansi.Style {
 
 func (s Screen) helpLine() string {
 	if s.filterLineOpen {
-		return " esc clear the filter"
+		return " enter keep the filter · esc clear the filter"
 	}
 	keys := []string{"s start", "x stop", "r restart", "o log"}
 	for _, action := range s.selectedActions() {
@@ -582,6 +591,7 @@ func (s Screen) helpText() []string {
 		"l         move the focus to the detail pane",
 		"h         move the focus to the list",
 		"/         filter the list by name",
+		"enter     keep the filter",
 		"backspace delete the last character of the filter",
 		"s         start the selected service",
 		"x         stop the selected service, after a confirmation",

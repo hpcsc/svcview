@@ -336,31 +336,31 @@ closes the line. While the line is open, the help line shows `enter keep the fil
 and the help that `?` shows lists `enter`.
 
 **Acceptance Criteria:**
-- [ ] `enter` keeps the filter: the filter line shows `/` and the filter with no cursor, and the list shows the same
+- [x] `enter` keeps the filter: the filter line shows `/` and the filter with no cursor, and the list shows the same
       rows as before `enter`. A golden file shows the kept filter.
-- [ ] After `enter`, `↓` and `j` select the next row that the list shows, also in the next group, and `↑` and `k` the
+- [x] After `enter`, `↓` and `j` select the next row that the list shows, also in the next group, and `↑` and `k` the
       row before it. `↓` at the last row keeps it selected.
-- [ ] After `enter`, the help line shows the keys of svcview and the keys of the actions of the group of the selected
+- [x] After `enter`, the help line shows the keys of svcview and the keys of the actions of the group of the selected
       service, as with no filter.
-- [ ] After `enter`, `s`, `x` with `y`, `r` with `y`, `o` and the key of an action act on the selected service, which
+- [x] After `enter`, `s`, `x` with `y`, `r` with `y`, `o` and the key of an action act on the selected service, which
       is a row that the list shows, and not on the service that was selected before `/` when the filter hides it.
-- [ ] With a kept filter that the name of no service contains, `s`, `x`, `r`, `o` and the key of an action call
+- [x] With a kept filter that the name of no service contains, `s`, `x`, `r`, `o` and the key of an action call
       nothing, show no confirmation and run nothing, also after a read that selected a service before the filter hid
       it.
-- [ ] `/` with a kept filter opens the filter line with the kept filter and the cursor after it, and the next key adds
+- [x] `/` with a kept filter opens the filter line with the kept filter and the cursor after it, and the next key adds
       its text to the end of it.
-- [ ] `esc` with a kept filter clears it: the filter line hides, the panes are one line taller, the list shows each
+- [x] `esc` with a kept filter clears it: the filter line hides, the panes are one line taller, the list shows each
       service, and the selected service stays selected.
-- [ ] While the help shows over a kept filter, `esc` hides the help and keeps the filter, and the next `esc` clears
+- [x] While the help shows over a kept filter, `esc` hides the help and keeps the filter, and the next `esc` clears
       it.
-- [ ] `enter` on an empty filter line closes it: no filter line shows, and the list shows each service.
-- [ ] `enter` while the filter line is not open changes nothing.
-- [ ] A kept filter applies to each read: a service that is added and whose name contains the filter shows at the
+- [x] `enter` on an empty filter line closes it: no filter line shows, and the list shows each service.
+- [x] `enter` while the filter line is not open changes nothing.
+- [x] A kept filter applies to each read: a service that is added and whose name contains the filter shows at the
       next read, and a service whose name does not contain it stays out of the list.
-- [ ] While the filter line is open, the help line shows ` enter keep the filter · esc clear the filter`.
-- [ ] The help that `?` shows lists `enter` with `keep the filter` on the line between `/` and `backspace`, and
+- [x] While the filter line is open, the help line shows ` enter keep the filter · esc clear the filter`.
+- [x] The help that `?` shows lists `enter` with `keep the filter` on the line between `/` and `backspace`, and
       `keys.golden` and `keys-with-actions.golden` show it.
-- [ ] e2e: with three not loaded services, `/`, a filter that two of them contain, `enter` and `↓` select the second
+- [x] e2e: with three not loaded services, `/`, a filter that two of them contain, `enter` and `↓` select the second
       of them, and `s` runs launchctl bootstrap with the plist of that service; `esc` then shows each service again.
 
 **Affected Files/Modules:**
