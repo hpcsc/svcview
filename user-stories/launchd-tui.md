@@ -41,6 +41,7 @@ flowchart LR
     S14["US-014<br/>Narrow, no color"]
     S15["US-015<br/>Mac install"]
     S16["US-016<br/>Vim keys"]
+    S17["US-017<br/>All-services key"]
 
     S1 --> S2
     S1 --> S8
@@ -57,6 +58,7 @@ flowchart LR
     S3 --> S6
     S3 --> S7
     S8 --> S9
+    S13 --> S17
 
     classDef critical fill:#fde68a,stroke:#b45309,stroke-width:2px,color:#1f2937
     class S1,S2,S3,S4,S6,S7 critical
@@ -451,6 +453,33 @@ not move a hand to the arrow keys.
 US-014, `l` opens the detail pane and `h` goes back to the list. US-014 builds that part.
 
 **Depends on:** US-001
+
+### US-017: Show all services with one key
+
+**Goals:** G1
+
+**Description:** As a developer, I want to change between all services of the domain and the services with a plist
+with one key, so that I check a service of macOS with no restart of svcview.
+
+**Acceptance Criteria:**
+
+- [ ] `a` shows each service that `launchctl list` prints, as `--all` does. `a` again shows only the services that
+      have a plist in `~/Library/LaunchAgents`.
+- [ ] `--all` sets the list that svcview shows at start. Without `--all`, svcview starts with the services that have
+      a plist.
+- [ ] While all services show, the header shows `all` after the domain, for example `gui/501 · all`.
+- [ ] After `a`, the selected service stays selected when the new list shows it. When the new list does not show it,
+      the row at its place in the list is selected.
+- [ ] A kept filter stays after `a`, and applies to the new list. While the filter line is open, `a` goes into the
+      filter, as each other letter does.
+- [ ] `a` is a key of svcview: a config file with an action on `a` stops svcview at start. The help that `?` shows
+      lists `a`, and `docs/cli.md` describes it.
+
+**Context:** The filter of US-012 filters only the services that svcview read, so it cannot find a service of macOS
+without `--all`. With all services, `x` on a service with no plist runs `bootout`, and svcview cannot start that
+service again until the next login. The mark in the header shows which list is on the screen.
+
+**Depends on:** US-013
 
 ## Non-Goals
 

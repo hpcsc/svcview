@@ -135,6 +135,7 @@ shows the state without color too.
 | `h` | Move the focus to the list. When svcview shows one pane at a time, go back to the list. |
 | `enter` | Open the detail pane, when svcview shows one pane at a time. |
 | `/` | Filter the list by name. |
+| `a` | Show all services of the domain, or only the services that have a plist. The header shows `all` while all services show. |
 | `s` | Start the service. |
 | `x` | Stop the service. svcview asks for a confirmation. |
 | `r` | Restart the service. svcview asks for a confirmation. |
@@ -171,8 +172,8 @@ svcview runs `launchctl list` at each refresh, by default every 2 s. It reads a 
 modification time of the file changes.
 
 By default, svcview shows only the services that have a plist in `~/Library/LaunchAgents`. With `--all`, it shows
-each name that `launchctl list` prints, which includes the services of macOS. A service without a plist in that
-folder has no environment and no log paths.
+each name that `launchctl list` prints, which includes the services of macOS. The key `a` changes between the two
+lists while svcview runs. A service without a plist in that folder has no environment and no log paths.
 
 svcview does not parse `launchctl print`. The man page of `launchctl` says that the output of `print` is not an
 API. svcview checks the header line of `launchctl list`. When the header is not `PID`, `Status`, `Label`,
