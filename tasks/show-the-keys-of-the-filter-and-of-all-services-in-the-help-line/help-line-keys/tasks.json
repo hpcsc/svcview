@@ -1,0 +1,57 @@
+{
+  "story": "The help line shows the keys that change which services the list shows",
+  "story_id": "launchd-tui/US-018",
+  "tasks_file": "tasks/show-the-keys-of-the-filter-and-of-all-services-in-the-help-line/help-line-keys/tasks.md",
+  "tasks": [
+    {
+      "n": 1,
+      "done": false,
+      "title": "Show / filter and a all on the help line before ? help",
+      "language": "Go",
+      "testable": true,
+      "certainty": "high",
+      "blast_radius": "low",
+      "patterns_to_follow": [
+        "internal/tui/screen.go:615-624",
+        "internal/tui/screen.go:550-565",
+        "internal/tui/screen_test.go:3906-3967",
+        "internal/tui/screen_test.go:4425-4439",
+        "internal/tui/screen_test.go:4549-4559",
+        "internal/tui/screen_test.go:4802-4810",
+        "internal/tui/screen_test.go:5036-5066",
+        "e2e/tests/actions.test.ts:44-60"
+      ],
+      "depends_on": [],
+      "affected_files": [
+        "internal/tui/screen.go",
+        "internal/tui/screen_test.go",
+        "internal/tui/testdata/",
+        "e2e/tests/actions.test.ts"
+      ]
+    },
+    {
+      "n": 2,
+      "done": false,
+      "title": "Show the help line with / filter and a all in docs/cli.md",
+      "language": "Markdown",
+      "testable": false,
+      "certainty": "high",
+      "blast_radius": "low",
+      "patterns_to_follow": [
+        "docs/cli.md:52-86",
+        "docs/cli.md:160-190",
+        "docs/cli.md:264-268",
+        "docs/cli.md:1045-1056",
+        "docs/proposal-launchd-tui.md:68-90",
+        "task:1"
+      ],
+      "depends_on": [
+        1
+      ],
+      "affected_files": [
+        "docs/cli.md"
+      ]
+    }
+  ],
+  "design_file": "tasks/show-the-keys-of-the-filter-and-of-all-services-in-the-help-line/help-line-keys/design.yaml"
+}

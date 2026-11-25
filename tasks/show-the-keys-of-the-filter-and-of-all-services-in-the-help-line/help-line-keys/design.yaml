@@ -1,0 +1,2 @@
+design: none
+reason: the story changes the text that the private method Screen.helpLine in internal/tui gives, and adds no type, no field, no method, no exported name and no dependency between packages
