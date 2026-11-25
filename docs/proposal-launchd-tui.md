@@ -95,8 +95,8 @@ The screen has three parts:
 - **The header:** the domain, and the number of services in each state.
 - **The list:** one row for each service, in groups. The groups come in the order of the config. The group `Other`
   comes last and holds each service that no group matches. In a group, svcview sorts the services by name.
-- **The detail pane:** the selected service, with the data from launchd, the settings of its plist, the fields of its
-  status, and its events.
+- **The detail pane:** the selected service, with the data from launchd, the fields of its status, its events, and the
+  properties of its plist.
 
 A row shows the glyph of the state, the short name, and the `summary` of the status. The short name is the part of
 the name after the text that `match` matched, when the match starts at the first character. For example,
