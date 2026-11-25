@@ -111,7 +111,12 @@ func openIn(t *testing.T, domain string, settings config.Settings, read func() (
 
 func openAll(t *testing.T, readAll func() ([]service.Service, error), width, height int) tea.Model {
 	t.Helper()
-	var screen tea.Model = tui.NewScreen("gui/501", nil, readAll, true, nil, nil, nil, nil, refreshEvery2s)
+	return openWithReads(t, refreshEvery2s, nil, readAll, true, width, height)
+}
+
+func openWithReads(t *testing.T, settings config.Settings, read, readAll func() ([]service.Service, error), all bool, width, height int) tea.Model {
+	t.Helper()
+	var screen tea.Model = tui.NewScreen("gui/501", read, readAll, all, nil, nil, nil, nil, settings)
 	start := screen.Init()
 	screen, _ = screen.Update(tea.WindowSizeMsg{Width: width, Height: height})
 	screen, _ = screen.Update(start())
@@ -168,6 +173,7 @@ var (
 	keyK     = tea.KeyPressMsg{Code: 'k', Text: "k"}
 	keyL     = tea.KeyPressMsg{Code: 'l', Text: "l"}
 	keyH     = tea.KeyPressMsg{Code: 'h', Text: "h"}
+	keyA     = tea.KeyPressMsg{Code: 'a', Text: "a"}
 	ctrlC    = tea.KeyPressMsg{Code: 'c', Mod: tea.ModCtrl}
 )
 
@@ -3307,7 +3313,7 @@ func TestScreen(t *testing.T) {
 		})
 
 		t.Run("each key other than y and ctrl+c answers no: it hides the confirmation, calls nothing, and does nothing else", func(t *testing.T) {
-			for _, key := range []tea.KeyPressMsg{keyN, escape, keyQ, up, down, keyJ, keyK, keyL, keyH, keyX, keyS, keyR, keyO, question, tab, slash, tea.KeyPressMsg{Code: 'Y', Text: "Y"}} {
+			for _, key := range []tea.KeyPressMsg{keyN, escape, keyQ, up, down, keyJ, keyK, keyL, keyH, keyX, keyS, keyR, keyO, keyA, question, tab, slash, tea.KeyPressMsg{Code: 'Y', Text: "Y"}} {
 				starts, stops := &serviceCalls{}, &serviceCalls{}
 				screen := openActing(t, readGiving(service.Service{Name: "com.example.a", State: service.Running, PID: 4121}, loaded, running), starts.record, stops.record, nil)
 				screen = pressKeys(screen, down)
@@ -3515,7 +3521,7 @@ func TestScreen(t *testing.T) {
 		})
 
 		t.Run("each key other than y and ctrl+c answers no: it hides the confirmation, calls nothing, and does nothing else", func(t *testing.T) {
-			for _, key := range []tea.KeyPressMsg{keyN, escape, keyQ, up, down, keyJ, keyK, keyL, keyH, keyR, keyX, keyS, keyO, question, tab, tea.KeyPressMsg{Code: 'Y', Text: "Y"}} {
+			for _, key := range []tea.KeyPressMsg{keyN, escape, keyQ, up, down, keyJ, keyK, keyL, keyH, keyR, keyX, keyS, keyO, keyA, question, tab, tea.KeyPressMsg{Code: 'Y', Text: "Y"}} {
 				starts, stops, restarts := &serviceCalls{}, &serviceCalls{}, &serviceCalls{}
 				screen := openActing(t, readGiving(service.Service{Name: "com.example.a", State: service.Running, PID: 4121}, loaded, running), starts.record, stops.record, restarts.record)
 				screen = pressKeys(screen, down)
@@ -3877,7 +3883,7 @@ func TestScreen(t *testing.T) {
 		t.Run("? pads a wide key of an action to the column of the names of the keys of svcview", func(t *testing.T) {
 			settings := groups(t, "Workers", `^com\.example\.worker\.`)
 			settings.Groups[0].Actions = []config.Action{newAction(t, "日", "daily log", "less")}
-			screen := openWith(t, settings, servicesNamed("com.example.worker.01"), 80, 18)
+			screen := openWith(t, settings, servicesNamed("com.example.worker.01"), 80, 19)
 
 			screen = pressKeys(screen, question)
 
@@ -3926,7 +3932,7 @@ func TestScreen(t *testing.T) {
 		})
 
 		t.Run("? lists each action of the group of the selected service with its key and its name, after o, and each key of svcview", func(t *testing.T) {
-			screen := openWith(t, groupsWithActions(t), services, 80, 22)
+			screen := openWith(t, groupsWithActions(t), services, 80, 23)
 
 			screen = pressKeys(screen, question)
 
@@ -3946,7 +3952,7 @@ func TestScreen(t *testing.T) {
 		t.Run("the name of an action shows each control character as �, in the help line and in the help", func(t *testing.T) {
 			settings := groups(t, "Workers", `^com\.example\.worker\.`)
 			settings.Groups[0].Actions = []config.Action{newAction(t, "L", "worker\x1b[2Jlog", "less")}
-			screen := openWith(t, settings, servicesNamed("com.example.worker.01"), 100, 18)
+			screen := openWith(t, settings, servicesNamed("com.example.worker.01"), 100, 19)
 			help := pressKeys(screen, question)
 
 			require.Equal(t, " s start · x stop · r restart · o log · L worker�[2Jlog · ? help", bottomLines(screen, 1)[0])
@@ -4002,7 +4008,7 @@ func TestScreen(t *testing.T) {
 
 				require.Equal(t, " the plist has no PROBE", bottomLines(screen, 2)[0], string(key))
 			}
-			require.Equal(t, []string{"/", "?", "h", "j", "k", "l", "o", "q", "r", "s", "x"}, refused)
+			require.Equal(t, []string{"/", "?", "a", "h", "j", "k", "l", "o", "q", "r", "s", "x"}, refused)
 		})
 
 		t.Run("two groups with an action on the same key each run the command of their own group with the values of the selected service", func(t *testing.T) {
@@ -4254,7 +4260,7 @@ func TestScreen(t *testing.T) {
 
 		t.Run("each key other than y and ctrl+c answers no, the key of an action too: it hides the confirmation, runs no command, and does nothing else", func(t *testing.T) {
 			keyUpperE := tea.KeyPressMsg{Code: 'E', Text: "E"}
-			for _, key := range []tea.KeyPressMsg{keyN, escape, keyQ, up, down, keyJ, keyK, keyL, keyH, keyX, keyS, keyR, keyO, question, tab, keyUpperL, keyUpperE, tea.KeyPressMsg{Code: 'Y', Text: "Y"}} {
+			for _, key := range []tea.KeyPressMsg{keyN, escape, keyQ, up, down, keyJ, keyK, keyL, keyH, keyX, keyS, keyR, keyO, keyA, question, tab, keyUpperL, keyUpperE, tea.KeyPressMsg{Code: 'Y', Text: "Y"}} {
 				starts, stops, restarts := &serviceCalls{}, &serviceCalls{}, &serviceCalls{}
 				screen := openActingWith(t, confirmed(t), readGiving(worker("01", service.Running), worker("02", service.Loaded), worker("03", service.Running)), starts.record, stops.record, restarts.record)
 				screen = pressKeys(screen, down)
@@ -4325,7 +4331,7 @@ func TestScreen(t *testing.T) {
 		})
 
 		t.Run("? shows each key of the screen with its action, in place of the panes", func(t *testing.T) {
-			screen := open(t, "gui/501", servicesNamed("com.example.worker"), 80, 20)
+			screen := open(t, "gui/501", servicesNamed("com.example.worker"), 80, 21)
 
 			screen = pressKeys(screen, question)
 
@@ -4425,11 +4431,13 @@ func TestScreen(t *testing.T) {
 			requireGolden(t, "filter-line", screen)
 		})
 
-		t.Run("while the filter line is open, each key that types text adds its text to the end of the filter, each key of svcview and of an action too, and no key acts", func(t *testing.T) {
+		t.Run("while the filter line is open, each key that types text adds its text to the end of the filter, each key of svcview and of an action too, no key acts, and the next read reads the same services as before", func(t *testing.T) {
 			starts, stops, restarts := &serviceCalls{}, &serviceCalls{}, &serviceCalls{}
+			allReads := newReadTimes()
 			loaded := service.Service{Name: "com.example.worker.01", State: service.Loaded, Env: map[string]string{"WORKER_LOG": "/Users/me/worker/01.log"}}
-			screen := openActingWith(t, groupsWithActions(t), readGiving(loaded), starts.record, stops.record, restarts.record)
+			var screen tea.Model = tui.NewScreen("gui/501", readGiving(loaded), allReads.recording(servicesNamed("com.apple.a")), false, nil, starts.record, stops.record, restarts.record, groupsWithActions(t))
 			screen, _ = screen.Update(tea.WindowSizeMsg{Width: 120, Height: 12})
+			screen = readNow(screen)
 			screen = pressKeys(screen, slash)
 			keys := []tea.KeyPressMsg{{Code: tea.KeySpace, Text: " "}}
 			for key := '!'; key <= '~'; key++ {
@@ -4444,9 +4452,12 @@ func TestScreen(t *testing.T) {
 				cmds = append(cmds, cmd)
 			}
 			runAll(cmds...)
+			typed := bottomLines(screen, 2)[0]
+			screen = readNow(screen)
 
-			require.Equal(t, " / !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~ ", bottomLines(screen, 2)[0])
+			require.Equal(t, " / !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~ ", typed)
 			require.Empty(t, slices.Concat(starts.get(), stops.get(), restarts.get()))
+			require.Empty(t, allReads.get())
 			require.NotContains(t, screen.View().Content, "show or hide this help")
 			require.Equal(t, []string{blueBorder, dimBorder}, borderStyles(screen))
 		})
@@ -4985,6 +4996,167 @@ func TestScreen(t *testing.T) {
 				require.Equal(t, []string{"Other", "▌○ com.example.worker.01", "○ com.example.worker.02", "", ""}, listRows(screen))
 				require.Equal(t, " /worker", bottomLines(screen, 2)[0])
 			})
+		})
+	})
+	t.Run("all services", func(t *testing.T) {
+		t.Run("on a screen that starts with the services with a plist, a and the next read show each service of the read of all services with · all, and a again and the next read show only the services with a plist with no · all", func(t *testing.T) {
+			screen := openWithReads(t, refreshEvery2s, servicesNamed("com.example.worker"), servicesNamed("com.apple.a", "com.example.worker"), false, 80, 12)
+
+			all := readNow(pressKeys(screen, keyA))
+			withPlist := readNow(pressKeys(all, keyA))
+
+			require.Equal(t, [][]string{
+				{"╭ svcview " + strings.Repeat("─", 54) + " gui/501 · all ╮", "Other", "○ com.apple.a", "▌○ com.example.worker", "", "", ""},
+				{"╭ svcview " + strings.Repeat("─", 60) + " gui/501 ╮", "Other", "▌○ com.example.worker", "", "", "", ""},
+			}, [][]string{
+				append([]string{headerTop(all)}, listRows(all)...),
+				append([]string{headerTop(withPlist)}, listRows(withPlist)...),
+			})
+		})
+
+		t.Run("on a screen that starts with all services, a and the next read show only the services with a plist with no · all, and a again and the next read show each service of the read of all services with · all", func(t *testing.T) {
+			screen := openWithReads(t, refreshEvery2s, servicesNamed("com.example.worker"), servicesNamed("com.apple.a", "com.example.worker"), true, 80, 12)
+			screen = pressKeys(screen, down)
+
+			withPlist := readNow(pressKeys(screen, keyA))
+			all := readNow(pressKeys(withPlist, keyA))
+
+			require.Equal(t, [][]string{
+				{"╭ svcview " + strings.Repeat("─", 60) + " gui/501 ╮", "Other", "▌○ com.example.worker", "", "", "", ""},
+				{"╭ svcview " + strings.Repeat("─", 54) + " gui/501 · all ╮", "Other", "○ com.apple.a", "▌○ com.example.worker", "", "", ""},
+			}, [][]string{
+				append([]string{headerTop(withPlist)}, listRows(withPlist)...),
+				append([]string{headerTop(all)}, listRows(all)...),
+			})
+		})
+
+		t.Run("after a and the next read, the selected service stays selected when the new rows show it, also when new rows come before it in its group and in a group before it", func(t *testing.T) {
+			settings := groups(t, "Workers", "worker")
+			read := servicesNamed("com.example.worker.02", "homebrew.mxcl.redis")
+			readAll := servicesNamed("com.example.worker.01", "com.example.worker.02", "com.apple.a", "homebrew.mxcl.redis")
+			screen := openWithReads(t, settings, read, readAll, false, 80, 16)
+			worker := readNow(pressKeys(screen, keyA))
+			redis := readNow(pressKeys(screen, down, keyA))
+
+			require.Equal(t, [][]string{
+				{"Workers", "○ com.example.worker.01", "▌○ com.example.worker.02", "", "Other", "○ com.apple.a", "○ homebrew.mxcl.redis", "", "", ""},
+				{"Workers", "○ com.example.worker.01", "○ com.example.worker.02", "", "Other", "○ com.apple.a", "▌○ homebrew.mxcl.redis", "", "", ""},
+			}, [][]string{listRows(worker), listRows(redis)})
+		})
+
+		t.Run("after a and the next read, when the new rows do not show the selected service, the row that takes its place in the order of the list is selected: the row after it, also in the next group, or the last row when it came after each row", func(t *testing.T) {
+			settings := groups(t, "Workers", "worker")
+			read := servicesNamed("com.example.worker.01", "com.apple.a", "com.apple.c", "homebrew.mxcl.redis")
+			readAll := servicesNamed("com.example.worker.01", "com.example.worker.02", "com.apple.a", "com.apple.b", "com.apple.c", "homebrew.mxcl.redis", "org.example.z")
+			screen := openWithReads(t, settings, read, readAll, true, 80, 16)
+			selectedAfterA := map[string]string{}
+			for _, downs := range []int{1, 3, 6} {
+				selected := pressKeys(screen, slices.Repeat([]tea.KeyPressMsg{down}, downs)...)
+
+				selectedAfterA[selectedName(selected)] = selectedName(readNow(pressKeys(selected, keyA)))
+			}
+
+			require.Equal(t, map[string]string{
+				"com.example.worker.02": "com.apple.a",
+				"com.apple.b":           "com.apple.c",
+				"org.example.z":         "homebrew.mxcl.redis",
+			}, selectedAfterA)
+		})
+
+		t.Run("after a and the next read, the detail pane of the service that takes the place of the selected service shows from its first line", func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				a := service.Service{Name: "com.example.worker.a", State: service.Running, PID: 4122}
+				b := service.Service{Name: "com.example.worker.b", State: service.Running, PID: 4123}
+				c := service.Service{Name: "com.example.worker.c", State: service.Running, PID: 4124}
+				run := runsGiving(map[string]status.Result{
+					"com.example.worker.b": {Output: &status.Output{Events: eventsNumbered(10)}},
+					"com.example.worker.c": {Output: &status.Output{Events: eventsNumbered(10)}},
+				})
+
+				screen := runFor(t, tui.NewScreen("gui/501", readGiving(a, c), readGiving(a, b, c), true, run, nil, nil, nil, workersWithStatus(t)), 2100*time.Millisecond, down, tab, down, down, keyA)
+
+				require.Equal(t, []string{"c", "● running     PID 4124"}, []string{selectedName(screen), detailPane(screen)[0]})
+			})
+		})
+
+		t.Run("after a and the next read from a long list of all services that has scrolled, the selected row of the services with a plist is in view, and a list of them that fits in the pane shows from its first line", func(t *testing.T) {
+			var all []string
+			for i := 1; i <= 20; i++ {
+				all = append(all, fmt.Sprintf("com.example.%02d", i))
+			}
+			long := pressKeys(openWithReads(t, refreshEvery2s, servicesNamed(all[:10]...), servicesNamed(all...), true, 80, 12), slices.Repeat([]tea.KeyPressMsg{down}, 19)...)
+			short := pressKeys(openWithReads(t, refreshEvery2s, servicesNamed(all[:3]...), servicesNamed(all...), true, 80, 12), slices.Repeat([]tea.KeyPressMsg{down}, 19)...)
+			scrolled := listRows(long)
+
+			require.Equal(t, [][]string{
+				{"○ com.example.15", "○ com.example.16", "○ com.example.17", "○ com.example.18", "○ com.example.19", "▌○ com.example.20"},
+				{"○ com.example.05", "○ com.example.06", "○ com.example.07", "○ com.example.08", "○ com.example.09", "▌○ com.example.10"},
+				{"Other", "○ com.example.01", "○ com.example.02", "▌○ com.example.03", "", ""},
+			}, [][]string{scrolled, listRows(readNow(pressKeys(long, keyA))), listRows(readNow(pressKeys(short, keyA)))})
+		})
+
+		t.Run("a kept filter stays after a and the next read: the filter line shows the same filter, and the list shows only the new rows whose name contains it", func(t *testing.T) {
+			read := servicesNamed("com.example.worker.01", "com.example.proxy")
+			readAll := servicesNamed("com.example.worker.01", "com.example.proxy", "com.apple.worker-agent", "com.apple.a")
+			screen := openWithReads(t, refreshEvery2s, read, readAll, false, 80, 12)
+			screen = pressKeys(screen, append(append([]tea.KeyPressMsg{slash}, typing("worker")...), enter)...)
+
+			screen = readNow(pressKeys(screen, keyA))
+
+			require.Equal(t, []string{"Other", "○ com.apple.worker-agent", "▌○ com.example.worker.01", "", ""}, listRows(screen))
+			require.Equal(t, " /worker", bottomLines(screen, 2)[0])
+		})
+
+		t.Run("a kept filter stays after a and the next read, and the list shows no service matches when no new row contains it", func(t *testing.T) {
+			screen := openWithReads(t, refreshEvery2s, servicesNamed("com.example.worker"), servicesNamed("com.apple.a", "com.example.worker"), true, 80, 12)
+			screen = pressKeys(screen, append(append([]tea.KeyPressMsg{slash}, typing("apple")...), enter)...)
+
+			screen = readNow(pressKeys(screen, keyA))
+
+			require.Equal(t, []string{"no service matches", "", "", "", ""}, listRows(screen))
+			require.Equal(t, " /apple", bottomLines(screen, 2)[0])
+		})
+
+		t.Run("while the filter line is open, a adds a to the end of the filter, and the next read reads the same services as before", func(t *testing.T) {
+			allReads := newReadTimes()
+			screen := openWithReads(t, refreshEvery2s, servicesNamed("com.example.worker"), allReads.recording(servicesNamed("com.apple.a", "com.example.worker")), false, 80, 12)
+
+			screen = pressKeys(screen, slash, keyA)
+			typed := bottomLines(screen, 2)[0]
+			screen = readNow(screen)
+
+			require.Equal(t, " /a ", typed)
+			require.Empty(t, allReads.get())
+			require.Equal(t, "╭ svcview "+strings.Repeat("─", 60)+" gui/501 ╮", headerTop(screen))
+		})
+
+		t.Run("while the help shows, a changes nothing: the help stays the same, and after the next read and ?, the list shows the services that it showed before a, with no · all", func(t *testing.T) {
+			screen := openWithReads(t, refreshEvery2s, servicesNamed("com.example.worker"), servicesNamed("com.apple.a", "com.example.worker"), false, 80, 12)
+			helpShows := pressKeys(screen, question)
+
+			afterA := pressKeys(helpShows, keyA)
+			afterRead := pressKeys(readNow(afterA), question)
+
+			require.Equal(t, []string{helpShows.View().Content, screen.View().Content}, []string{afterA.View().Content, afterRead.View().Content})
+		})
+
+		t.Run("while a confirmation shows, a answers no: it hides the confirmation, calls nothing, and the next read reads the services with a plist", func(t *testing.T) {
+			stops := &serviceCalls{}
+			allReads := newReadTimes()
+			running := service.Service{Name: "com.example.worker", State: service.Running, PID: 4122}
+			var screen tea.Model = tui.NewScreen("gui/501", readGiving(running), allReads.recording(readGiving(service.Service{Name: "com.apple.a"}, running)), false, nil, nil, stops.record, nil, refreshEvery2s)
+			screen, _ = screen.Update(tea.WindowSizeMsg{Width: 80, Height: 12})
+			screen = readNow(screen)
+			before := screen.View().Content
+
+			screen, cmd := pressKeys(screen, keyX).Update(keyA)
+			runAll(cmd)
+			screen = readNow(screen)
+
+			require.Nil(t, cmd)
+			require.Equal(t, before, screen.View().Content)
+			require.Empty(t, stops.get())
+			require.Empty(t, allReads.get())
 		})
 	})
 }

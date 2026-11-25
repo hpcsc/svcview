@@ -847,14 +847,14 @@ func TestSettings(t *testing.T) {
 			}
 		})
 
-		t.Run("an action whose key is a key of svcview gives an error that names the file, the group, the action and the key, and no settings", func(t *testing.T) {
-			for _, key := range []string{"?", "/", "h", "j", "k", "l", "o", "q", "r", "s", "x"} {
+		t.Run("an action whose key is a key of svcview gives an error that names the file, the group, the action and the key, lists the keys of svcview, and gives no settings", func(t *testing.T) {
+			for _, key := range []string{"?", "/", "a", "h", "j", "k", "l", "o", "q", "r", "s", "x"} {
 				folder, path := folderWith(t, "groups:\n  - name: Workers\n    match: worker\n    actions:\n      - {key: R, name: reset, command: [reset]}\n      - {key: '"+key+"', name: worker log, command: [less]}\n")
 
 				settings, err := config.Read(folder, os.Getuid(), noACL)
 
 				require.ErrorContains(t, err, path, key)
-				require.ErrorContains(t, err, `the key "`+key+`" of action 2 of group "Workers" is a key of svcview`, key)
+				require.ErrorContains(t, err, `the key "`+key+`" of action 2 of group "Workers" is a key of svcview, and an action cannot take one of ? / a h j k l o q r s x`, key)
 				require.Equal(t, config.Settings{}, settings, key)
 			}
 		})
@@ -877,8 +877,9 @@ func TestSettings(t *testing.T) {
       - {key: L, name: worker log, command: [less]}
       - {key: S, name: worker status, command: [cat]}
       - {key: X, name: worker exit, command: [kill]}
-      - {key: a, name: archive, command: [tar]}
       - {key: A, name: archive all, command: [tar]}
+      - {key: b, name: backup, command: [tar]}
+      - {key: B, name: backup all, command: [tar]}
   - name: Jobs
     match: job
     actions:
@@ -892,7 +893,7 @@ func TestSettings(t *testing.T) {
 			}
 
 			require.Equal(t, map[string][]string{
-				"Workers": {"L worker log", "S worker status", "X worker exit", "a archive", "A archive all"},
+				"Workers": {"L worker log", "S worker status", "X worker exit", "A archive all", "b backup", "B backup all"},
 				"Jobs":    {"L job log"},
 			}, keysAndNames)
 		})

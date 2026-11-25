@@ -9,6 +9,7 @@
 │ /         filter the list by name                                            │
 │ enter     keep the filter                                                    │
 │ backspace delete the last character of the filter                            │
+│ a         show all services, or only the services with a plist               │
 │ s         start the selected service                                         │
 │ x         stop the selected service, after a confirmation                    │
 │ r         restart the selected service, after a confirmation                 │

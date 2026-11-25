@@ -3,6 +3,7 @@ import { setTimeout as sleep } from 'node:timers/promises'
 import { describe, expect, it } from 'vitest'
 import {
   homeWithPlists,
+  launchctlCalls,
   lessCalls,
   listLines,
   openCli,
@@ -138,5 +139,25 @@ describe('svcview --all', () => {
     expect(lines[help - 1]).toMatch(/^ com\.apple\.a has no log path in its plist\s*$/)
     await sleep(500)
     expect(lessCalls(home)).toEqual([])
+  })
+})
+
+describe('the key a', () => {
+  it('shows each service that launchctl list prints and · all after the domain, a again shows only the services that have a plist and no · all, and launchctl gets no call other than list', async () => {
+    const home = homeWithServicesWithAndWithoutPlist()
+    const session = await openCli(scratchDir(), [], { HOME: home })
+    await session.waitForText('com.example.worker')
+    expect(await session.text()).not.toContain('com.apple.a')
+
+    await session.type('a')
+
+    await session.waitForText('com.apple.a', { timeout: 5000 })
+    expect(await session.text()).toContain(`gui/${process.getuid?.()} · all`)
+
+    await session.type('a')
+
+    await expect.poll(async () => (await session.text()).includes('com.apple.a'), { timeout: 5000 }).toBe(false)
+    expect(await session.text()).not.toContain('· all')
+    expect(launchctlCalls(home)).toEqual([])
   })
 })

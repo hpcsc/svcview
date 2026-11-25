@@ -204,34 +204,34 @@ filter line is open, `a` goes into the filter. While the help shows, `a` does no
 svcview at start, and the help that `?` shows lists `a`.
 
 **Acceptance Criteria:**
-- [ ] On a screen that starts with the services with a plist, `a` and the next read show each service of the read of
+- [x] On a screen that starts with the services with a plist, `a` and the next read show each service of the read of
       all services, and the mark. `a` again and the next read show only the services with a plist, and no mark. A
       screen that starts with all services goes the other way. The tests check the screen after the next read, not
       between `a` and that read.
-- [ ] After `a` and the next read, the selected service stays selected when the new rows show it, also when new rows
+- [x] After `a` and the next read, the selected service stays selected when the new rows show it, also when new rows
       come before it. When they do not show it, the row that takes its place in the order of the list is selected:
       the row after it, also in the next group, or the last row when it came after each row. The detail pane of a
       newly selected service shows from its first line.
-- [ ] After `a` from a long list of all services that has scrolled, the selected row of the services with a plist is
+- [x] After `a` from a long list of all services that has scrolled, the selected row of the services with a plist is
       in view, and a list of them that fits in the pane shows from its first line.
-- [ ] A kept filter stays after `a` and the next read: the filter line shows the same filter, the list shows only the
+- [x] A kept filter stays after `a` and the next read: the filter line shows the same filter, the list shows only the
       new rows whose name contains it, and `no service matches` shows when no new row does.
-- [ ] While the filter line is open, `a` adds `a` to the end of the filter, and the screen never calls the read of the
+- [x] While the filter line is open, `a` adds `a` to the end of the filter, and the screen never calls the read of the
       other services. The test that each key that types text goes into the filter checks that no read of the other
       services happens.
-- [ ] While the help shows, `a` changes nothing: after the next read and `?`, the list shows the services that it
+- [x] While the help shows, `a` changes nothing: after the next read and `?`, the list shows the services that it
       showed before `a`, with no mark.
-- [ ] While a confirmation shows, `a` answers no: it hides the confirmation, calls nothing, and changes nothing else.
+- [x] While a confirmation shows, `a` answers no: it hides the confirmation, calls nothing, and changes nothing else.
       `a` is in each test that each key other than `y` and `ctrl+c` answers no.
-- [ ] `keysOfSvcview` holds `a`. `config.Read` refuses an action on `a` with the error that names the file, the group,
+- [x] `keysOfSvcview` holds `a`. `config.Read` refuses an action on `a` with the error that names the file, the group,
       the action and the key, and lists `a` among the keys that an action cannot take. An action can take `A`. The
       screen test that `config.Read` refuses only the keys of svcview refuses `a` too, and the config test of two keys
       that differ only in case uses a letter that is not a key of svcview.
-- [ ] The help that `?` shows lists `a` with `show all services, or only the services with a plist`, on the line after
+- [x] The help that `?` shows lists `a` with `show all services, or only the services with a plist`, on the line after
       `backspace` and before `s`. The golden tests of the help open terminals one line taller, and `keys.golden` and
       `keys-with-actions.golden` show the line.
-- [ ] The help line at the bottom of the screen does not change.
-- [ ] e2e: with the plists of `com.example.worker` and `com.example.not-loaded` and a launchctl list that also prints
+- [x] The help line at the bottom of the screen does not change.
+- [x] e2e: with the plists of `com.example.worker` and `com.example.not-loaded` and a launchctl list that also prints
       `com.apple.a`, `a` shows `com.apple.a` and `gui/<uid> · all`, and `a` again hides both. The fake launchctl gets
       no call other than `list`.
 

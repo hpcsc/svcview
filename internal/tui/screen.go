@@ -224,6 +224,10 @@ func (s Screen) press(key tea.KeyPressMsg) (Screen, tea.Cmd) {
 		if !s.showHelp {
 			s.filterLineOpen, s.focus = true, listPane
 		}
+	case "a":
+		if !s.showHelp {
+			s.all = !s.all
+		}
 	case "s":
 		if svc, ok := s.serviceForLaunchdAction(); ok && svc.State != service.Running {
 			return s, s.beginLaunchdAction(svc, s.start)
@@ -602,6 +606,7 @@ func (s Screen) helpText() []string {
 		"/         filter the list by name",
 		"enter     keep the filter",
 		"backspace delete the last character of the filter",
+		"a         show all services, or only the services with a plist",
 		"s         start the selected service",
 		"x         stop the selected service, after a confirmation",
 		"r         restart the selected service, after a confirmation",

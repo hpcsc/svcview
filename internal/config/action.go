@@ -12,7 +12,7 @@ import (
 )
 
 // tui.Screen handles each of these keys.
-var keysOfSvcview = []string{"?", "/", "h", "j", "k", "l", "o", "q", "r", "s", "x"}
+var keysOfSvcview = []string{"?", "/", "a", "h", "j", "k", "l", "o", "q", "r", "s", "x"}
 
 type Action struct {
 	Key     string

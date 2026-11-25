@@ -34,7 +34,7 @@
     },
     {
       "n": 2,
-      "done": false,
+      "done": true,
       "title": "Change between all services and the services with a plist with a",
       "language": "Go",
       "testable": true,
