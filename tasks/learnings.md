@@ -246,11 +246,10 @@
 
 ## Split an audit fix across earlier commits with git commit-tree, and keep the tip tree the same
 - Type: pattern
-- Recorded: 2026-11-23
-- Observed: task 2,3,4 — see-the-fields-and-the-events-of-a-status-fields-and-events
-- Learning: clerk fixup mark folds a change made at HEAD into one commit. In fields-and-events the audit fix (a test of a task 2 criterion, and a rename of a golden subtest of tasks 2 and 3) went into the task 4 commit, and run-verifier reported tasks 2 and 3 as scattered. The split: write the file as each earlier commit must have it, build each commit with git commit-tree from a temporary GIT_INDEX_FILE with the old message and author, rebuild the later commits on their old trees, check that git diff of the old and the new tip is empty, run the tests at each new commit in a temporary worktree, and move the branch with git update-ref. The suite receipt stays valid, because it is bound to the tip tree. Run the script with bash: zsh here has an alias mk.
-- Apply when: An audit fix changes lines that two or more task commits added, or run-verifier reports a task whose work is in a later commit, on a branch that is not pushed.
-
+- Recorded: 2026-11-25
+- Observed: read-the-log-of-a-service-log
+- Learning: clerk fixup mark folds a change made at HEAD into one commit. In fields-and-events the audit fix (a test of a task 2 criterion, and a rename of a golden subtest of tasks 2 and 3) went into the task 4 commit, and run-verifier reported tasks 2 and 3 as scattered. A fold onto an earlier commit also conflicts at the replay when its changed line is next to lines that a later task inserted, because git merges no change that touches a line next to another change: in read-the-log-of-a-service, a rename of the parameter of giveTerminalTo (task 2) sat under the method that task 4 inserted, the run routed it to task 4, and run-verifier reported it as a mixed concern. The split: write the file as each earlier commit must have it, build each commit with git commit-tree from a temporary GIT_INDEX_FILE with the old message and author, rebuild the later commits on their old trees, check that git diff of the old and the new tip is empty, run the tests at each new commit in a temporary worktree, and move the branch with git update-ref. The suite receipt stays valid, because it is bound to the tip tree. Run the script with bash: zsh here has an alias mk.
+- Apply when: An audit fix changes lines that two or more task commits added, a fold onto an earlier commit changes a line next to lines that a later task inserted, or run-verifier reports a task whose work is in a later commit, on a branch that is not pushed.
 ## Match the learnings index with the clerk commands as well as the story
 - Type: constraint
 - Recorded: 2026-11-24
@@ -424,3 +423,31 @@
 - Observed: restart-a-service-restart
 - Learning: In restart-a-service, the request held --integrate, and facts.flags gave integrate: true with the source request. Bare clerk land reported integrate: false with integrate_source default, archived the breakdown, and moved the run to the learn step. clerk land --integrate then refused, because the run was at the learn step. Pass --integrate to clerk land when the request asks to land, or land with git merge --ff-only <branch> on main after clerk learn.
 - Apply when: A run whose request holds --integrate, or says to land on main, reaches the land step.
+
+## Each subcommand ends at SIGINT through endAtInterrupt, and the screen catches SIGINT itself
+- Type: constraint
+- Recorded: 2026-11-25
+- Observed: task 3 — read-the-log-of-a-service-log
+- Learning: cmd/svcview/main.go ends the context of svcview only at SIGHUP and SIGTERM, so that a ctrl-c that less gets does not end the screen. internal/cli/root.go endAtInterrupt wraps the Action of each subcommand with signal.NotifyContext(ctx, os.Interrupt), and showScreen keeps a signal.Notify for SIGINT until it returns, because Bubble Tea stops its own SIGINT handler when ctx ends and less can still have the terminal then. The breakdown of read-the-log-of-a-service named only svcview status; the audit found that svcview update died by the default action of Go at ctrl-c, and that a ctrl-c after SIGTERM ended svcview before less ended.
+- Apply when: Planning or building a task that changes the signals of cmd/svcview/main.go, adds a subcommand, or adds a key that gives the terminal to a program, for example the group keys of US-011.
+
+## A screen test gives each run of a program through a key its own Bubble Tea program
+- Type: pattern
+- Recorded: 2026-11-25
+- Observed: task 2 — read-the-log-of-a-service-log
+- Learning: Screen.giveTerminalTo returns a tea.ExecProcess command, and Bubble Tea runs each returned command in a goroutine, so two keys that each give the terminal to a program in one runFor can run the programs in either order. internal/tui/screen_test.go runs one runFor for each service in a loop, with a fresh fakeLess each time. TestMain writes the one fake less, and tea.ExecProcess runs it in real time while the fake clock of synctest holds still.
+- Apply when: A test in internal/tui presses o, or another key that gives the terminal to a program, more than one time.
+
+## A by-hand pty check of svcview sets the window size and waits for the selected row
+- Type: pattern
+- Recorded: 2026-11-25
+- Observed: read-the-log-of-a-service-log
+- Learning: A pseudo-terminal from Python pty.fork has a size of 0x0 until TIOCSWINSZ sets one, and the real less then does not show the log. The help line shows before the first read of the services ends, so a key pressed when '? help' shows can reach a screen with no selected service and do nothing. In read-the-log-of-a-service, 11 of 15 checks with the real less failed for this reason and not for a defect; wait for the name of the service, as the e2e tests wait for the row with ▌.
+- Apply when: Checking svcview by hand in a pseudo-terminal, for example with the real less, launchctl or a status command in place of a fake.
+
+## clerk land does not read --integrate from the request, so pass it to clerk land
+- Type: constraint
+- Recorded: 2026-11-25
+- Observed: read-the-log-of-a-service-log
+- Learning: In read-the-log-of-a-service, clerk step reported integrate on from the request, but bare clerk land reported integrate_source default, archived the breakdown, and did not land the branch. After that clerk land refuses, because the run is at the learn step. Run clerk land --integrate when the request asks to land the branch, or fast-forward main by hand after clerk learn.
+- Apply when: The land step of a run whose request has --integrate, or says to land the branch on main.
