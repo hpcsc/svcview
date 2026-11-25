@@ -1,0 +1,41 @@
+design: planned
+types:
+  - name: Screen
+    package: internal/tui
+    change: changed
+    does: the Bubble Tea model of the screen of svcview
+    owns:
+      - the screen has two reads, the read of the services with a plist and the read of all services, and it asks for one of them; NewScreen says which one it asks for at start, and the first read reads that one
+      - a changes the services that the screen asks for, between all services and the services with a plist; while the help shows a does nothing, while a confirmation shows a answers no, and while the filter line is open a goes into the filter
+      - after a, the screen reads the services that it asks for at once when no read runs, and as soon as the read that runs ends when one runs
+      - the rows of a read of the services that the screen no longer asks for do not show, and that read is not the first read for the start of the status runs
+      - one read at a time - no read starts while a read runs, because launchd.Domain must not read from two goroutines at the same time
+      - one refresh after each read ends, also after a - a starts no second chain of refreshes, so each a adds at most one read
+      - the header shows · all after the domain while the rows on the screen come from a read of all services, also when that read gave an error; before the first read ends, the header shows the domain alone
+      - after a read of the other services, the selected service stays selected when the list shows it, and the row at its place in the list is selected when it does not, by the rule of a refresh
+      - a kept filter applies to each read, a read of all services too, and a does not change the filter, the focus or the help
+    fields: [read, readAll, all, readNotEnded, lastRead]
+    methods: [Init, Update, View]
+  - name: servicesRead
+    package: internal/tui
+    change: changed
+    does: the message that one read of the services gives to Update when it ends
+    owns:
+      - it says whether it read all services or the services with a plist, so that Update knows whether the screen still asks for its rows, and the header knows which services the rows on the screen are
+    fields: [rows, err, all]
+functions:
+  - tui.NewScreen(domain, read, readAll, all, runStatus, start, stop, restart, settings) Screen
+words:
+  - concept: each service that launchctl list prints in the domain gui/<uid> of the user, with each service that has a plist in ~/Library/LaunchAgents; the word of launchd.Domain.AllServices and of the flag --all
+    word: all
+    not: [system, global, every, full, everything, unfiltered, macOS, wide]
+  - concept: the services that have a plist in ~/Library/LaunchAgents, which the screen shows with no --all; the word of launchd.Domain.Services
+    word: services with a plist
+    not: [own services, user services, managed, default, mine, local, agents]
+  - concept: the text · all after the domain in the header, which says that the rows on the screen come from a read of all services; the same kind of short text as the stale mark of a status
+    word: mark
+    not: [badge, tag, indicator, label, flag, banner]
+  - concept: what a does to the services that the screen asks for, from all services to the services with a plist and back
+    word: change
+    not: [toggle, switch, flip, swap, cycle, mode]
+dependencies: []

@@ -1,0 +1,127 @@
+{
+  "story": "The key a changes which services of the domain the list shows",
+  "story_id": "launchd-tui/US-017",
+  "tasks_file": "tasks/show-all-services-with-one-key/all-services-key/tasks.md",
+  "tasks": [
+    {
+      "n": 1,
+      "done": false,
+      "title": "Show all after the domain while the screen shows all services",
+      "language": "Go",
+      "testable": true,
+      "certainty": "medium",
+      "blast_radius": "high",
+      "patterns_to_follow": [
+        "internal/tui/screen.go:125-143",
+        "internal/tui/screen.go:325-333",
+        "internal/tui/screen.go:511-526",
+        "internal/tui/screen.go:612-625",
+        "internal/tui/box.go:35-46",
+        "internal/cli/root.go:72-92",
+        "internal/tui/screen_test.go:366-389",
+        "internal/tui/screen_test.go:589-640",
+        "e2e/tests/all-services.test.ts:24-45",
+        "e2e/tests/screen.test.ts:15-27"
+      ],
+      "depends_on": [],
+      "affected_files": [
+        "internal/tui/screen.go",
+        "internal/tui/screen_test.go",
+        "internal/tui/testdata/",
+        "internal/cli/root.go",
+        "e2e/tests/all-services.test.ts"
+      ]
+    },
+    {
+      "n": 2,
+      "done": false,
+      "title": "Change between all services and the services with a plist with a",
+      "language": "Go",
+      "testable": true,
+      "certainty": "high",
+      "blast_radius": "high",
+      "patterns_to_follow": [
+        "internal/tui/screen.go:193-264",
+        "internal/tui/screen.go:301-317",
+        "internal/tui/screen.go:407-427",
+        "internal/tui/screen.go:587-610",
+        "internal/config/action.go:14-15",
+        "internal/config/config_test.go:850-860",
+        "internal/config/config_test.go:872-897",
+        "internal/tui/screen_test.go:2161-2172",
+        "internal/tui/screen_test.go:3211-3227",
+        "internal/tui/screen_test.go:3889-3907",
+        "internal/tui/screen_test.go:4229-4235",
+        "internal/tui/screen_test.go:4331-4355",
+        "internal/tui/screen_test.go:4880-4891",
+        "e2e/tests/filter.test.ts:8-27",
+        "task:1"
+      ],
+      "depends_on": [
+        1
+      ],
+      "affected_files": [
+        "internal/tui/screen.go",
+        "internal/tui/screen_test.go",
+        "internal/tui/testdata/",
+        "internal/config/action.go",
+        "internal/config/config_test.go",
+        "e2e/tests/all-services.test.ts"
+      ]
+    },
+    {
+      "n": 3,
+      "done": false,
+      "title": "Read the services that a asks for at once",
+      "language": "Go",
+      "testable": true,
+      "certainty": "low",
+      "blast_radius": "low",
+      "patterns_to_follow": [
+        "internal/tui/screen.go:145-191",
+        "internal/tui/screen.go:335-343",
+        "internal/tui/screen.go:367-375",
+        "internal/tui/screen_test.go:238-255",
+        "internal/tui/screen_test.go:277-303",
+        "internal/tui/screen_test.go:366-389",
+        "internal/tui/screen_test.go:918-937",
+        "task:2"
+      ],
+      "depends_on": [
+        2
+      ],
+      "affected_files": [
+        "internal/tui/screen.go",
+        "internal/tui/screen_test.go",
+        "e2e/tests/all-services.test.ts"
+      ]
+    },
+    {
+      "n": 4,
+      "done": false,
+      "title": "Describe a in docs/cli.md and the README",
+      "language": "Markdown",
+      "testable": false,
+      "certainty": "high",
+      "blast_radius": "low",
+      "patterns_to_follow": [
+        "docs/cli.md:35-50",
+        "docs/cli.md:78-85",
+        "docs/cli.md:92-101",
+        "docs/cli.md:159-228",
+        "docs/cli.md:229-239",
+        "docs/cli.md:241-262",
+        "docs/cli.md:934-946",
+        "README.md:1-5"
+      ],
+      "depends_on": [
+        3
+      ],
+      "affected_files": [
+        "docs/cli.md",
+        "README.md"
+      ]
+    }
+  ],
+  "design_file": "tasks/show-all-services-with-one-key/all-services-key/design.yaml"
+}
