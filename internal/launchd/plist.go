@@ -1,9 +1,12 @@
 package launchd
 
 import (
+	"fmt"
 	"maps"
+	"math"
 	"os"
 	"slices"
+	"strconv"
 	"time"
 
 	"github.com/hpcsc/svcview/internal/service"
@@ -26,15 +29,19 @@ func readPlist(path string, modTime time.Time) plist {
 		return plist{}
 	}
 	var decoded struct {
-		Label                string `plist:"Label"`
-		Program              any    `plist:"Program"`
-		ProgramArguments     any    `plist:"ProgramArguments"`
-		WorkingDirectory     any    `plist:"WorkingDirectory"`
-		RunAtLoad            any    `plist:"RunAtLoad"`
-		KeepAlive            any    `plist:"KeepAlive"`
-		EnvironmentVariables any    `plist:"EnvironmentVariables"`
-		StandardOutPath      any    `plist:"StandardOutPath"`
-		StandardErrorPath    any    `plist:"StandardErrorPath"`
+		Label                 string `plist:"Label"`
+		Program               any    `plist:"Program"`
+		ProgramArguments      any    `plist:"ProgramArguments"`
+		WorkingDirectory      any    `plist:"WorkingDirectory"`
+		RunAtLoad             any    `plist:"RunAtLoad"`
+		KeepAlive             any    `plist:"KeepAlive"`
+		StartInterval         any    `plist:"StartInterval"`
+		StartCalendarInterval any    `plist:"StartCalendarInterval"`
+		WatchPaths            any    `plist:"WatchPaths"`
+		ThrottleInterval      any    `plist:"ThrottleInterval"`
+		EnvironmentVariables  any    `plist:"EnvironmentVariables"`
+		StandardOutPath       any    `plist:"StandardOutPath"`
+		StandardErrorPath     any    `plist:"StandardErrorPath"`
 	}
 	if _, err := plistformat.Unmarshal(data, &decoded); err != nil {
 		return plist{modTime: modTime}
@@ -55,6 +62,10 @@ func readPlist(path string, modTime time.Time) plist {
 		p.textProperty("work folder", decoded.WorkingDirectory),
 		p.booleanProperty("run at load", decoded.RunAtLoad),
 		p.keepAliveProperty(decoded.KeepAlive),
+		p.secondsProperty("start every", decoded.StartInterval),
+		p.startTimesProperty(decoded.StartCalendarInterval),
+		p.textsProperty("watch paths", decoded.WatchPaths),
+		p.secondsProperty("throttle", decoded.ThrottleInterval),
 		p.textProperty("stdout", decoded.StandardOutPath),
 		p.textProperty("stderr", decoded.StandardErrorPath),
 		p.environmentProperty(),
@@ -82,6 +93,14 @@ func (p plist) textProperty(name string, value any) []service.Property {
 		return nil
 	}
 	return []service.Property{{Name: name, Values: []string{text}}}
+}
+
+func (p plist) textsProperty(name string, value any) []service.Property {
+	texts, ok := p.texts(value)
+	if !ok {
+		return nil
+	}
+	return []service.Property{{Name: name, Values: texts}}
 }
 
 func (p plist) booleanProperty(name string, value any) []service.Property {
@@ -144,6 +163,86 @@ func (p plist) yesOrNo(held bool) string {
 		return "yes"
 	}
 	return "no"
+}
+
+func (p plist) secondsProperty(name string, value any) []service.Property {
+	seconds, ok := p.wholeNumber(value)
+	if !ok {
+		return nil
+	}
+	return []service.Property{{Name: name, Values: []string{strconv.FormatInt(seconds, 10) + "s"}}}
+}
+
+func (p plist) startTimesProperty(value any) []service.Property {
+	var entries []any
+	switch startTimes := value.(type) {
+	case map[string]any:
+		entries = []any{startTimes}
+	case []any:
+		entries = startTimes
+	default:
+		return nil
+	}
+	var texts []string
+	for _, entry := range entries {
+		if startTime, ok := entry.(map[string]any); ok {
+			texts = append(texts, p.startTime(startTime))
+		}
+	}
+	return []service.Property{{Name: "start at", Values: texts}}
+}
+
+func (p plist) startTime(entry map[string]any) string {
+	text := p.twoDigits(entry["Hour"]) + ":" + p.twoDigits(entry["Minute"])
+	weekday, hasWeekday := p.wholeNumber(entry["Weekday"])
+	day, hasDay := p.wholeNumber(entry["Day"])
+	switch {
+	case hasWeekday && hasDay:
+		text += " on " + p.weekdayName(weekday) + " or on day " + strconv.FormatInt(day, 10)
+	case hasWeekday:
+		text += " on " + p.weekdayName(weekday)
+	case hasDay:
+		text += " on day " + strconv.FormatInt(day, 10)
+	}
+	if month, ok := p.wholeNumber(entry["Month"]); ok {
+		text += " in " + p.monthName(month)
+	}
+	return text
+}
+
+func (p plist) twoDigits(value any) string {
+	number, ok := p.wholeNumber(value)
+	if !ok {
+		return "*"
+	}
+	return fmt.Sprintf("%02d", number)
+}
+
+func (p plist) weekdayName(weekday int64) string {
+	if weekday < 0 || weekday > 7 {
+		return "weekday " + strconv.FormatInt(weekday, 10)
+	}
+	return time.Weekday(weekday % 7).String()
+}
+
+func (p plist) monthName(month int64) string {
+	if month < 1 || month > 12 {
+		return "month " + strconv.FormatInt(month, 10)
+	}
+	return time.Month(month).String()
+}
+
+func (p plist) wholeNumber(value any) (int64, bool) {
+	switch number := value.(type) {
+	case int64:
+		return number, true
+	case uint64:
+		if number > math.MaxInt64 {
+			return 0, false
+		}
+		return int64(number), true
+	}
+	return 0, false
 }
 
 func (p plist) environmentProperty() []service.Property {

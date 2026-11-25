@@ -123,7 +123,7 @@
     },
     {
       "n": 5,
-      "done": false,
+      "done": true,
       "title": "Show the start interval, the start times, the watch paths and the throttle",
       "language": "Go",
       "testable": true,

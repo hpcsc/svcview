@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>Label</key>
+	<string>com.example.worker</string>
+	<key>ThrottleInterval</key>
+	<integer>10</integer>
+	<key>WatchPaths</key>
+	<array>
+		<string>/Users/me/worker/queue</string>
+		<string>/Users/me/worker/config.yaml</string>
+	</array>
+	<key>StartCalendarInterval</key>
+	<array>
+		<dict>
+			<key>Hour</key>
+			<integer>3</integer>
+			<key>Minute</key>
+			<integer>0</integer>
+		</dict>
+		<dict>
+			<key>Weekday</key>
+			<integer>1</integer>
+			<key>Hour</key>
+			<integer>9</integer>
+			<key>Minute</key>
+			<integer>30</integer>
+		</dict>
+	</array>
+	<key>StartInterval</key>
+	<integer>300</integer>
+	<key>KeepAlive</key>
+	<dict>
+		<key>SuccessfulExit</key>
+		<false/>
+		<key>PathState</key>
+		<dict>
+			<key>/Users/me/worker/run</key>
+			<true/>
+		</dict>
+	</dict>
+	<key>RunAtLoad</key>
+	<true/>
+	<key>WorkingDirectory</key>
+	<string>/Users/me/work</string>
+	<key>ProgramArguments</key>
+	<array>
+		<string>/usr/local/bin/worker</string>
+		<string>--queue</string>
+		<string>jobs</string>
+	</array>
+	<key>StandardOutPath</key>
+	<string>/Users/me/Library/Logs/worker.out.log</string>
+	<key>StandardErrorPath</key>
+	<string>/Users/me/Library/Logs/worker.err.log</string>
+	<key>EnvironmentVariables</key>
+	<dict>
+		<key>WORKER_TOKEN</key>
+		<string>token-s3cret-value</string>
+		<key>WORKER_STATUS_FILE</key>
+		<string>/Users/me/worker/status.json</string>
+	</dict>
+</dict>
+</plist>

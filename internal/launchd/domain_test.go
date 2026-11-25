@@ -524,6 +524,162 @@ func TestDomain(t *testing.T) {
 			}}, propertiesByName(services))
 		})
 
+		t.Run("a StartInterval and a ThrottleInterval give start every and throttle with their seconds and s, a negative number shows as the number, and a value that is not a whole number of 64 bits gives no property", func(t *testing.T) {
+			for properties, expected := range map[string][]service.Property{
+				`<key>StartInterval</key><integer>300</integer><key>ThrottleInterval</key><integer>10</integer>`: {
+					{Name: "start every", Values: []string{"300s"}},
+					{Name: "throttle", Values: []string{"10s"}},
+				},
+				`<key>StartInterval</key><integer>-5</integer>`: {
+					{Name: "start every", Values: []string{"-5s"}},
+				},
+				`<key>StartInterval</key><real>10.5</real><key>ThrottleInterval</key><string>10</string><key>WorkingDirectory</key><string>/w</string>`: {
+					{Name: "work folder", Values: []string{"/w"}},
+				},
+				`<key>StartInterval</key><integer>9223372036854775808</integer><key>ThrottleInterval</key><integer>9223372036854775807</integer>`: {
+					{Name: "throttle", Values: []string{"9223372036854775807s"}},
+				},
+			} {
+				fakeLaunchctlList(t, "launchctl-list-no-services.txt")
+				home := homeWithWorkerPlist(t, properties)
+
+				services, err := launchd.NewDomain(home, 501).Services()
+
+				require.NoError(t, err, properties)
+				require.Equal(t, map[string][]service.Property{"com.example.worker": expected}, propertiesByName(services), properties)
+			}
+		})
+
+		t.Run("an array of StartCalendarInterval gives start at with one part for each start time, in the order of the array, with the hour and the minute in two digits or *, then the weekday or the day, then the month", func(t *testing.T) {
+			fakeLaunchctlList(t, "launchctl-list-no-services.txt")
+			home := homeWithWorkerPlist(t, `<key>StartCalendarInterval</key><array>
+<dict><key>Hour</key><integer>3</integer><key>Minute</key><integer>0</integer></dict>
+<dict><key>Minute</key><integer>30</integer></dict>
+<dict><key>Hour</key><integer>9</integer><key>Minute</key><integer>0</integer><key>Weekday</key><integer>1</integer></dict>
+<dict><key>Hour</key><integer>0</integer><key>Minute</key><integer>0</integer><key>Day</key><integer>1</integer><key>Month</key><integer>6</integer></dict>
+<dict><key>Weekday</key><integer>7</integer><key>Day</key><integer>15</integer></dict>
+<dict><key>Weekday</key><integer>9</integer><key>Month</key><integer>13</integer></dict>
+<dict><key>Hour</key><integer>25</integer></dict>
+<dict/>
+</array>`)
+
+			services, err := launchd.NewDomain(home, 501).Services()
+
+			require.NoError(t, err)
+			require.Equal(t, map[string][]service.Property{"com.example.worker": {{Name: "start at", Values: []string{
+				"03:00",
+				"*:30",
+				"09:00 on Monday",
+				"00:00 on day 1 in June",
+				"*:* on Sunday or on day 15",
+				"*:* on weekday 9 in month 13",
+				"25:*",
+				"*:*",
+			}}}}, propertiesByName(services))
+		})
+
+		t.Run("the weekdays 0 and 7 are Sunday and 6 is Saturday, the months 1 and 12 are January and December, a weekday of -1, 8 or 12 and a month of 0 show as numbers, and a day shows as its number", func(t *testing.T) {
+			fakeLaunchctlList(t, "launchctl-list-no-services.txt")
+			home := homeWithWorkerPlist(t, `<key>StartCalendarInterval</key><array>
+<dict><key>Weekday</key><integer>0</integer></dict>
+<dict><key>Weekday</key><integer>6</integer></dict>
+<dict><key>Weekday</key><integer>8</integer></dict>
+<dict><key>Weekday</key><integer>-1</integer></dict>
+<dict><key>Weekday</key><integer>12</integer></dict>
+<dict><key>Day</key><integer>31</integer></dict>
+<dict><key>Month</key><integer>1</integer></dict>
+<dict><key>Month</key><integer>12</integer></dict>
+<dict><key>Month</key><integer>0</integer></dict>
+</array>`)
+
+			services, err := launchd.NewDomain(home, 501).Services()
+
+			require.NoError(t, err)
+			require.Equal(t, map[string][]service.Property{"com.example.worker": {{Name: "start at", Values: []string{
+				"*:* on Sunday",
+				"*:* on Saturday",
+				"*:* on weekday 8",
+				"*:* on weekday -1",
+				"*:* on weekday 12",
+				"*:* on day 31",
+				"*:* in January",
+				"*:* in December",
+				"*:* in month 0",
+			}}}}, propertiesByName(services))
+		})
+
+		t.Run("a StartCalendarInterval that is one dictionary gives start at with one part", func(t *testing.T) {
+			fakeLaunchctlList(t, "launchctl-list-no-services.txt")
+			home := homeWithWorkerPlist(t, `<key>StartCalendarInterval</key><dict><key>Hour</key><integer>3</integer><key>Minute</key><integer>0</integer></dict>`)
+
+			services, err := launchd.NewDomain(home, 501).Services()
+
+			require.NoError(t, err)
+			require.Equal(t, map[string][]service.Property{"com.example.worker": {{Name: "start at", Values: []string{"03:00"}}}}, propertiesByName(services))
+		})
+
+		t.Run("a value of a start time that is not a whole number shows as a missing one, a negative number shows as the number, an element that is not a dictionary gives no part, and a StartCalendarInterval that is neither a dictionary nor an array gives no property", func(t *testing.T) {
+			for properties, expected := range map[string][]service.Property{
+				`<key>StartCalendarInterval</key><array><dict><key>Hour</key><string>3</string><key>Minute</key><real>30</real><key>Day</key><true/></dict><string>daily</string><dict><key>Minute</key><integer>-5</integer></dict></array>`: {
+					{Name: "start at", Values: []string{"*:*", "*:-5"}},
+				},
+				`<key>StartCalendarInterval</key><string>daily</string><key>WorkingDirectory</key><string>/w</string>`: {
+					{Name: "work folder", Values: []string{"/w"}},
+				},
+			} {
+				fakeLaunchctlList(t, "launchctl-list-no-services.txt")
+				home := homeWithWorkerPlist(t, properties)
+
+				services, err := launchd.NewDomain(home, 501).Services()
+
+				require.NoError(t, err, properties)
+				require.Equal(t, map[string][]service.Property{"com.example.worker": expected}, propertiesByName(services), properties)
+			}
+		})
+
+		t.Run("WatchPaths gives watch paths with each path in the order of the array, an element that is not a text is left out, and a WatchPaths that is not an array gives no property", func(t *testing.T) {
+			for properties, expected := range map[string][]service.Property{
+				`<key>WatchPaths</key><array><string>/b</string><integer>1</integer><string>/a</string></array>`: {
+					{Name: "watch paths", Values: []string{"/b", "/a"}},
+				},
+				`<key>WatchPaths</key><string>/a</string><key>WorkingDirectory</key><string>/w</string>`: {
+					{Name: "work folder", Values: []string{"/w"}},
+				},
+			} {
+				fakeLaunchctlList(t, "launchctl-list-no-services.txt")
+				home := homeWithWorkerPlist(t, properties)
+
+				services, err := launchd.NewDomain(home, 501).Services()
+
+				require.NoError(t, err, properties)
+				require.Equal(t, map[string][]service.Property{"com.example.worker": expected}, propertiesByName(services), properties)
+			}
+		})
+
+		t.Run("an XML plist and a binary plist with each property of the detail pane give the same properties, in the order program, work folder, run at load, keep alive, start every, start at, watch paths, throttle, stdout, stderr, environment", func(t *testing.T) {
+			for _, fixture := range []string{"each-property.plist", "each-property-binary.plist"} {
+				fakeLaunchctlList(t, "launchctl-list-no-services.txt")
+				home := homeWith(t, map[string]string{"com.example.worker.plist": fixture})
+
+				services, err := launchd.NewDomain(home, 501).Services()
+
+				require.NoError(t, err, fixture)
+				require.Equal(t, map[string][]service.Property{"com.example.worker": {
+					{Name: "program", Values: []string{"/usr/local/bin/worker", "--queue", "jobs"}},
+					{Name: "work folder", Values: []string{"/Users/me/work"}},
+					{Name: "run at load", Values: []string{"yes"}},
+					{Name: "keep alive", Values: []string{"when the last exit is not 0", "while /Users/me/worker/run exists"}},
+					{Name: "start every", Values: []string{"300s"}},
+					{Name: "start at", Values: []string{"03:00", "09:30 on Monday"}},
+					{Name: "watch paths", Values: []string{"/Users/me/worker/queue", "/Users/me/worker/config.yaml"}},
+					{Name: "throttle", Values: []string{"10s"}},
+					{Name: "stdout", Values: []string{"/Users/me/Library/Logs/worker.out.log"}},
+					{Name: "stderr", Values: []string{"/Users/me/Library/Logs/worker.err.log"}},
+					{Name: "environment", Values: []string{"WORKER_STATUS_FILE", "WORKER_TOKEN"}},
+				}}, propertiesByName(services), fixture)
+			}
+		})
+
 		t.Run("a read of a plist with properties runs no launchctl command other than list", func(t *testing.T) {
 			fakeLaunchctlList(t, "launchctl-list-no-services.txt")
 			calls := fakeLaunchctlCalls(t)

@@ -463,20 +463,20 @@ January to December. A number outside these ranges shows as the number. `watch p
 the order of the array.
 
 **Acceptance Criteria:**
-- [ ] `StartInterval` 300 gives `start every` with `300s`, and `ThrottleInterval` 10 gives `throttle` with `10s`. A value
+- [x] `StartInterval` 300 gives `start every` with `300s`, and `ThrottleInterval` 10 gives `throttle` with `10s`. A value
       that is not a whole number, such as the real 10.5 or a text, gives no property.
-- [ ] Each start time gives its text: `Hour` 3 and `Minute` 0 give `03:00`; `Minute` 30 gives `*:30`; `Hour` 9,
+- [x] Each start time gives its text: `Hour` 3 and `Minute` 0 give `03:00`; `Minute` 30 gives `*:30`; `Hour` 9,
       `Minute` 0 and `Weekday` 1 give `09:00 on Monday`; `Hour` 0, `Minute` 0, `Day` 1 and `Month` 6 give
       `00:00 on day 1 in June`; `Weekday` 7 and `Day` 15 give `*:* on Sunday or on day 15`; `Weekday` 9 and `Month` 13
       give `*:* on weekday 9 in month 13`; `Hour` 25 gives `25:*`; an empty dictionary gives `*:*`.
-- [ ] A `StartCalendarInterval` that is one dictionary gives `start at` with one part. An array of dictionaries gives one
+- [x] A `StartCalendarInterval` that is one dictionary gives `start at` with one part. An array of dictionaries gives one
       part for each, in the order of the array.
-- [ ] A value of a start time that is not a whole number is left out of it, so its place shows as for a missing one. A
+- [x] A value of a start time that is not a whole number is left out of it, so its place shows as for a missing one. A
       negative number shows as the number. An element of the array that is not a dictionary gives no part, and a
       `StartCalendarInterval` that is neither a dictionary nor an array gives no property.
-- [ ] `WatchPaths` gives `watch paths` with each path in the order of the array. An element that is not a text is left
+- [x] `WatchPaths` gives `watch paths` with each path in the order of the array. An element that is not a text is left
       out, and a `WatchPaths` that is not an array gives no property.
-- [ ] A plist with each property of the story gives exactly `program`, `work folder`, `run at load`, `keep alive`,
+- [x] A plist with each property of the story gives exactly `program`, `work folder`, `run at load`, `keep alive`,
       `start every`, `start at`, `watch paths`, `throttle`, `stdout`, `stderr`, `environment`. An XML plist and a
       binary plist with each property of the story, a `KeepAlive` dictionary with `PathState` and an array of start
       times among them, give the same properties.
