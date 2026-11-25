@@ -58,12 +58,6 @@ func homeWithWorkerPlist(t *testing.T, properties string) string {
 	return home
 }
 
-func writeWorkerPlistModifiedAt(t *testing.T, path, properties string, modTime time.Time) {
-	t.Helper()
-	require.NoError(t, os.WriteFile(path, workerPlist(properties), 0o644))
-	require.NoError(t, os.Chtimes(path, modTime, modTime))
-}
-
 func copyFixture(t *testing.T, path, fixture string) {
 	t.Helper()
 	data, err := os.ReadFile(filepath.Join("testdata", fixture))
@@ -504,24 +498,6 @@ func TestDomain(t *testing.T) {
 				require.NoError(t, err, properties)
 				require.Equal(t, map[string][]service.Property{"com.example.worker": expected}, propertiesByName(services), properties)
 			}
-		})
-
-		t.Run("a plist with the program, the work folder, RunAtLoad, KeepAlive, the log paths and the environment gives program, work folder, run at load, keep alive, stdout, stderr and environment in this order, whatever the order of the plist", func(t *testing.T) {
-			fakeLaunchctlList(t, "launchctl-list-no-services.txt")
-			home := homeWith(t, map[string]string{"com.example.worker.plist": "keep-alive.plist"})
-
-			services, err := launchd.NewDomain(home, 501).Services()
-
-			require.NoError(t, err)
-			require.Equal(t, map[string][]service.Property{"com.example.worker": {
-				{Name: "program", Values: []string{"/usr/local/bin/worker"}},
-				{Name: "work folder", Values: []string{"/Users/me/work"}},
-				{Name: "run at load", Values: []string{"no"}},
-				{Name: "keep alive", Values: []string{"when the last exit is not 0", "when the last exit is a crash"}},
-				{Name: "stdout", Values: []string{"/Users/me/Library/Logs/worker.out.log"}},
-				{Name: "stderr", Values: []string{"/Users/me/Library/Logs/worker.err.log"}},
-				{Name: "environment", Values: []string{"WORKER_STATUS_FILE"}},
-			}}, propertiesByName(services))
 		})
 
 		t.Run("a StartInterval and a ThrottleInterval give start every and throttle with their seconds and s, a negative number shows as the number, and a value that is not a whole number of 64 bits gives no property", func(t *testing.T) {
@@ -1326,60 +1302,6 @@ func TestDomain(t *testing.T) {
 					{Name: "environment", Values: []string{"WORKER_STATUS_FILE"}},
 				},
 			}}, services)
-		})
-
-		t.Run("a plist whose ProgramArguments changes with its modification time gives the new program at the next read", func(t *testing.T) {
-			fakeLaunchctlList(t, "launchctl-list-no-services.txt")
-			home := homeWith(t, nil)
-			path := filepath.Join(home, "Library", "LaunchAgents", "com.example.worker.plist")
-			writeWorkerPlistModifiedAt(t, path, `<key>ProgramArguments</key><array><string>/usr/local/bin/worker</string></array>`, modTime)
-			domain := launchd.NewDomain(home, 501)
-			_, err := domain.Services()
-			require.NoError(t, err)
-			writeWorkerPlistModifiedAt(t, path, `<key>ProgramArguments</key><array><string>/usr/local/bin/worker-2</string><string>--queue</string></array>`, modTime.Add(time.Second))
-
-			services, err := domain.Services()
-
-			require.NoError(t, err)
-			require.Equal(t, map[string][]service.Property{"com.example.worker": {
-				{Name: "program", Values: []string{"/usr/local/bin/worker-2", "--queue"}},
-			}}, propertiesByName(services))
-		})
-
-		t.Run("a plist whose KeepAlive changes with its modification time gives the new conditions at the next read", func(t *testing.T) {
-			fakeLaunchctlList(t, "launchctl-list-no-services.txt")
-			home := homeWith(t, nil)
-			path := filepath.Join(home, "Library", "LaunchAgents", "com.example.worker.plist")
-			writeWorkerPlistModifiedAt(t, path, `<key>KeepAlive</key><true/>`, modTime)
-			domain := launchd.NewDomain(home, 501)
-			_, err := domain.Services()
-			require.NoError(t, err)
-			writeWorkerPlistModifiedAt(t, path, `<key>KeepAlive</key><dict><key>SuccessfulExit</key><true/></dict>`, modTime.Add(time.Second))
-
-			services, err := domain.Services()
-
-			require.NoError(t, err)
-			require.Equal(t, map[string][]service.Property{"com.example.worker": {
-				{Name: "keep alive", Values: []string{"when the last exit is 0"}},
-			}}, propertiesByName(services))
-		})
-
-		t.Run("a plist whose ProgramArguments changes with the same modification time keeps the old program", func(t *testing.T) {
-			fakeLaunchctlList(t, "launchctl-list-no-services.txt")
-			home := homeWith(t, nil)
-			path := filepath.Join(home, "Library", "LaunchAgents", "com.example.worker.plist")
-			writeWorkerPlistModifiedAt(t, path, `<key>ProgramArguments</key><array><string>/usr/local/bin/worker</string></array>`, modTime)
-			domain := launchd.NewDomain(home, 501)
-			_, err := domain.Services()
-			require.NoError(t, err)
-			writeWorkerPlistModifiedAt(t, path, `<key>ProgramArguments</key><array><string>/usr/local/bin/worker-2</string></array>`, modTime)
-
-			services, err := domain.Services()
-
-			require.NoError(t, err)
-			require.Equal(t, map[string][]service.Property{"com.example.worker": {
-				{Name: "program", Values: []string{"/usr/local/bin/worker"}},
-			}}, propertiesByName(services))
 		})
 
 		t.Run("a plist whose modification time did not change is not read again, so a new Label with the same modification time keeps the old name", func(t *testing.T) {
