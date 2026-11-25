@@ -185,15 +185,15 @@ and each error of a config file stay as they are. The error of a text that defin
 command" in place of "a text of a status command", because the rule is now the rule of each command.
 
 **Acceptance Criteria:**
-- [ ] `status.NewCommandTemplate` refuses an empty command, an empty program, a text that is not a Go template, a text
+- [x] `status.NewCommandTemplate` refuses an empty command, an empty program, a text that is not a Go template, a text
       that defines a template, and a text that uses a value or an action that a text cannot use, each with the error
       that `status.NewCommand` gives today; the error of a text that defines a template names "a text of a command".
-- [ ] `Apply` gives the command line of a service with each template value of that service, also in the program, and
+- [x] `Apply` gives the command line of a service with each template value of that service, also in the program, and
       gives the failure of the kind template value for a value that the plist does not have, with the same text that
       `status.TemplateValues` gives for that value, for example `the plist has no WORKER_LOG`.
-- [ ] `status.Command` holds a `CommandTemplate`. Each test in `internal/status`, `internal/config`, `internal/cli`
+- [x] `status.Command` holds a `CommandTemplate`. Each test in `internal/status`, `internal/config`, `internal/cli`
       and `internal/tui` passes with no change to what it asserts.
-- [ ] `TestCommandTemplate`, in `internal/status/command_template_test.go`, is the umbrella test of the new type.
+- [x] `TestCommandTemplate`, in `internal/status/command_template_test.go`, is the umbrella test of the new type.
 
 **Affected Files/Modules:**
 - `internal/status/command_template.go` — new: `CommandTemplate`, `NewCommandTemplate`, `Apply`, and the check of the
