@@ -36,4 +36,22 @@ describe('the actions of a group', () => {
     expect(printed).toContain('"L"')
     expect(printed).not.toContain('com.example.worker.01')
   })
+
+  it('the help line shows L worker log while a service of the group is selected, and not after ↓ selects a service of Other', async () => {
+    const home = homeWithPlists(['com.example.worker.01', 'com.example.other'])
+    writeConfig(
+      join(home, '.config', 'svcview'),
+      "groups:\n  - name: Workers\n    match: worker\n    actions:\n      - key: L\n        name: worker log\n        command: [less, +F, '{{.Env.WORKER_LOG}}']\n",
+    )
+    const session = await openCli(scratchDir(), [], { HOME: home })
+    await session.waitForText('▌○ com.example.worker.01')
+    const helpLine = async () => (await session.text()).split('\n').find((line) => line.includes('? help'))
+
+    expect(await helpLine()).toContain('o log · L worker log · ? help')
+
+    await session.press('down')
+    await session.waitForText('▌○ com.example.other')
+    expect(await helpLine()).toContain('o log · ? help')
+    expect(await helpLine()).not.toContain('worker log')
+  })
 })

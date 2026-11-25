@@ -21,9 +21,9 @@ import (
 
 const (
 	headerHeight    = 3
-	helpLine        = " s start · x stop · r restart · o log · ? help"
 	accent          = ansi.Blue
 	detailLeftWidth = 14
+	helpKeyWidth    = 10
 	barCells        = 10
 )
 
@@ -392,6 +392,14 @@ func (s Screen) selectedService() (service.Service, bool) {
 	return s.rows()[at].service, true
 }
 
+func (s Screen) selectedActions() []config.Action {
+	at := s.selectedAt()
+	if at < 0 {
+		return nil
+	}
+	return s.rows()[at].group.Actions
+}
+
 func (s Screen) serviceToActOn() (service.Service, bool) {
 	svc, ok := s.selectedService()
 	return svc, ok && !s.showHelp && !s.actionNotEnded[svc.Name]
@@ -438,7 +446,7 @@ func (s Screen) content() string {
 		lines = append(lines, s.panes()...)
 	}
 	lines = append(lines, s.messageLines()...)
-	return strings.Join(append(lines, ansi.Truncate(helpLine, s.width, "")), "\n")
+	return strings.Join(append(lines, ansi.Truncate(s.helpLine(), s.width, "")), "\n")
 }
 
 func (s Screen) paneHeight() int {
@@ -478,8 +486,16 @@ func (s Screen) borderStyle(p pane) ansi.Style {
 	return ansi.NewStyle().Faint()
 }
 
+func (s Screen) helpLine() string {
+	keys := []string{"s start", "x stop", "r restart", "o log"}
+	for _, action := range s.selectedActions() {
+		keys = append(keys, terminal.ReplaceControlCharacters(action.Key+" "+action.Name))
+	}
+	return " " + strings.Join(append(keys, "? help"), " · ")
+}
+
 func (s Screen) helpText() []string {
-	return []string{
+	text := []string{
 		"↑ ↓ k j   select a service, or scroll the detail pane when it has the focus",
 		"tab       move the focus to the other pane",
 		"l         move the focus to the detail pane",
@@ -488,10 +504,16 @@ func (s Screen) helpText() []string {
 		"x         stop the selected service, after a confirmation",
 		"r         restart the selected service, after a confirmation",
 		"o         show the log of the selected service",
+	}
+	for _, action := range s.selectedActions() {
+		key := terminal.ReplaceControlCharacters(action.Key)
+		text = append(text, key+strings.Repeat(" ", helpKeyWidth-ansi.StringWidth(key))+terminal.ReplaceControlCharacters(action.Name))
+	}
+	return append(text,
 		"?         show or hide this help",
 		"esc       hide this help",
 		"q ctrl+c  quit",
-	}
+	)
 }
 
 func (s Screen) headerText() []string {

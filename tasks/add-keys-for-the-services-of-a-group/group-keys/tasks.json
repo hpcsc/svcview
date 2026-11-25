@@ -80,7 +80,7 @@
     },
     {
       "n": 4,
-      "done": false,
+      "done": true,
       "title": "Show the keys of the actions of the selected group in the help line and in the help",
       "language": "Go",
       "testable": true,

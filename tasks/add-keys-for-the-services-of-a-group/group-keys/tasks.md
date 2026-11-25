@@ -330,18 +330,18 @@ name, on the lines after `o`. With no selected service, or with a selected servi
 command.
 
 **Acceptance Criteria:**
-- [ ] With a service of a group with actions selected, the help line under the panes and under the help shows each
+- [x] With a service of a group with actions selected, the help line under the panes and under the help shows each
       action of the group as its key and its name, after `o log` and before `? help`, in the order of the file, and
       is cut at the width of the terminal as before.
-- [ ] The help line follows the selection: it shows the actions of the group of the service that `↓` or `↑` selects,
+- [x] The help line follows the selection: it shows the actions of the group of the service that `↓` or `↑` selects,
       and no action with a service of a group with no actions, with a service of `Other`, with no rows, and while the
       list shows a read error.
-- [ ] `?` lists each action of the group of the selected service with its key and its name, on the lines after `o`,
+- [x] `?` lists each action of the group of the selected service with its key and its name, on the lines after `o`,
       and each key of svcview as before. A new golden file shows this help, in a terminal that is high enough for each
       of its lines.
-- [ ] The name of an action shows each control character as `�`, in the help line and in the help.
-- [ ] Each golden file that exists in `internal/tui/testdata` keeps its bytes.
-- [ ] An e2e test opens svcview with a group that has the action `L` with the name `worker log`: the help line shows
+- [x] The name of an action shows each control character as `�`, in the help line and in the help.
+- [x] Each golden file that exists in `internal/tui/testdata` keeps its bytes.
+- [x] An e2e test opens svcview with a group that has the action `L` with the name `worker log`: the help line shows
       `L worker log` while a service of the group is selected, and does not after `↓` selects a service of `Other`.
 
 **Affected Files/Modules:**

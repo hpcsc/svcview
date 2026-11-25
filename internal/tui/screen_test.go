@@ -306,6 +306,24 @@ func statusEvery(t *testing.T, every time.Duration) *status.Command {
 	return &command
 }
 
+func newAction(t *testing.T, key, name string, texts ...string) config.Action {
+	t.Helper()
+	command, err := status.NewCommandTemplate(texts)
+	require.NoError(t, err)
+	return config.Action{Key: key, Name: name, Command: command}
+}
+
+func groupsWithActions(t *testing.T) config.Settings {
+	t.Helper()
+	settings := groups(t, "Workers", `^com\.example\.worker\.`, "Jobs", `^com\.example\.job\.`, "Databases", "redis")
+	settings.Groups[0].Actions = []config.Action{
+		newAction(t, "L", "worker log", "less", "+F", "{{.Env.WORKER_LOG}}"),
+		newAction(t, "E", "worker errors", "less", "{{.StderrPath}}"),
+	}
+	settings.Groups[1].Actions = []config.Action{newAction(t, "B", "job backlog", "cat", "{{.Env.JOB_BACKLOG}}")}
+	return settings
+}
+
 type runStarts struct {
 	lock   sync.Mutex
 	start  time.Time
@@ -3721,6 +3739,100 @@ func TestScreen(t *testing.T) {
 
 				require.Equal(t, [][]string{{"+F", "--", "/Users/me/Library/Logs/b.out.log"}}, calls(), name)
 			}
+		})
+	})
+
+	t.Run("show the actions of a group", func(t *testing.T) {
+		baseHelpLine := " s start · x stop · r restart · o log · ? help"
+		workersHelpLine := " s start · x stop · r restart · o log · L worker log · E worker errors · ? help"
+		services := servicesNamed("com.example.worker.01", "com.example.job.a", "homebrew.mxcl.redis", "com.apple.a")
+
+		t.Run("with a service of a group with actions selected, the help line under the panes and under the help shows the key and the name of each action after o log and before ? help, in the order of the file", func(t *testing.T) {
+			screen := openWith(t, groupsWithActions(t), services, 100, 12)
+
+			require.Equal(t, workersHelpLine, bottomLines(screen, 1)[0])
+			require.Equal(t, workersHelpLine, bottomLines(pressKeys(screen, question), 1)[0])
+		})
+
+		t.Run("? pads a wide key of an action to the column of the names of the keys of svcview", func(t *testing.T) {
+			settings := groups(t, "Workers", `^com\.example\.worker\.`)
+			settings.Groups[0].Actions = []config.Action{newAction(t, "日", "daily log", "less")}
+			screen := openWith(t, settings, servicesNamed("com.example.worker.01"), 80, 18)
+
+			screen = pressKeys(screen, question)
+
+			require.Contains(t, ansi.Strip(screen.View().Content), "│ 日        daily log ")
+			require.Contains(t, ansi.Strip(screen.View().Content), "│ o         show the log of the selected service ")
+		})
+
+		t.Run("the help line follows the selection: it shows the actions of the group of the selected service, and no action for a group with no actions or for Other", func(t *testing.T) {
+			screen := openWith(t, groupsWithActions(t), services, 100, 14)
+			var helpLines []string
+			for range 4 {
+				helpLines = append(helpLines, bottomLines(screen, 1)[0])
+				screen = pressKeys(screen, down)
+			}
+			screen = pressKeys(screen, up, up, up)
+
+			require.Equal(t, []string{
+				workersHelpLine,
+				" s start · x stop · r restart · o log · B job backlog · ? help",
+				baseHelpLine,
+				baseHelpLine,
+			}, helpLines)
+			require.Equal(t, workersHelpLine, bottomLines(screen, 1)[0])
+		})
+
+		t.Run("the help line shows no action with no rows, and while the list shows a read error after a read that selected a service of a group with actions", func(t *testing.T) {
+			failing := func() ([]service.Service, error) {
+				return []service.Service{{Name: "com.example.worker.01"}}, errors.New("launchctl list: exit status 3")
+			}
+			noRows := openWith(t, groupsWithActions(t), servicesNamed(), 100, 12)
+			selected := openWith(t, groupsWithActions(t), readsInTurn(servicesNamed("com.example.worker.01"), failing), 100, 12)
+			readError := readNow(selected)
+
+			require.Equal(t, workersHelpLine, bottomLines(selected, 1)[0])
+			require.Equal(t, []string{baseHelpLine, baseHelpLine}, []string{bottomLines(noRows, 1)[0], bottomLines(readError, 1)[0]})
+		})
+
+		t.Run("the help line with actions shows whole at the exact fit of the width, and one cell less cuts its last cell", func(t *testing.T) {
+			settings := groups(t, "Workers", `^com\.example\.worker\.`)
+			settings.Groups[0].Actions = []config.Action{newAction(t, "L", "worker log", "less")}
+			helpLine := " s start · x stop · r restart · o log · L worker log · ? help"
+			exactFit := openWith(t, settings, servicesNamed("com.example.worker.01"), 61, 12)
+			oneLess := openWith(t, settings, servicesNamed("com.example.worker.01"), 60, 12)
+
+			require.Equal(t, []string{helpLine, strings.TrimSuffix(helpLine, "p")}, []string{bottomLines(exactFit, 1)[0], bottomLines(oneLess, 1)[0]})
+		})
+
+		t.Run("? lists each action of the group of the selected service with its key and its name, after o, and each key of svcview", func(t *testing.T) {
+			screen := openWith(t, groupsWithActions(t), services, 80, 19)
+
+			screen = pressKeys(screen, question)
+
+			requireGolden(t, "keys-with-actions", screen)
+		})
+
+		t.Run("? on a service of a group with no actions lists no action", func(t *testing.T) {
+			screen := openWith(t, groupsWithActions(t), services, 80, 19)
+
+			screen = pressKeys(screen, down, down, question)
+
+			require.NotContains(t, screen.View().Content, "worker log")
+			require.NotContains(t, screen.View().Content, "job backlog")
+			require.Contains(t, screen.View().Content, "show the log of the selected service")
+		})
+
+		t.Run("the name of an action shows each control character as �, in the help line and in the help", func(t *testing.T) {
+			settings := groups(t, "Workers", `^com\.example\.worker\.`)
+			settings.Groups[0].Actions = []config.Action{newAction(t, "L", "worker\x1b[2Jlog", "less")}
+			screen := openWith(t, settings, servicesNamed("com.example.worker.01"), 100, 18)
+			help := pressKeys(screen, question)
+
+			require.Equal(t, " s start · x stop · r restart · o log · L worker�[2Jlog · ? help", bottomLines(screen, 1)[0])
+			require.Contains(t, ansi.Strip(help.View().Content), "│ L         worker�[2Jlog ")
+			require.NotContains(t, screen.View().Content, "\x1b[2J")
+			require.NotContains(t, help.View().Content, "\x1b[2J")
 		})
 	})
 
