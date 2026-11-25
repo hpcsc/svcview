@@ -34,8 +34,8 @@ func (e LastExit) Failed() bool {
 }
 
 type Property struct {
-	Name   string
-	Values []string
+	Name  string
+	Parts []string
 }
 
 type Service struct {

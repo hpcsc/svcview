@@ -848,23 +848,23 @@ func (s Screen) plistLines(svc service.Service, room int) []string {
 	if svc.PlistPath == "" {
 		return nil
 	}
-	lines := append([]string{""}, s.valueLines("Plist", svc.PlistPath, room)...)
+	lines := append([]string{""}, s.partLines("Plist", svc.PlistPath, room)...)
 	for _, property := range svc.Properties {
-		if len(property.Values) == 0 {
+		if len(property.Parts) == 0 {
 			lines = append(lines, property.Name)
 		}
 		name := property.Name
-		for _, value := range property.Values {
-			lines = append(lines, s.valueLines(name, value, room)...)
+		for _, part := range property.Parts {
+			lines = append(lines, s.partLines(name, part, room)...)
 			name = ""
 		}
 	}
 	return lines
 }
 
-func (s Screen) valueLines(name, value string, room int) []string {
+func (s Screen) partLines(name, part string, room int) []string {
 	var lines []string
-	for line := range strings.SplitSeq(ansi.Hardwrap(terminal.ReplaceControlCharacters(value), room, true), "\n") {
+	for line := range strings.SplitSeq(ansi.Hardwrap(terminal.ReplaceControlCharacters(part), room, true), "\n") {
 		lines = append(lines, s.detailLine(name, line))
 		name = ""
 	}

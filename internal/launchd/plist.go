@@ -82,7 +82,7 @@ func (p plist) readIfChanged(path string, modTime time.Time) plist {
 
 func (p plist) programProperty(arguments, program any) []service.Property {
 	if texts, ok := p.texts(arguments); ok {
-		return []service.Property{{Name: "program", Values: texts}}
+		return []service.Property{{Name: "program", Parts: texts}}
 	}
 	return p.textProperty("program", program)
 }
@@ -92,7 +92,7 @@ func (p plist) textProperty(name string, value any) []service.Property {
 	if !ok {
 		return nil
 	}
-	return []service.Property{{Name: name, Values: []string{text}}}
+	return []service.Property{{Name: name, Parts: []string{text}}}
 }
 
 func (p plist) textsProperty(name string, value any) []service.Property {
@@ -100,7 +100,7 @@ func (p plist) textsProperty(name string, value any) []service.Property {
 	if !ok {
 		return nil
 	}
-	return []service.Property{{Name: name, Values: texts}}
+	return []service.Property{{Name: name, Parts: texts}}
 }
 
 func (p plist) booleanProperty(name string, value any) []service.Property {
@@ -108,12 +108,12 @@ func (p plist) booleanProperty(name string, value any) []service.Property {
 	if !ok {
 		return nil
 	}
-	return []service.Property{{Name: name, Values: []string{p.yesOrNo(held)}}}
+	return []service.Property{{Name: name, Parts: []string{p.yesOrNo(held)}}}
 }
 
 func (p plist) keepAliveProperty(value any) []service.Property {
 	if conditions, ok := value.(map[string]any); ok {
-		return []service.Property{{Name: "keep alive", Values: p.conditions(conditions)}}
+		return []service.Property{{Name: "keep alive", Parts: p.conditions(conditions)}}
 	}
 	return p.booleanProperty("keep alive", value)
 }
@@ -170,7 +170,7 @@ func (p plist) secondsProperty(name string, value any) []service.Property {
 	if !ok {
 		return nil
 	}
-	return []service.Property{{Name: name, Values: []string{strconv.FormatInt(seconds, 10) + "s"}}}
+	return []service.Property{{Name: name, Parts: []string{strconv.FormatInt(seconds, 10) + "s"}}}
 }
 
 func (p plist) startTimesProperty(value any) []service.Property {
@@ -189,7 +189,7 @@ func (p plist) startTimesProperty(value any) []service.Property {
 			texts = append(texts, p.startTime(startTime))
 		}
 	}
-	return []service.Property{{Name: "start at", Values: texts}}
+	return []service.Property{{Name: "start at", Parts: texts}}
 }
 
 func (p plist) startTime(entry map[string]any) string {
@@ -249,7 +249,7 @@ func (p plist) environmentProperty() []service.Property {
 	if p.env == nil {
 		return nil
 	}
-	return []service.Property{{Name: "environment", Values: slices.Sorted(maps.Keys(p.env))}}
+	return []service.Property{{Name: "environment", Parts: slices.Sorted(maps.Keys(p.env))}}
 }
 
 func (p plist) texts(value any) ([]string, bool) {

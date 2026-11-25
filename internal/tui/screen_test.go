@@ -2165,11 +2165,11 @@ func TestScreen(t *testing.T) {
 				Uptime:    new(3*time.Hour + 12*time.Minute),
 				PlistPath: "/Users/me/Library/LaunchAgents/com.example.worker.plist",
 				Properties: []service.Property{
-					{Name: "program", Values: []string{"/usr/local/bin/worker", "--queue", "jobs"}},
-					{Name: "work folder", Values: []string{"/Users/me/work"}},
-					{Name: "stdout", Values: []string{"/Users/me/Library/Logs/worker.out.log"}},
-					{Name: "stderr", Values: []string{"/Users/me/Library/Logs/worker.err.log"}},
-					{Name: "environment", Values: []string{"WORKER_STATUS_FILE", "WORKER_TOKEN"}},
+					{Name: "program", Parts: []string{"/usr/local/bin/worker", "--queue", "jobs"}},
+					{Name: "work folder", Parts: []string{"/Users/me/work"}},
+					{Name: "stdout", Parts: []string{"/Users/me/Library/Logs/worker.out.log"}},
+					{Name: "stderr", Parts: []string{"/Users/me/Library/Logs/worker.err.log"}},
+					{Name: "environment", Parts: []string{"WORKER_STATUS_FILE", "WORKER_TOKEN"}},
 				},
 			}), 140, 18)
 
@@ -2179,9 +2179,9 @@ func TestScreen(t *testing.T) {
 		t.Run("shows the lines of the plist after the last line of the status: the last event, the last field of an output with no events, and the last line of a failure", func(t *testing.T) {
 			synctest.Test(t, func(t *testing.T) {
 				read := readGiving(
-					service.Service{Name: "com.example.worker.a", PlistPath: "/p/a.plist", Properties: []service.Property{{Name: "program", Values: []string{"/bin/a"}}}},
-					service.Service{Name: "com.example.worker.b", PlistPath: "/p/b.plist", Properties: []service.Property{{Name: "program", Values: []string{"/bin/b"}}}},
-					service.Service{Name: "com.example.worker.c", PlistPath: "/p/c.plist", Properties: []service.Property{{Name: "program", Values: []string{"/bin/c"}}}},
+					service.Service{Name: "com.example.worker.a", PlistPath: "/p/a.plist", Properties: []service.Property{{Name: "program", Parts: []string{"/bin/a"}}}},
+					service.Service{Name: "com.example.worker.b", PlistPath: "/p/b.plist", Properties: []service.Property{{Name: "program", Parts: []string{"/bin/b"}}}},
+					service.Service{Name: "com.example.worker.c", PlistPath: "/p/c.plist", Properties: []service.Property{{Name: "program", Parts: []string{"/bin/c"}}}},
 				)
 				run := runsGiving(map[string]status.Result{
 					"com.example.worker.a": {Output: &status.Output{Fields: []status.Field{{Name: "mode", Value: "busy"}}, Events: eventsNumbered(1)}},
@@ -2201,7 +2201,7 @@ func TestScreen(t *testing.T) {
 
 		t.Run("before the first run of the status ends, shows the lines of the plist after the data from launchd", func(t *testing.T) {
 			synctest.Test(t, func(t *testing.T) {
-				read := readGiving(service.Service{Name: "com.example.worker.a", PlistPath: "/p/a.plist", Properties: []service.Property{{Name: "program", Values: []string{"/bin/a"}}}})
+				read := readGiving(service.Service{Name: "com.example.worker.a", PlistPath: "/p/a.plist", Properties: []service.Property{{Name: "program", Parts: []string{"/bin/a"}}}})
 				run := func(status.Command, service.Service) status.Result {
 					time.Sleep(30 * time.Second)
 					return status.Result{Ended: time.Now()}
@@ -2214,7 +2214,7 @@ func TestScreen(t *testing.T) {
 		})
 
 		t.Run("a service with no plist path shows no line Plist and no property, so its text ends with the last exit", func(t *testing.T) {
-			screen := open(t, "gui/501", readGiving(service.Service{Name: "com.example.worker", Properties: []service.Property{{Name: "program", Values: []string{"/bin/a"}}}}), 80, 12)
+			screen := open(t, "gui/501", readGiving(service.Service{Name: "com.example.worker", Properties: []service.Property{{Name: "program", Parts: []string{"/bin/a"}}}}), 80, 12)
 
 			require.Equal(t, []string{"○ not loaded  PID -", "up -          last exit 0", "", "", "", ""}, detailPane(screen))
 		})
@@ -2223,7 +2223,7 @@ func TestScreen(t *testing.T) {
 			screen := open(t, "gui/501", readGiving(service.Service{
 				Name:       "com.example.worker",
 				PlistPath:  "/p/w.plist",
-				Properties: []service.Property{{Name: "program"}, {Name: "environment", Values: []string{"WORKER_TOKEN"}}},
+				Properties: []service.Property{{Name: "program"}, {Name: "environment", Parts: []string{"WORKER_TOKEN"}}},
 			}), 80, 12)
 
 			require.Equal(t, []string{"○ not loaded  PID -", "up -          last exit 0", "", "Plist         /p/w.plist", "program", "environment   WORKER_TOKEN"}, detailPane(screen))
@@ -2233,7 +2233,7 @@ func TestScreen(t *testing.T) {
 			screen := open(t, "gui/501", readGiving(service.Service{
 				Name:       "com.example.worker",
 				PlistPath:  "/p/\x1b[2Jw.plist",
-				Properties: []service.Property{{Name: "program", Values: []string{"/bin/w\x07", "--queue\x1b]52;c;eA==\x07"}}},
+				Properties: []service.Property{{Name: "program", Parts: []string{"/bin/w\x07", "--queue\x1b]52;c;eA==\x07"}}},
 			}), 80, 12)
 
 			require.Equal(t, []string{"○ not loaded  PID -", "up -          last exit 0", "", "Plist         /p/�[2Jw.plist", "program       /bin/w�", "              --queue�]52;c;eA==�"}, detailPane(screen))
@@ -2247,7 +2247,7 @@ func TestScreen(t *testing.T) {
 				Name:       "com.example.worker",
 				Env:        map[string]string{"WORKER_TOKEN": "token-s3cret-value"},
 				PlistPath:  "/p/w.plist",
-				Properties: []service.Property{{Name: "environment", Values: []string{"WORKER_TOKEN"}}},
+				Properties: []service.Property{{Name: "environment", Parts: []string{"WORKER_TOKEN"}}},
 			}), 80, 12)
 
 			require.Contains(t, detailPane(screen), "environment   WORKER_TOKEN")
@@ -2258,7 +2258,7 @@ func TestScreen(t *testing.T) {
 			screen := open(t, "gui/501", readGiving(service.Service{
 				Name:      "com.example.worker",
 				PlistPath: "/p/w.plist",
-				Properties: []service.Property{{Name: "program", Values: []string{
+				Properties: []service.Property{{Name: "program", Parts: []string{
 					strings.Repeat("a", 30),
 					strings.Repeat("b", 30) + "c",
 					strings.Repeat("d", 30) + strings.Repeat("e", 30) + "f",
@@ -2280,7 +2280,7 @@ func TestScreen(t *testing.T) {
 			screen := open(t, "gui/501", readGiving(service.Service{
 				Name:       "com.example.worker",
 				PlistPath:  "/p/w.plist",
-				Properties: []service.Property{{Name: "program", Values: []string{strings.Repeat("a", 29) + "界b", strings.Repeat("c", 29) + "\x07d"}}},
+				Properties: []service.Property{{Name: "program", Parts: []string{strings.Repeat("a", 29) + "界b", strings.Repeat("c", 29) + "\x07d"}}},
 			}), 80, 14)
 
 			require.Equal(t, []string{
@@ -2296,7 +2296,7 @@ func TestScreen(t *testing.T) {
 			screen := open(t, "gui/501", readGiving(service.Service{
 				Name:       "com.example.worker",
 				PlistPath:  "/p/w.plist",
-				Properties: []service.Property{{Name: "stdout", Values: []string{strings.Repeat("a", 30) + " b"}}},
+				Properties: []service.Property{{Name: "stdout", Parts: []string{strings.Repeat("a", 30) + " b"}}},
 			}), 80, 12)
 
 			require.Equal(t, []string{
@@ -2314,8 +2314,8 @@ func TestScreen(t *testing.T) {
 				Uptime:    new(3*time.Hour + 12*time.Minute),
 				PlistPath: "/Users/me/Library/LaunchAgents/com.example.worker.plist",
 				Properties: []service.Property{
-					{Name: "program", Values: []string{"/usr/local/bin/worker"}},
-					{Name: "stdout", Values: []string{"/Users/me/Library/Logs/worker.out.log"}},
+					{Name: "program", Parts: []string{"/usr/local/bin/worker"}},
+					{Name: "stdout", Parts: []string{"/Users/me/Library/Logs/worker.out.log"}},
 				},
 			}), 80, 14)
 
@@ -2351,7 +2351,7 @@ func TestScreen(t *testing.T) {
 				screen := open(t, "gui/501", readGiving(service.Service{
 					Name:       "com.example.worker",
 					PlistPath:  "/p",
-					Properties: []service.Property{{Name: "program", Values: []string{"ab"}}},
+					Properties: []service.Property{{Name: "program", Parts: []string{"ab"}}},
 				}), width, 13)
 
 				require.Equal(t, expected, detailPane(screen)[3:3+len(expected)], "width %d", width)
@@ -3228,9 +3228,9 @@ func TestScreen(t *testing.T) {
 				Name:      "com.example.worker",
 				PlistPath: "/p/w.plist",
 				Properties: []service.Property{
-					{Name: "program", Values: []string{"/bin/w", "--queue", "jobs"}},
-					{Name: "work folder", Values: []string{"/w"}},
-					{Name: "environment", Values: []string{"WORKER_STATUS_FILE", "WORKER_TOKEN"}},
+					{Name: "program", Parts: []string{"/bin/w", "--queue", "jobs"}},
+					{Name: "work folder", Parts: []string{"/w"}},
+					{Name: "environment", Parts: []string{"WORKER_STATUS_FILE", "WORKER_TOKEN"}},
 				},
 			}), 80, 12)
 
@@ -3251,8 +3251,8 @@ func TestScreen(t *testing.T) {
 				Name:      "com.example.worker",
 				PlistPath: "/p/w.plist",
 				Properties: []service.Property{
-					{Name: "program", Values: []string{"/bin/w"}},
-					{Name: "stdout", Values: []string{strings.Repeat("a", 30) + strings.Repeat("b", 30) + "c"}},
+					{Name: "program", Parts: []string{"/bin/w"}},
+					{Name: "stdout", Parts: []string{strings.Repeat("a", 30) + strings.Repeat("b", 30) + "c"}},
 				},
 			}), 80, 12)
 			bottom := pressKeys(screen, tab, down, down, down, down)
@@ -3285,7 +3285,7 @@ func TestScreen(t *testing.T) {
 					screen := open(t, "gui/501", readGiving(service.Service{
 						Name:       "com.example.worker",
 						PlistPath:  "/Users/me/Library/LaunchAgents/com.example.worker.plist",
-						Properties: []service.Property{{Name: "program", Values: []string{"/usr/local/bin/界worker", "--queue"}}},
+						Properties: []service.Property{{Name: "program", Parts: []string{"/usr/local/bin/界worker", "--queue"}}},
 					}), width, 12)
 					screen = pressKeys(screen, tab, down, down, down)
 					screen.View()

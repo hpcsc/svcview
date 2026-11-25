@@ -190,8 +190,8 @@ func propertiesByName(services []service.Service) map[string][]service.Property 
 	for _, svc := range services {
 		var shown []service.Property
 		for _, property := range svc.Properties {
-			if len(property.Values) == 0 {
-				property.Values = nil
+			if len(property.Parts) == 0 {
+				property.Parts = nil
 			}
 			shown = append(shown, property)
 		}
@@ -221,8 +221,8 @@ func TestDomain(t *testing.T) {
 
 			require.NoError(t, err)
 			require.ElementsMatch(t, []service.Service{
-				{Name: "com.example.xml", Properties: []service.Property{{Name: "program", Values: []string{"/usr/bin/true"}}, {Name: "run at load", Values: []string{"yes"}}}},
-				{Name: "com.example.binary", Properties: []service.Property{{Name: "program", Values: []string{"/usr/bin/true"}}, {Name: "run at load", Values: []string{"yes"}}}},
+				{Name: "com.example.xml", Properties: []service.Property{{Name: "program", Parts: []string{"/usr/bin/true"}}, {Name: "run at load", Parts: []string{"yes"}}}},
+				{Name: "com.example.binary", Properties: []service.Property{{Name: "program", Parts: []string{"/usr/bin/true"}}, {Name: "run at load", Parts: []string{"yes"}}}},
 			}, withoutPlistPath(services))
 		})
 
@@ -236,7 +236,7 @@ func TestDomain(t *testing.T) {
 			require.Equal(t, []service.Service{{
 				Name:       "com.example.xml",
 				PlistPath:  filepath.Join(home, "Library", "LaunchAgents", "another-name.plist"),
-				Properties: []service.Property{{Name: "program", Values: []string{"/usr/bin/true"}}, {Name: "run at load", Values: []string{"yes"}}},
+				Properties: []service.Property{{Name: "program", Parts: []string{"/usr/bin/true"}}, {Name: "run at load", Parts: []string{"yes"}}},
 			}}, services)
 		})
 
@@ -273,10 +273,10 @@ func TestDomain(t *testing.T) {
 				StderrPath: "/Users/me/Library/Logs/worker.err.log",
 				PlistPath:  filepath.Join(home, "Library", "LaunchAgents", "com.example.worker.plist"),
 				Properties: []service.Property{
-					{Name: "program", Values: []string{"/usr/local/bin/worker"}},
-					{Name: "stdout", Values: []string{"/Users/me/Library/Logs/worker.out.log"}},
-					{Name: "stderr", Values: []string{"/Users/me/Library/Logs/worker.err.log"}},
-					{Name: "environment", Values: []string{"WORKER_QUIET", "WORKER_STATUS_FILE"}},
+					{Name: "program", Parts: []string{"/usr/local/bin/worker"}},
+					{Name: "stdout", Parts: []string{"/Users/me/Library/Logs/worker.out.log"}},
+					{Name: "stderr", Parts: []string{"/Users/me/Library/Logs/worker.err.log"}},
+					{Name: "environment", Parts: []string{"WORKER_QUIET", "WORKER_STATUS_FILE"}},
 				},
 			}}, services)
 		})
@@ -291,7 +291,7 @@ func TestDomain(t *testing.T) {
 			require.Equal(t, []service.Service{{
 				Name:       "com.example.binary",
 				PlistPath:  filepath.Join(home, "Library", "LaunchAgents", "com.example.binary.plist"),
-				Properties: []service.Property{{Name: "program", Values: []string{"/usr/bin/true"}}, {Name: "run at load", Values: []string{"yes"}}},
+				Properties: []service.Property{{Name: "program", Parts: []string{"/usr/bin/true"}}, {Name: "run at load", Parts: []string{"yes"}}},
 			}}, services)
 		})
 
@@ -302,17 +302,17 @@ func TestDomain(t *testing.T) {
 					Env:        map[string]string{"WORKER_STATUS_FILE": "/Users/me/worker/status.json"},
 					StdoutPath: "/Users/me/Library/Logs/worker.out.log",
 					Properties: []service.Property{
-						{Name: "program", Values: []string{"/usr/local/bin/worker"}},
-						{Name: "stdout", Values: []string{"/Users/me/Library/Logs/worker.out.log"}},
-						{Name: "environment", Values: []string{"WORKER_STATUS_FILE"}},
+						{Name: "program", Parts: []string{"/usr/local/bin/worker"}},
+						{Name: "stdout", Parts: []string{"/Users/me/Library/Logs/worker.out.log"}},
+						{Name: "environment", Parts: []string{"WORKER_STATUS_FILE"}},
 					},
 				},
 				"environment-not-a-dictionary.plist": {
 					Name:       "com.example.worker",
 					StderrPath: "/Users/me/Library/Logs/worker.err.log",
 					Properties: []service.Property{
-						{Name: "program", Values: []string{"/usr/local/bin/worker"}},
-						{Name: "stderr", Values: []string{"/Users/me/Library/Logs/worker.err.log"}},
+						{Name: "program", Parts: []string{"/usr/local/bin/worker"}},
+						{Name: "stderr", Parts: []string{"/Users/me/Library/Logs/worker.err.log"}},
 					},
 				},
 			} {
@@ -343,11 +343,11 @@ func TestDomain(t *testing.T) {
 				StderrPath: "/Users/me/Library/Logs/worker.err.log",
 				PlistPath:  filepath.Join(home, "Library", "LaunchAgents", "com.example.worker.plist"),
 				Properties: []service.Property{
-					{Name: "program", Values: []string{"/usr/local/bin/worker", "--queue", "jobs"}},
-					{Name: "work folder", Values: []string{"/Users/me/work"}},
-					{Name: "stdout", Values: []string{"/Users/me/Library/Logs/worker.out.log"}},
-					{Name: "stderr", Values: []string{"/Users/me/Library/Logs/worker.err.log"}},
-					{Name: "environment", Values: []string{"WORKER_STATUS_FILE", "WORKER_TOKEN"}},
+					{Name: "program", Parts: []string{"/usr/local/bin/worker", "--queue", "jobs"}},
+					{Name: "work folder", Parts: []string{"/Users/me/work"}},
+					{Name: "stdout", Parts: []string{"/Users/me/Library/Logs/worker.out.log"}},
+					{Name: "stderr", Parts: []string{"/Users/me/Library/Logs/worker.err.log"}},
+					{Name: "environment", Parts: []string{"WORKER_STATUS_FILE", "WORKER_TOKEN"}},
 				},
 			}}, services)
 		})
@@ -355,10 +355,10 @@ func TestDomain(t *testing.T) {
 		t.Run("program is the Program when the plist has no ProgramArguments, and only the arguments of ProgramArguments when the plist has both", func(t *testing.T) {
 			for properties, expected := range map[string][]service.Property{
 				`<key>Program</key><string>/usr/local/bin/worker</string>`: {
-					{Name: "program", Values: []string{"/usr/local/bin/worker"}},
+					{Name: "program", Parts: []string{"/usr/local/bin/worker"}},
 				},
 				`<key>Program</key><string>/usr/local/bin/other</string><key>ProgramArguments</key><array><string>/usr/local/bin/worker</string><string>--queue</string></array>`: {
-					{Name: "program", Values: []string{"/usr/local/bin/worker", "--queue"}},
+					{Name: "program", Parts: []string{"/usr/local/bin/worker", "--queue"}},
 				},
 			} {
 				fakeLaunchctlList(t, "launchctl-list-no-services.txt")
@@ -374,19 +374,19 @@ func TestDomain(t *testing.T) {
 		t.Run("a value of a type that launchd does not take is left out, so its property or its part does not show, and the other properties and parts keep theirs", func(t *testing.T) {
 			for properties, expected := range map[string][]service.Property{
 				`<key>ProgramArguments</key><string>/usr/local/bin/worker</string><key>WorkingDirectory</key><string>/Users/me/work</string>`: {
-					{Name: "work folder", Values: []string{"/Users/me/work"}},
+					{Name: "work folder", Parts: []string{"/Users/me/work"}},
 				},
 				`<key>ProgramArguments</key><string>/usr/local/bin/worker</string><key>Program</key><string>/usr/local/bin/other</string>`: {
-					{Name: "program", Values: []string{"/usr/local/bin/other"}},
+					{Name: "program", Parts: []string{"/usr/local/bin/other"}},
 				},
 				`<key>Program</key><integer>1</integer><key>StandardOutPath</key><string>/Users/me/worker.log</string>`: {
-					{Name: "stdout", Values: []string{"/Users/me/worker.log"}},
+					{Name: "stdout", Parts: []string{"/Users/me/worker.log"}},
 				},
 				`<key>ProgramArguments</key><array><string>/usr/local/bin/worker</string></array><key>WorkingDirectory</key><true/>`: {
-					{Name: "program", Values: []string{"/usr/local/bin/worker"}},
+					{Name: "program", Parts: []string{"/usr/local/bin/worker"}},
 				},
 				`<key>ProgramArguments</key><array><string>/usr/local/bin/worker</string><integer>3</integer><string>--queue</string><string>jobs</string></array>`: {
-					{Name: "program", Values: []string{"/usr/local/bin/worker", "--queue", "jobs"}},
+					{Name: "program", Parts: []string{"/usr/local/bin/worker", "--queue", "jobs"}},
 				},
 			} {
 				fakeLaunchctlList(t, "launchctl-list-no-services.txt")
@@ -408,8 +408,8 @@ func TestDomain(t *testing.T) {
 			require.NoError(t, err)
 			require.Equal(t, map[string][]service.Property{"com.example.worker": {
 				{Name: "program"},
-				{Name: "work folder", Values: []string{""}},
-				{Name: "stderr", Values: []string{""}},
+				{Name: "work folder", Parts: []string{""}},
+				{Name: "stderr", Parts: []string{""}},
 				{Name: "environment"},
 			}}, propertiesByName(services))
 		})
@@ -417,12 +417,12 @@ func TestDomain(t *testing.T) {
 		t.Run("a RunAtLoad and a KeepAlive that are booleans give run at load and keep alive with yes or no, also when they are false", func(t *testing.T) {
 			for properties, expected := range map[string][]service.Property{
 				`<key>RunAtLoad</key><true/><key>KeepAlive</key><false/>`: {
-					{Name: "run at load", Values: []string{"yes"}},
-					{Name: "keep alive", Values: []string{"no"}},
+					{Name: "run at load", Parts: []string{"yes"}},
+					{Name: "keep alive", Parts: []string{"no"}},
 				},
 				`<key>RunAtLoad</key><false/><key>KeepAlive</key><true/>`: {
-					{Name: "run at load", Values: []string{"no"}},
-					{Name: "keep alive", Values: []string{"yes"}},
+					{Name: "run at load", Parts: []string{"no"}},
+					{Name: "keep alive", Parts: []string{"yes"}},
 				},
 			} {
 				fakeLaunchctlList(t, "launchctl-list-no-services.txt")
@@ -449,7 +449,7 @@ func TestDomain(t *testing.T) {
 			services, err := launchd.NewDomain(home, 501).Services()
 
 			require.NoError(t, err)
-			require.Equal(t, map[string][]service.Property{"com.example.worker": {{Name: "keep alive", Values: []string{
+			require.Equal(t, map[string][]service.Property{"com.example.worker": {{Name: "keep alive", Parts: []string{
 				"when the last exit is not 0",
 				"when the last exit is a crash",
 				"while /a does not exist",
@@ -468,7 +468,7 @@ func TestDomain(t *testing.T) {
 			services, err := launchd.NewDomain(home, 501).Services()
 
 			require.NoError(t, err)
-			require.Equal(t, map[string][]service.Property{"com.example.worker": {{Name: "keep alive", Values: []string{
+			require.Equal(t, map[string][]service.Property{"com.example.worker": {{Name: "keep alive", Parts: []string{
 				"when the last exit is 0",
 				"when the last exit is not a crash",
 				"NetworkState no",
@@ -478,13 +478,13 @@ func TestDomain(t *testing.T) {
 		t.Run("a RunAtLoad or a KeepAlive of a type that launchd does not take gives no property, a condition of a type that launchd does not take gives no part, another condition that is not a boolean shows its name alone, and an empty KeepAlive gives keep alive with no part", func(t *testing.T) {
 			for properties, expected := range map[string][]service.Property{
 				`<key>RunAtLoad</key><string>yes</string><key>KeepAlive</key><string>yes</string><key>WorkingDirectory</key><string>/w</string>`: {
-					{Name: "work folder", Values: []string{"/w"}},
+					{Name: "work folder", Parts: []string{"/w"}},
 				},
 				`<key>KeepAlive</key><dict><key>SuccessfulExit</key><string>true</string><key>Crashed</key><integer>1</integer><key>PathState</key><string>/a</string><key>OtherJobEnabled</key><array/><key>NetworkState</key><true/></dict>`: {
-					{Name: "keep alive", Values: []string{"NetworkState yes"}},
+					{Name: "keep alive", Parts: []string{"NetworkState yes"}},
 				},
 				`<key>KeepAlive</key><dict><key>PathState</key><dict><key>/a</key><string>yes</string><key>/b</key><true/></dict><key>OtherJobEnabled</key><dict><key>com.example.a</key><integer>1</integer><key>com.example.b</key><false/></dict><key>AfterInitialDemand</key><string>soon</string></dict>`: {
-					{Name: "keep alive", Values: []string{"while /b exists", "while com.example.b is not loaded", "AfterInitialDemand"}},
+					{Name: "keep alive", Parts: []string{"while /b exists", "while com.example.b is not loaded", "AfterInitialDemand"}},
 				},
 				`<key>KeepAlive</key><dict/>`: {
 					{Name: "keep alive"},
@@ -503,17 +503,17 @@ func TestDomain(t *testing.T) {
 		t.Run("a StartInterval and a ThrottleInterval give start every and throttle with their seconds and s, a negative number shows as the number, and a value that is not a whole number of 64 bits gives no property", func(t *testing.T) {
 			for properties, expected := range map[string][]service.Property{
 				`<key>StartInterval</key><integer>300</integer><key>ThrottleInterval</key><integer>10</integer>`: {
-					{Name: "start every", Values: []string{"300s"}},
-					{Name: "throttle", Values: []string{"10s"}},
+					{Name: "start every", Parts: []string{"300s"}},
+					{Name: "throttle", Parts: []string{"10s"}},
 				},
 				`<key>StartInterval</key><integer>-5</integer>`: {
-					{Name: "start every", Values: []string{"-5s"}},
+					{Name: "start every", Parts: []string{"-5s"}},
 				},
 				`<key>StartInterval</key><real>10.5</real><key>ThrottleInterval</key><string>10</string><key>WorkingDirectory</key><string>/w</string>`: {
-					{Name: "work folder", Values: []string{"/w"}},
+					{Name: "work folder", Parts: []string{"/w"}},
 				},
 				`<key>StartInterval</key><integer>9223372036854775808</integer><key>ThrottleInterval</key><integer>9223372036854775807</integer>`: {
-					{Name: "throttle", Values: []string{"9223372036854775807s"}},
+					{Name: "throttle", Parts: []string{"9223372036854775807s"}},
 				},
 			} {
 				fakeLaunchctlList(t, "launchctl-list-no-services.txt")
@@ -542,7 +542,7 @@ func TestDomain(t *testing.T) {
 			services, err := launchd.NewDomain(home, 501).Services()
 
 			require.NoError(t, err)
-			require.Equal(t, map[string][]service.Property{"com.example.worker": {{Name: "start at", Values: []string{
+			require.Equal(t, map[string][]service.Property{"com.example.worker": {{Name: "start at", Parts: []string{
 				"03:00",
 				"*:30",
 				"09:00 on Monday",
@@ -571,7 +571,7 @@ func TestDomain(t *testing.T) {
 			services, err := launchd.NewDomain(home, 501).Services()
 
 			require.NoError(t, err)
-			require.Equal(t, map[string][]service.Property{"com.example.worker": {{Name: "start at", Values: []string{
+			require.Equal(t, map[string][]service.Property{"com.example.worker": {{Name: "start at", Parts: []string{
 				"*:* on Sunday",
 				"*:* on Saturday",
 				"*:* on weekday 8",
@@ -591,16 +591,16 @@ func TestDomain(t *testing.T) {
 			services, err := launchd.NewDomain(home, 501).Services()
 
 			require.NoError(t, err)
-			require.Equal(t, map[string][]service.Property{"com.example.worker": {{Name: "start at", Values: []string{"03:00"}}}}, propertiesByName(services))
+			require.Equal(t, map[string][]service.Property{"com.example.worker": {{Name: "start at", Parts: []string{"03:00"}}}}, propertiesByName(services))
 		})
 
 		t.Run("a value of a start time that is not a whole number shows as a missing one, a negative number shows as the number, an element that is not a dictionary gives no part, and a StartCalendarInterval that is neither a dictionary nor an array gives no property", func(t *testing.T) {
 			for properties, expected := range map[string][]service.Property{
 				`<key>StartCalendarInterval</key><array><dict><key>Hour</key><string>3</string><key>Minute</key><real>30</real><key>Day</key><true/></dict><string>daily</string><dict><key>Minute</key><integer>-5</integer></dict></array>`: {
-					{Name: "start at", Values: []string{"*:*", "*:-5"}},
+					{Name: "start at", Parts: []string{"*:*", "*:-5"}},
 				},
 				`<key>StartCalendarInterval</key><string>daily</string><key>WorkingDirectory</key><string>/w</string>`: {
-					{Name: "work folder", Values: []string{"/w"}},
+					{Name: "work folder", Parts: []string{"/w"}},
 				},
 			} {
 				fakeLaunchctlList(t, "launchctl-list-no-services.txt")
@@ -616,10 +616,10 @@ func TestDomain(t *testing.T) {
 		t.Run("WatchPaths gives watch paths with each path in the order of the array, an element that is not a text is left out, and a WatchPaths that is not an array gives no property", func(t *testing.T) {
 			for properties, expected := range map[string][]service.Property{
 				`<key>WatchPaths</key><array><string>/b</string><integer>1</integer><string>/a</string></array>`: {
-					{Name: "watch paths", Values: []string{"/b", "/a"}},
+					{Name: "watch paths", Parts: []string{"/b", "/a"}},
 				},
 				`<key>WatchPaths</key><string>/a</string><key>WorkingDirectory</key><string>/w</string>`: {
-					{Name: "work folder", Values: []string{"/w"}},
+					{Name: "work folder", Parts: []string{"/w"}},
 				},
 			} {
 				fakeLaunchctlList(t, "launchctl-list-no-services.txt")
@@ -641,17 +641,17 @@ func TestDomain(t *testing.T) {
 
 				require.NoError(t, err, fixture)
 				require.Equal(t, map[string][]service.Property{"com.example.worker": {
-					{Name: "program", Values: []string{"/usr/local/bin/worker", "--queue", "jobs"}},
-					{Name: "work folder", Values: []string{"/Users/me/work"}},
-					{Name: "run at load", Values: []string{"yes"}},
-					{Name: "keep alive", Values: []string{"when the last exit is not 0", "while /Users/me/worker/run exists"}},
-					{Name: "start every", Values: []string{"300s"}},
-					{Name: "start at", Values: []string{"03:00", "09:30 on Monday"}},
-					{Name: "watch paths", Values: []string{"/Users/me/worker/queue", "/Users/me/worker/config.yaml"}},
-					{Name: "throttle", Values: []string{"10s"}},
-					{Name: "stdout", Values: []string{"/Users/me/Library/Logs/worker.out.log"}},
-					{Name: "stderr", Values: []string{"/Users/me/Library/Logs/worker.err.log"}},
-					{Name: "environment", Values: []string{"WORKER_STATUS_FILE", "WORKER_TOKEN"}},
+					{Name: "program", Parts: []string{"/usr/local/bin/worker", "--queue", "jobs"}},
+					{Name: "work folder", Parts: []string{"/Users/me/work"}},
+					{Name: "run at load", Parts: []string{"yes"}},
+					{Name: "keep alive", Parts: []string{"when the last exit is not 0", "while /Users/me/worker/run exists"}},
+					{Name: "start every", Parts: []string{"300s"}},
+					{Name: "start at", Parts: []string{"03:00", "09:30 on Monday"}},
+					{Name: "watch paths", Parts: []string{"/Users/me/worker/queue", "/Users/me/worker/config.yaml"}},
+					{Name: "throttle", Parts: []string{"10s"}},
+					{Name: "stdout", Parts: []string{"/Users/me/Library/Logs/worker.out.log"}},
+					{Name: "stderr", Parts: []string{"/Users/me/Library/Logs/worker.err.log"}},
+					{Name: "environment", Parts: []string{"WORKER_STATUS_FILE", "WORKER_TOKEN"}},
 				}}, propertiesByName(services), fixture)
 			}
 		})
@@ -1104,10 +1104,10 @@ func TestDomain(t *testing.T) {
 					StderrPath: "/Users/me/Library/Logs/worker.err.log",
 					PlistPath:  filepath.Join(home, "Library", "LaunchAgents", "com.example.worker.plist"),
 					Properties: []service.Property{
-						{Name: "program", Values: []string{"/usr/local/bin/worker"}},
-						{Name: "stdout", Values: []string{"/Users/me/Library/Logs/worker.out.log"}},
-						{Name: "stderr", Values: []string{"/Users/me/Library/Logs/worker.err.log"}},
-						{Name: "environment", Values: []string{"WORKER_QUIET", "WORKER_STATUS_FILE"}},
+						{Name: "program", Parts: []string{"/usr/local/bin/worker"}},
+						{Name: "stdout", Parts: []string{"/Users/me/Library/Logs/worker.out.log"}},
+						{Name: "stderr", Parts: []string{"/Users/me/Library/Logs/worker.err.log"}},
+						{Name: "environment", Parts: []string{"WORKER_QUIET", "WORKER_STATUS_FILE"}},
 					},
 				},
 				{Name: "com.example.no-plist", State: service.Loaded, LastExit: service.LastExit{Code: 78}},
@@ -1298,8 +1298,8 @@ func TestDomain(t *testing.T) {
 				Env:       map[string]string{"WORKER_STATUS_FILE": "/Users/me/worker/status.json"},
 				PlistPath: path,
 				Properties: []service.Property{
-					{Name: "program", Values: []string{"/usr/local/bin/worker"}},
-					{Name: "environment", Values: []string{"WORKER_STATUS_FILE"}},
+					{Name: "program", Parts: []string{"/usr/local/bin/worker"}},
+					{Name: "environment", Parts: []string{"WORKER_STATUS_FILE"}},
 				},
 			}}, services)
 		})
