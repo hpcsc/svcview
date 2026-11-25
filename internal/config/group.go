@@ -15,6 +15,7 @@ type Group struct {
 	Name       string
 	match      *regexp.Regexp
 	Status     *status.Command
+	Actions    []Action
 	configFile string
 }
 
@@ -46,7 +47,7 @@ func readGroup(entry *yaml.Node, place int) (Group, error) {
 	if name != "" {
 		label = fmt.Sprintf("group %q", name)
 	}
-	if err := checkSettings(entry, label, "name", "match", "status"); err != nil {
+	if err := checkSettings(entry, label, "name", "match", "status", "actions"); err != nil {
 		return Group{}, err
 	}
 	if name == "" {
@@ -58,6 +59,12 @@ func readGroup(entry *yaml.Node, place int) (Group, error) {
 	}
 	if value, ok := valueOf["status"]; ok {
 		group.Status, err = readStatus(value, label)
+		if err != nil {
+			return Group{}, err
+		}
+	}
+	if value, ok := valueOf["actions"]; ok {
+		group.Actions, err = readActions(value, label)
 		if err != nil {
 			return Group{}, err
 		}
@@ -113,6 +120,21 @@ func readStatus(node *yaml.Node, groupLabel string) (*status.Command, error) {
 	}
 	statusCommand.StaleAfter = durations["stale_after"]
 	return &statusCommand, nil
+}
+
+func readActions(node *yaml.Node, groupLabel string) ([]Action, error) {
+	if node.Kind != yaml.SequenceNode {
+		return nil, fmt.Errorf("line %d: the setting \"actions\" of %s must be a list of actions, each with a key, a name and a command", node.Line, groupLabel)
+	}
+	var actions []Action
+	for i, entry := range node.Content {
+		action, err := readAction(entry, fmt.Sprintf("action %d of %s", i+1, groupLabel))
+		if err != nil {
+			return nil, err
+		}
+		actions = append(actions, action)
+	}
+	return actions, nil
 }
 
 func checkSettings(node *yaml.Node, label string, known ...string) error {

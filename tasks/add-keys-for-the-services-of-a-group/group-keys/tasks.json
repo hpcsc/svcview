@@ -27,7 +27,7 @@
     },
     {
       "n": 2,
-      "done": false,
+      "done": true,
       "title": "Read the actions of a group from the config file",
       "language": "Go",
       "testable": true,

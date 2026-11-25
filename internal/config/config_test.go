@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/hpcsc/svcview/internal/config"
+	"github.com/hpcsc/svcview/internal/service"
 	"github.com/hpcsc/svcview/internal/status"
 	"github.com/stretchr/testify/require"
 )
@@ -129,6 +130,22 @@ func groupOfEach(settings config.Settings, names ...string) map[string]string {
 		groups[name] = settings.GroupOf(name).Name
 	}
 	return groups
+}
+
+type actionRead struct {
+	Key     string
+	Name    string
+	Line    []string
+	Confirm bool
+}
+
+func actionsRead(group config.Group, svc service.Service) []actionRead {
+	var read []actionRead
+	for _, action := range group.Actions {
+		line, _ := action.Command.Apply(svc)
+		read = append(read, actionRead{Key: action.Key, Name: action.Name, Line: line, Confirm: action.Confirm})
+	}
+	return read
 }
 
 func TestSettings(t *testing.T) {
@@ -541,9 +558,9 @@ func TestSettings(t *testing.T) {
 
 		t.Run("a setting in a group that svcview does not know gives an error that names the file, the group and the setting, and no settings", func(t *testing.T) {
 			for content, setting := range map[string]string{
-				"groups:\n  - name: Databases\n    match: redis\n    actions: [restart]\n": `"actions" of group "Databases"`,
-				"groups:\n  - actions: [restart]\n    name: Databases\n    match: redis\n": `"actions" of group "Databases"`,
-				"groups:\n  - nme: Databases\n    match: redis\n":                          `"nme" of group 1`,
+				"groups:\n  - name: Databases\n    match: redis\n    hooks: [restart]\n": `"hooks" of group "Databases"`,
+				"groups:\n  - hooks: [restart]\n    name: Databases\n    match: redis\n": `"hooks" of group "Databases"`,
+				"groups:\n  - nme: Databases\n    match: redis\n":                        `"nme" of group 1`,
 			} {
 				folder, path := folderWith(t, content)
 
@@ -726,6 +743,118 @@ func TestSettings(t *testing.T) {
 				require.ErrorContains(t, err, setting, content)
 				require.Equal(t, config.Settings{}, settings, content)
 			}
+		})
+
+		t.Run("a group with actions gives each action with its key, its name, its command and its confirm, in the order of the file, and an action with no confirm does not confirm", func(t *testing.T) {
+			settings := readSettings(t, `groups:
+  - name: Workers
+    match: worker
+    actions:
+      - key: L
+        name: worker log
+        command: [less, +F, '{{.Env.WORKER_LOG}}']
+        confirm: true
+      - key: R
+        name: reset
+        command: ['{{.Env.WORKER_HOME}}/bin/reset', --name, '{{.Name}}']
+        confirm: false
+      - key: "1"
+        name: open plist
+        command: [open, '{{.PlistPath}}']
+      - key: é
+        name: édit
+        command: [open, -e, '{{.PlistPath}}']
+`)
+			worker := service.Service{
+				Name:      "com.example.worker.01",
+				Env:       map[string]string{"WORKER_LOG": "/Users/me/worker/worker.log", "WORKER_HOME": "/Users/me/worker"},
+				PlistPath: "/Users/me/Library/LaunchAgents/com.example.worker.01.plist",
+			}
+
+			require.Equal(t, []actionRead{
+				{Key: "L", Name: "worker log", Line: []string{"less", "+F", "/Users/me/worker/worker.log"}, Confirm: true},
+				{Key: "R", Name: "reset", Line: []string{"/Users/me/worker/bin/reset", "--name", "com.example.worker.01"}, Confirm: false},
+				{Key: "1", Name: "open plist", Line: []string{"open", "/Users/me/Library/LaunchAgents/com.example.worker.01.plist"}, Confirm: false},
+				{Key: "é", Name: "édit", Line: []string{"open", "-e", "/Users/me/Library/LaunchAgents/com.example.worker.01.plist"}, Confirm: false},
+			}, actionsRead(settings.Groups[0], worker))
+		})
+
+		t.Run("a key, a name or a command of an action that YAML reads as a number or a boolean is its text", func(t *testing.T) {
+			settings := readSettings(t, "groups:\n  - name: Workers\n    match: worker\n    actions:\n      - key: 7\n        name: 42\n        command: [true, 1.5]\n")
+
+			require.Equal(t, []actionRead{{Key: "7", Name: "42", Line: []string{"true", "1.5"}}}, actionsRead(settings.Groups[0], service.Service{Name: "com.example.worker.01"}))
+		})
+
+		t.Run("a group with no actions, a group with an empty list of actions, and the group Other have no actions", func(t *testing.T) {
+			settings := readSettings(t, "groups:\n  - name: Workers\n    match: worker\n    actions:\n      - {key: L, name: worker log, command: [less]}\n  - name: Databases\n    match: redis\n  - name: Jobs\n    match: job\n    actions: []\n")
+
+			require.Len(t, settings.GroupOf("com.example.worker").Actions, 1)
+			require.Empty(t, settings.GroupOf("homebrew.mxcl.redis").Actions)
+			require.Empty(t, settings.GroupOf("com.example.job").Actions)
+			require.Empty(t, settings.GroupOf("com.apple.a").Actions)
+		})
+
+		t.Run("an actions that is not a list gives an error that names the file and the group, and no settings", func(t *testing.T) {
+			for _, content := range []string{"actions: L", "actions:", "actions: ~", "actions: {key: L, name: worker log, command: [less]}"} {
+				folder, path := folderWith(t, "groups:\n  - name: Workers\n    match: worker\n    "+content+"\n")
+
+				settings, err := config.Read(folder, os.Getuid(), noACL)
+
+				require.ErrorContains(t, err, path, content)
+				require.ErrorContains(t, err, `the setting "actions" of group "Workers" must be a list of actions`, content)
+				require.Equal(t, config.Settings{}, settings, content)
+			}
+		})
+
+		t.Run("a fault in an action gives an error that names the file, the group, the action by its place, and the fault, and no settings", func(t *testing.T) {
+			for action, fault := range map[string]string{
+				"L":        `action 2 of group "Workers" is not a set of settings`,
+				"[L, log]": `action 2 of group "Workers" is not a set of settings`,
+				"{key: R, name: reset, command: [reset], args: [x]}":       `svcview does not know the setting "args" of action 2 of group "Workers"`,
+				"{key: R, name: reset, command: [reset], key: S}":          `the setting "key" of action 2 of group "Workers" is already on line`,
+				"{name: reset, command: [reset]}":                          `action 2 of group "Workers" has no key`,
+				"{key: R, command: [reset]}":                               `action 2 of group "Workers" has no name`,
+				"{key: R, name: reset}":                                    `action 2 of group "Workers" has no command`,
+				"{key: ctrl+l, name: reset, command: [reset]}":             `the setting "key" of action 2 of group "Workers" must be one character that prints and is not a space`,
+				"{key: LL, name: reset, command: [reset]}":                 `the setting "key" of action 2 of group "Workers" must be one character that prints and is not a space`,
+				"{key: \"\\t\", name: reset, command: [reset]}":            `the setting "key" of action 2 of group "Workers" must be one character that prints and is not a space`,
+				"{key: ' ', name: reset, command: [reset]}":                `the setting "key" of action 2 of group "Workers" must be one character that prints and is not a space`,
+				"{key: '', name: reset, command: [reset]}":                 `the setting "key" of action 2 of group "Workers" must be one character that prints and is not a space`,
+				"{key: ~, name: reset, command: [reset]}":                  `the setting "key" of action 2 of group "Workers" must be one character that prints and is not a space`,
+				"{key: [R], name: reset, command: [reset]}":                `the setting "key" of action 2 of group "Workers" must be one character that prints and is not a space`,
+				"{key: R, name: '', command: [reset]}":                     `the setting "name" of action 2 of group "Workers" must be text that is not empty`,
+				"{key: R, name: ~, command: [reset]}":                      `the setting "name" of action 2 of group "Workers" must be text that is not empty`,
+				"{key: R, name: [reset], command: [reset]}":                `the setting "name" of action 2 of group "Workers" must be text that is not empty`,
+				"{key: R, name: reset, command: reset}":                    `the setting "command" of action 2 of group "Workers" must be a list of texts`,
+				"{key: R, name: reset, command: [reset, [x]]}":             `the setting "command" of action 2 of group "Workers" must be a list of texts`,
+				"{key: R, name: reset, command: []}":                       `action 2 of group "Workers": the command is empty`,
+				"{key: R, name: reset, command: ['', x]}":                  `action 2 of group "Workers": the program of the command is empty`,
+				"{key: R, name: reset, command: [reset, '{{.Label}}']}":    `action 2 of group "Workers": the text "{{.Label}}" of the command uses {{.Label}},`,
+				"{key: R, name: reset, command: [reset, '{{.Name']}":       `action 2 of group "Workers": the text "{{.Name" of the command is not a Go template`,
+				"{key: R, name: reset, command: [reset], confirm: yes}":    `the setting "confirm" of action 2 of group "Workers" must be true or false`,
+				"{key: R, name: reset, command: [reset], confirm: 'true'}": `the setting "confirm" of action 2 of group "Workers" must be true or false`,
+				"{key: R, name: reset, command: [reset], confirm: 1}":      `the setting "confirm" of action 2 of group "Workers" must be true or false`,
+				"{key: R, name: reset, command: [reset], confirm: ~}":      `the setting "confirm" of action 2 of group "Workers" must be true or false`,
+				"{key: R, name: reset, command: [reset], confirm: [true]}": `the setting "confirm" of action 2 of group "Workers" must be true or false`,
+			} {
+				folder, path := folderWith(t, "groups:\n  - name: Workers\n    match: worker\n    actions:\n      - {key: L, name: worker log, command: [less]}\n      - "+action+"\n")
+
+				settings, err := config.Read(folder, os.Getuid(), noACL)
+
+				require.ErrorContains(t, err, path, action)
+				require.ErrorContains(t, err, fault, action)
+				require.Equal(t, config.Settings{}, settings, action)
+			}
+		})
+
+		t.Run("an action in a group of a file in conf.d gives an error that names that file", func(t *testing.T) {
+			folder, path := folderWithConfD(t, "groups:\n  - name: Workers\n    match: worker\n    actions:\n      - {key: ctrl+l, name: worker log, command: [less]}\n")
+
+			settings, err := config.Read(folder, os.Getuid(), noACL)
+
+			require.ErrorContains(t, err, path)
+			require.ErrorContains(t, err, `action 1 of group "Workers"`)
+			require.Equal(t, config.Settings{}, settings)
 		})
 
 		t.Run("a group with the name Other gives an error that names the file and the group, and no settings", func(t *testing.T) {

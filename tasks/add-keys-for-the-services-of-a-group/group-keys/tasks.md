@@ -231,20 +231,20 @@ example `action 2 of group "Workers"`. A group with a list of actions is no long
 groups apart by their names. The screen shows no change.
 
 **Acceptance Criteria:**
-- [ ] A group with `actions` gives a group whose actions have the key, the name, the command and the confirm of each
+- [x] A group with `actions` gives a group whose actions have the key, the name, the command and the confirm of each
       entry, in the order of the file, and the command gives the command line of a service through `Apply`. An entry
       with no `confirm` has a confirm of false. A group with no `actions` has no actions, and so does the group
       `Other`.
-- [ ] Each of these gives an error that names the file, the group, and the action by its place, and gives no
+- [x] Each of these gives an error that names the file, the group, and the action by its place, and gives no
       settings: an `actions` that is not a list; an entry that is not a set of settings; a setting of an action that
       svcview does not know, or that an action sets two times; an action with no `key`, no `name`, or no `command`; a
       `key` that is not one character that prints, or that is a space, for example `ctrl+l`, `LL`, a tab, or `' '`; an
       empty `name`; a `command` that is not a list of texts, that is empty, or that `status.NewCommandTemplate`
       refuses; a `confirm` that is not `true` or `false`, for example `yes`.
-- [ ] The two cases of `internal/config/config_test.go` that use `actions` as a setting of a group that svcview does
+- [x] The two cases of `internal/config/config_test.go` that use `actions` as a setting of a group that svcview does
       not know use another name, and the case that uses `actions` as a setting of `status` that svcview does not know
       stays as it is.
-- [ ] The screen tells two groups apart by their names: the order of the groups in the list, the status runs of each
+- [x] The screen tells two groups apart by their names: the order of the groups in the list, the status runs of each
       group, and each test in `internal/tui` stay as they are.
 
 **Affected Files/Modules:**

@@ -289,7 +289,7 @@ func (s Screen) nextStatusTick(group config.Group) tea.Cmd {
 func (s Screen) runStatuses(group config.Group) tea.Cmd {
 	var runs []tea.Cmd
 	for _, r := range s.rows() {
-		if r.group == group && !s.runNotEnded[r.service.Name] {
+		if r.group.Name == group.Name && !s.runNotEnded[r.service.Name] {
 			s.runNotEnded[r.service.Name] = true
 			runs = append(runs, s.runStatusOf(r))
 		}
@@ -334,7 +334,7 @@ func (s Screen) programFailureText(ended programEnded) string {
 
 func (s Screen) rowOf(svc service.Service) row {
 	group := s.settings.GroupOf(svc.Name)
-	return row{service: svc, group: group, groupIndex: slices.Index(s.groupOrder, group)}
+	return row{service: svc, group: group, groupIndex: slices.IndexFunc(s.groupOrder, func(other config.Group) bool { return other.Name == group.Name })}
 }
 
 func (s Screen) rows() []row {
