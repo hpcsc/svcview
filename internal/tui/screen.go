@@ -10,6 +10,7 @@ import (
 	"strings"
 	"syscall"
 	"time"
+	"unicode/utf8"
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
@@ -106,6 +107,8 @@ type Screen struct {
 	launchdActionNotEnded map[string]bool
 	message               string
 	confirmation          *confirmation
+	filter                string
+	filterLineOpen        bool
 	selected              string
 	listTop               int
 	detailTop             int
@@ -142,9 +145,12 @@ func (s Screen) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		s.width, s.height = msg.Width, msg.Height
 	case tea.KeyPressMsg:
-		if s.confirmation != nil {
+		switch {
+		case s.confirmation != nil:
 			s, cmd = s.answer(msg)
-		} else {
+		case s.filterLineOpen:
+			s, cmd = s.pressInFilterLine(msg)
+		default:
 			s, cmd = s.press(msg)
 		}
 	case servicesRead:
@@ -200,6 +206,10 @@ func (s Screen) press(key tea.KeyPressMsg) (Screen, tea.Cmd) {
 	case "h":
 		if !s.showHelp {
 			s.focus = listPane
+		}
+	case "/":
+		if !s.showHelp {
+			s.filterLineOpen, s.focus = true, listPane
 		}
 	case "s":
 		if svc, ok := s.serviceForLaunchdAction(); ok && svc.State != service.Running {
@@ -276,6 +286,22 @@ func (s Screen) answer(key tea.KeyPressMsg) (Screen, tea.Cmd) {
 		return s, tea.Quit
 	case "y":
 		return s, answered.yes(s)
+	}
+	return s, nil
+}
+
+func (s Screen) pressInFilterLine(key tea.KeyPressMsg) (Screen, tea.Cmd) {
+	s.message = ""
+	switch key.String() {
+	case "ctrl+c":
+		return s, tea.Quit
+	case "esc":
+		s.filter, s.filterLineOpen = "", false
+	case "backspace":
+		_, size := utf8.DecodeLastRuneInString(s.filter)
+		s.filter = s.filter[:len(s.filter)-size]
+	default:
+		s.filter += key.Text
 	}
 	return s, nil
 }
@@ -474,12 +500,21 @@ func (s Screen) content() string {
 	} else {
 		lines = append(lines, s.panes()...)
 	}
+	lines = append(lines, s.filterLines()...)
 	lines = append(lines, s.messageLines()...)
 	return strings.Join(append(lines, ansi.Truncate(s.helpLine(), s.width, "")), "\n")
 }
 
 func (s Screen) paneHeight() int {
-	return s.height - headerHeight - len(s.messageLines()) - 1
+	return s.height - headerHeight - len(s.filterLines()) - len(s.messageLines()) - 1
+}
+
+func (s Screen) filterLines() []string {
+	if !s.filterLineOpen {
+		return nil
+	}
+	cursor := ansi.NewStyle().Reverse(true).Styled(" ")
+	return []string{ansi.Truncate(" /"+terminal.ReplaceControlCharacters(s.filter)+cursor, s.width, "…")}
 }
 
 func (s Screen) messageLines() []string {
@@ -516,6 +551,9 @@ func (s Screen) borderStyle(p pane) ansi.Style {
 }
 
 func (s Screen) helpLine() string {
+	if s.filterLineOpen {
+		return " esc clear the filter"
+	}
 	keys := []string{"s start", "x stop", "r restart", "o log"}
 	for _, action := range s.selectedActions() {
 		keys = append(keys, terminal.ReplaceControlCharacters(action.Key+" "+action.Name))
@@ -529,6 +567,8 @@ func (s Screen) helpText() []string {
 		"tab       move the focus to the other pane",
 		"l         move the focus to the detail pane",
 		"h         move the focus to the list",
+		"/         filter the list by name",
+		"backspace delete the last character of the filter",
 		"s         start the selected service",
 		"x         stop the selected service, after a confirmation",
 		"r         restart the selected service, after a confirmation",
@@ -540,7 +580,7 @@ func (s Screen) helpText() []string {
 	}
 	return append(text,
 		"?         show or hide this help",
-		"esc       hide this help",
+		"esc       hide this help, or clear the filter",
 		"q ctrl+c  quit",
 	)
 }

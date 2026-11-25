@@ -142,39 +142,39 @@ filter and closes the line. `ctrl+c` quits, and each other key does nothing. The
 of its jobs. This task does not change which rows the list shows.
 
 **Acceptance Criteria:**
-- [ ] `/` shows the filter line ` /` with a cursor after it, under the panes, and the panes end one line higher. A
+- [x] `/` shows the filter line ` /` with a cursor after it, under the panes, and the panes end one line higher. A
       golden file shows the screen with the filter line open and a filter typed.
-- [ ] With the filter line open on a selected service that `s`, `x` and `r` each act on, in a group with actions,
+- [x] With the filter line open on a selected service that `s`, `x` and `r` each act on, in a group with actions,
       each key that types text adds its text to the end of the filter: each printable ASCII character from `!` to `~`
       and the space, so `h`, `j`, `k`, `l`, `q`, `?`, `/`, `s`, `x`, `r`, `o`, `y` and the key of an action too. After
       them the filter line shows `/` and each character in the order of the keys, no key returned a command, nothing
       called a start, a stop or a restart, and the help does not show.
-- [ ] `backspace` deletes the last character of the filter, also a character of more than one byte such as `é`. On
+- [x] `backspace` deletes the last character of the filter, also a character of more than one byte such as `é`. On
       an empty filter it changes nothing, and the filter line stays open.
-- [ ] `esc` clears the filter and hides the filter line. From a screen with the focus on the list, the screen after
+- [x] `esc` clears the filter and hides the filter line. From a screen with the focus on the list, the screen after
       `/`, a filter that the name of the selected service contains, and `esc` shows the same as before `/`.
-- [ ] After `esc`, the keys act again: `j` selects the next row, and `?` shows the help.
-- [ ] While the filter line is open, `↑`, `↓`, `tab`, `←` and `→` change nothing: each key pressed from its own start
+- [x] After `esc`, the keys act again: `j` selects the next row, and `?` shows the help.
+- [x] While the filter line is open, `↑`, `↓`, `tab`, `←` and `→` change nothing: each key pressed from its own start
       state gives the same screen as that start state. `ctrl+c` ends the screen.
-- [ ] While the filter line is open, the help line shows ` esc clear the filter`. After `esc`, it shows the help line
+- [x] While the filter line is open, the help line shows ` esc clear the filter`. After `esc`, it shows the help line
       of the selected service again.
-- [ ] `/` moves the focus to the list: after `tab` gives the focus to the detail pane, `/` makes the border of the list
+- [x] `/` moves the focus to the list: after `tab` gives the focus to the detail pane, `/` makes the border of the list
       blue and the border of the detail pane dim.
-- [ ] `/` while the help shows changes nothing, and shows no filter line.
-- [ ] While a confirmation shows, `/` answers no: the confirmation hides, nothing is called, and no filter line shows.
-- [ ] `/` hides the message line, as each key press does. An error of a start that ends while the filter line is open
+- [x] `/` while the help shows changes nothing, and shows no filter line.
+- [x] While a confirmation shows, `/` answers no: the confirmation hides, nothing is called, and no filter line shows.
+- [x] `/` hides the message line, as each key press does. An error of a start that ends while the filter line is open
       shows on the message line, under the filter line and above the help line, and the next key goes into the filter
       and hides it.
-- [ ] The filter line shows each control character of the filter as `�`.
-- [ ] svcview cuts a filter line that is wider than the terminal with `…`: a test at the width that fits the line
+- [x] The filter line shows each control character of the filter as `�`.
+- [x] svcview cuts a filter line that is wider than the terminal with `…`: a test at the width that fits the line
       exactly, and a test at one column less.
-- [ ] The help that `?` shows lists `/` with `filter the list by name` on the line after `h`, then `backspace` with
+- [x] The help that `?` shows lists `/` with `filter the list by name` on the line after `h`, then `backspace` with
       `delete the last character of the filter` before `s`, and `esc` with `hide this help, or clear the filter`. The
       golden tests of the help open terminals tall enough for each line, and `keys.golden` and
       `keys-with-actions.golden` show them.
-- [ ] The comment of `keysOfSvcview` in `internal/config/action.go` says that the screen handles each of these keys,
+- [x] The comment of `keysOfSvcview` in `internal/config/action.go` says that the screen handles each of these keys,
       `/` too. The test that `config.Read` refuses only the keys of svcview passes with no change.
-- [ ] e2e: on a running service, `/` and then the text `proxy` show the filter line `/proxy`, the screen stays open,
+- [x] e2e: on a running service, `/` and then the text `proxy` show the filter line `/proxy`, the screen stays open,
       and the fake launchctl gets no call. `esc` then hides the filter line.
 
 **Affected Files/Modules:**

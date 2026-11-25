@@ -5,7 +5,7 @@
   "tasks": [
     {
       "n": 1,
-      "done": false,
+      "done": true,
       "title": "Open a filter line with / that takes each key that types text",
       "language": "Go",
       "testable": true,

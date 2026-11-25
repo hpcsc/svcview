@@ -11,7 +11,7 @@ import (
 	"go.yaml.in/yaml/v3"
 )
 
-// tui.Screen handles each of these keys, and / is kept for the filter of the list.
+// tui.Screen handles each of these keys.
 var keysOfSvcview = []string{"?", "/", "h", "j", "k", "l", "o", "q", "r", "s", "x"}
 
 type Action struct {

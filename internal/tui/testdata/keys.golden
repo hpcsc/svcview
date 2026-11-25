@@ -6,12 +6,14 @@
 │ tab       move the focus to the other pane                                   │
 │ l         move the focus to the detail pane                                  │
 │ h         move the focus to the list                                         │
+│ /         filter the list by name                                            │
+│ backspace delete the last character of the filter                            │
 │ s         start the selected service                                         │
 │ x         stop the selected service, after a confirmation                    │
 │ r         restart the selected service, after a confirmation                 │
 │ o         show the log of the selected service                               │
 │ ?         show or hide this help                                             │
-│ esc       hide this help                                                     │
+│ esc       hide this help, or clear the filter                                │
 │ q ctrl+c  quit                                                               │
 ╰──────────────────────────────────────────────────────────────────────────────╯
  s start · x stop · r restart · o log · ? help
