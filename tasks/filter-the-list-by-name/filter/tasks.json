@@ -1,0 +1,149 @@
+{
+  "story": "/ filters the list by the name of each service",
+  "story_id": "launchd-tui/US-012",
+  "tasks_file": "tasks/filter-the-list-by-name/filter/tasks.md",
+  "tasks": [
+    {
+      "n": 1,
+      "done": false,
+      "title": "Open a filter line with / that takes each key that types text",
+      "language": "Go",
+      "testable": true,
+      "certainty": "medium",
+      "blast_radius": "high",
+      "patterns_to_follow": [
+        "internal/tui/screen.go:138-149",
+        "internal/tui/screen.go:183-246",
+        "internal/tui/screen.go:271-281",
+        "internal/tui/screen.go:465-494",
+        "internal/tui/screen.go:518-546",
+        "internal/tui/screen_test.go:384-400",
+        "internal/tui/screen_test.go:3008-3035",
+        "internal/tui/screen_test.go:3194-3210",
+        "internal/tui/screen_test.go:3872-3891",
+        "internal/tui/screen_test.go:4203-4291",
+        "e2e/tests/start-stop.test.ts:8-17",
+        "e2e/tests/actions.test.ts:44-60"
+      ],
+      "depends_on": [],
+      "affected_files": [
+        "internal/tui/screen.go",
+        "internal/tui/screen_test.go",
+        "internal/tui/testdata/",
+        "internal/config/action.go",
+        "e2e/tests/filter.test.ts"
+      ]
+    },
+    {
+      "n": 2,
+      "done": false,
+      "title": "Show only the services whose name contains the filter",
+      "language": "Go",
+      "testable": true,
+      "certainty": "medium",
+      "blast_radius": "low",
+      "patterns_to_follow": [
+        "internal/tui/screen.go:313-322",
+        "internal/tui/screen.go:364-381",
+        "internal/tui/screen.go:392-404",
+        "internal/tui/screen.go:441-463",
+        "internal/tui/screen.go:548-561",
+        "internal/tui/screen_test.go:581-590",
+        "internal/tui/screen_test.go:632-667",
+        "internal/tui/screen_test.go:796-804",
+        "internal/tui/screen_test.go:924-990",
+        "internal/tui/screen_test.go:2093-2110",
+        "internal/tui/screen_test.go:2144-2155",
+        "internal/tui/screen_test.go:2390-2412",
+        "task:1"
+      ],
+      "depends_on": [
+        1
+      ],
+      "affected_files": [
+        "internal/tui/screen.go",
+        "internal/tui/screen_test.go",
+        "internal/tui/testdata/",
+        "e2e/tests/filter.test.ts"
+      ]
+    },
+    {
+      "n": 3,
+      "done": false,
+      "title": "Show no service matches when the filter hides each service",
+      "language": "Go",
+      "testable": true,
+      "certainty": "high",
+      "blast_radius": "low",
+      "patterns_to_follow": [
+        "internal/tui/screen.go:563-570",
+        "internal/tui/screen_test.go:766-779",
+        "internal/tui/screen_test.go:2955-2967",
+        "internal/tui/screen_test.go:3791-3801",
+        "task:2"
+      ],
+      "depends_on": [
+        2
+      ],
+      "affected_files": [
+        "internal/tui/screen.go",
+        "internal/tui/screen_test.go",
+        "internal/tui/testdata/",
+        "e2e/tests/filter.test.ts"
+      ]
+    },
+    {
+      "n": 4,
+      "done": false,
+      "title": "Keep the filter with enter",
+      "language": "Go",
+      "testable": true,
+      "certainty": "high",
+      "blast_radius": "high",
+      "patterns_to_follow": [
+        "internal/tui/screen.go:188-191",
+        "internal/tui/screen.go:204-229",
+        "internal/tui/screen.go:230-241",
+        "internal/tui/screen.go:427-435",
+        "internal/tui/screen_test.go:2051-2061",
+        "internal/tui/screen_test.go:2955-2967",
+        "internal/tui/screen_test.go:3750-3800",
+        "internal/tui/screen_test.go:4220-4246",
+        "e2e/tests/start-stop.test.ts:8-17",
+        "task:3"
+      ],
+      "depends_on": [
+        3
+      ],
+      "affected_files": [
+        "internal/tui/screen.go",
+        "internal/tui/screen_test.go",
+        "internal/tui/testdata/",
+        "e2e/tests/filter.test.ts"
+      ]
+    },
+    {
+      "n": 5,
+      "done": false,
+      "title": "Describe the filter in docs/cli.md",
+      "language": "Markdown",
+      "testable": false,
+      "certainty": "high",
+      "blast_radius": "low",
+      "patterns_to_follow": [
+        "docs/cli.md:70-76",
+        "docs/cli.md:114-135",
+        "docs/cli.md:137-145",
+        "docs/cli.md:147-162",
+        "docs/cli.md:813-825"
+      ],
+      "depends_on": [
+        4
+      ],
+      "affected_files": [
+        "docs/cli.md"
+      ]
+    }
+  ],
+  "design_file": "tasks/filter-the-list-by-name/filter/design.yaml"
+}

@@ -1,0 +1,40 @@
+design: planned
+types:
+  - name: Screen
+    package: internal/tui
+    change: changed
+    does: the Bubble Tea model of the screen of svcview
+    owns:
+      - / opens the filter line and moves the focus to the list, does nothing while the help shows, and answers no while a confirmation shows
+      - while the filter line is open, each key that types text adds its text to the end of the filter, each letter and each key of svcview or of an action too, so that no such key starts, stops or restarts a service, shows a log, runs an action, shows the help, moves the focus or quits
+      - while the filter line is open, backspace deletes the last character of the filter, enter keeps the filter, esc clears the filter and closes the line, ctrl+c quits, and each other key does nothing
+      - the filter line shows under the panes or the help and above the message line while the filter line is open and while a filter is kept, with / and the filter, and a cursor after the filter only while the line is open; the panes are one line shorter while it shows
+      - while the filter line is open, the help line shows enter keep the filter · esc clear the filter
+      - the list shows only the services whose name contains the filter, with no regard to case, and a group with no such service shows no group line; an empty filter shows each service
+      - the selected service is always a row that the list shows - when the filter hides it, the row at its place in the order of the list is selected, and with no row, no service is selected, so the keys that act on the selected service do nothing
+      - with a filter that the name of no service of the read contains, the list shows no service matches
+      - a kept filter applies to each read, esc clears it, and while the help shows esc hides only the help
+      - the header counts and the status runs take each service of the read, also each service that the filter hides
+    fields: [filter, filterLineOpen, selected, focus, message, confirmation, showHelp]
+    methods: [Init, Update, View]
+functions: []
+words:
+  - concept: the text that the list compares with the name of each service
+    word: filter
+    not: [query, search, pattern, match, needle, term]
+  - concept: the line under the panes that shows / and the filter
+    word: filter line
+    not: [search bar, search box, prompt, input, command line, status line]
+  - concept: the state of the filter line in which each key that types text goes into the filter
+    word: open
+    not: [active, focused, editing, insert mode, typing mode]
+  - concept: what enter does to the filter, so that the list stays filtered and the keys act again
+    word: keep
+    not: [apply, confirm, accept, submit, commit, lock]
+  - concept: what esc does to the filter, so that it is empty and the list shows each service again
+    word: clear
+    not: [reset, cancel, dismiss, remove]
+  - concept: a name holds the filter as a part, with no regard to case
+    word: contains
+    not: [matches, fuzzy, search, find]
+dependencies: []
