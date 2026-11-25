@@ -26,7 +26,7 @@
     },
     {
       "n": 2,
-      "done": false,
+      "done": true,
       "title": "Open the StandardOutPath of the selected service in less +F with o",
       "language": "Go",
       "testable": true,

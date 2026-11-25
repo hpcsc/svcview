@@ -197,32 +197,32 @@ that gives the terminal to a program uses it. When the program cannot start, exi
 signal ends it, the screen shows again, and the message line says why.
 
 **Acceptance Criteria:**
-- [ ] `o` on a selected service whose plist has a `StandardOutPath` runs `less +F -- <StandardOutPath>`, with no
+- [x] `o` on a selected service whose plist has a `StandardOutPath` runs `less +F -- <StandardOutPath>`, with no
       shell, for a `not loaded`, a `loaded` and a `running` service.
-- [ ] A path with a space, a quote and a `$` reaches `less` unchanged, and a path that starts with `+` or `-`
+- [x] A path with a space, a quote and a `$` reaches `less` unchanged, and a path that starts with `+` or `-`
       reaches `less` after `--`.
-- [ ] When `less` exits with 0, the screen shows again with the service that was selected before `o`, also when it
+- [x] When `less` exits with 0, the screen shows again with the service that was selected before `o`, also when it
       is not the first row, with the same focus, and with no text on the message line.
-- [ ] When `less` exits with a code other than 0, the screen shows again, and the message line names the command
+- [x] When `less` exits with a code other than 0, the screen shows again, and the message line names the command
       and the code, for example `less +F -- /Users/me/Library/Logs/worker.out.log exited with code 1`. When a
       signal ends it, the message line says so, for example `... ended by SIGTERM`. When svcview cannot start it,
       the message line shows why, for example with `exec: "less": executable file not found in $PATH`.
-- [ ] The text of a failure shows on one line, with each control character of the path as `�`. The next key press
+- [x] The text of a failure shows on one line, with each control character of the path as `�`. The next key press
       hides it and does what it does, as for each text of the message line.
-- [ ] `o` runs nothing while the help shows, with no rows, and while the list shows a read error after a read that
+- [x] `o` runs nothing while the help shows, with no rows, and while the list shows a read error after a read that
       selected a service. While a confirmation shows, `o` answers no, as each key other than `y` does, and runs
       nothing.
-- [ ] `o` opens the log also while the start, the stop or the restart of the selected service has not ended.
-- [ ] The Go tests of the screen run a fake `less` from `PATH`, which `TestMain` of `internal/tui` writes one time
+- [x] `o` opens the log also while the start, the stop or the restart of the selected service has not ended.
+- [x] The Go tests of the screen run a fake `less` from `PATH`, which `TestMain` of `internal/tui` writes one time
       and which records its arguments and exits with the code that the test gives. They run the screen in a real
       Bubble Tea program in a `synctest` bubble.
-- [ ] e2e: `e2e/fakes/less` records its arguments in the home folder, shows a line on the terminal, and ends when
+- [x] e2e: `e2e/fakes/less` records its arguments in the home folder, shows a line on the terminal, and ends when
       the test types `q` and `enter`. A helper makes it exit with a code at once. `addPlist` can write a
       `StandardOutPath` and a `StandardErrorPath`, and a helper reads the calls of the fake `less`.
       `docs/e2e-tests.md` describes the fake `less` and the helpers.
-- [ ] e2e: `↓` and `o` on a service with a `StandardOutPath` show the fake `less`, which records
+- [x] e2e: `↓` and `o` on a service with a `StandardOutPath` show the fake `less`, which records
       `+F -- <StandardOutPath>`. After `q` and `enter`, the screen shows again, with `▌` on the same row.
-- [ ] e2e: when the fake `less` exits with 1, the line above the help line shows
+- [x] e2e: when the fake `less` exits with 1, the line above the help line shows
       `less +F -- <StandardOutPath> exited with code 1`.
 
 **Affected Files/Modules:**

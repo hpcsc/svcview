@@ -30,13 +30,20 @@ export function scratchDir(): string {
   return dir
 }
 
-export function addPlist(home: string, name: string, environment: Record<string, string> = {}): void {
+export function addPlist(
+  home: string,
+  name: string,
+  environment: Record<string, string> = {},
+  paths: { stdoutPath?: string; stderrPath?: string } = {},
+): void {
   const folder = join(home, 'Library', 'LaunchAgents')
   mkdirSync(folder, { recursive: true })
   const variables = Object.entries(environment)
     .map(([variable, value]) => `\t\t<key>${variable}</key>\n\t\t<string>${value}</string>\n`)
     .join('')
   const environmentVariables = variables ? `\t<key>EnvironmentVariables</key>\n\t<dict>\n${variables}\t</dict>\n` : ''
+  const stdoutPath = paths.stdoutPath ? `\t<key>StandardOutPath</key>\n\t<string>${paths.stdoutPath}</string>\n` : ''
+  const stderrPath = paths.stderrPath ? `\t<key>StandardErrorPath</key>\n\t<string>${paths.stderrPath}</string>\n` : ''
   writeFileSync(
     join(folder, `${name}.plist`),
     `<?xml version="1.0" encoding="UTF-8"?>
@@ -45,7 +52,7 @@ export function addPlist(home: string, name: string, environment: Record<string,
 <dict>
 	<key>Label</key>
 	<string>${name}</string>
-${environmentVariables}</dict>
+${environmentVariables}${stdoutPath}${stderrPath}</dict>
 </plist>
 `,
   )
@@ -81,6 +88,16 @@ export function failLaunchctl(home: string, text: string): void {
 
 export function launchctlCalls(home: string): string[] {
   const path = join(home, 'launchctl-calls.txt')
+  if (!existsSync(path)) return []
+  return readFileSync(path, 'utf8').split('\n').filter((line) => line !== '')
+}
+
+export function failLess(home: string, exitCode: number): void {
+  writeFileSync(join(home, 'less-exit.txt'), String(exitCode))
+}
+
+export function lessCalls(home: string): string[] {
+  const path = join(home, 'less-calls.txt')
   if (!existsSync(path)) return []
   return readFileSync(path, 'utf8').split('\n').filter((line) => line !== '')
 }

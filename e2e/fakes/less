@@ -1,0 +1,11 @@
+#!/bin/sh
+printf '%s\n' "$*" >> "$HOME/less-calls.txt"
+if [ -f "$HOME/less-exit.txt" ]; then
+  exit "$(cat "$HOME/less-exit.txt")"
+fi
+echo "the fake less shows: $*"
+while read -r line; do
+  if [ "$line" = q ]; then
+    exit 0
+  fi
+done

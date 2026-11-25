@@ -2,10 +2,13 @@ package tui
 
 import (
 	"cmp"
+	"errors"
 	"fmt"
+	"os/exec"
 	"slices"
 	"strconv"
 	"strings"
+	"syscall"
 	"time"
 
 	tea "charm.land/bubbletea/v2"
@@ -43,6 +46,11 @@ type statusTick struct {
 type actionEnded struct {
 	name string
 	err  error
+}
+
+type programEnded struct {
+	commandLine []string
+	err         error
 }
 
 type confirmation struct {
@@ -158,6 +166,10 @@ func (s Screen) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if msg.err != nil {
 			s.message = terminal.ReplaceControlCharacters(strings.ReplaceAll(msg.err.Error(), "\n", " "))
 		}
+	case programEnded:
+		if msg.err != nil {
+			s.message = terminal.ReplaceControlCharacters(s.programFailureText(msg))
+		}
 	case refresh:
 		return s, s.readServices
 	}
@@ -206,6 +218,10 @@ func (s Screen) press(key tea.KeyPressMsg) (Screen, tea.Cmd) {
 			s.message = terminal.ReplaceControlCharacters(svc.Name) + " is not loaded, so svcview cannot restart it"
 		default:
 			s.confirmation = newConfirmation("Restart", svc, s.restart)
+		}
+	case "o":
+		if svc, ok := s.selectedService(); ok && !s.showHelp {
+			return s, s.giveTerminalTo([]string{"less", "+F", "--", svc.StdoutPath})
 		}
 	case "up", "k", "down", "j":
 		step := 1
@@ -291,6 +307,24 @@ func (s Screen) actionOn(svc service.Service, action func(service.Service) error
 	return func() tea.Msg {
 		return actionEnded{name: svc.Name, err: action(svc)}
 	}
+}
+
+func (s Screen) giveTerminalTo(commandLine []string) tea.Cmd {
+	return tea.ExecProcess(exec.Command(commandLine[0], commandLine[1:]...), func(err error) tea.Msg {
+		return programEnded{commandLine: commandLine, err: err}
+	})
+}
+
+func (s Screen) programFailureText(ended programEnded) string {
+	text := strings.Join(ended.commandLine, " ")
+	exited, ok := errors.AsType[*exec.ExitError](ended.err)
+	if !ok {
+		return fmt.Sprintf("run %s: %s", text, ended.err)
+	}
+	if wait, _ := exited.Sys().(syscall.WaitStatus); wait.Signaled() {
+		return fmt.Sprintf("%s ended by %s", text, service.SignalName(int(wait.Signal())))
+	}
+	return fmt.Sprintf("%s exited with code %d", text, exited.ExitCode())
 }
 
 func (s Screen) rowOf(svc service.Service) row {

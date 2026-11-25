@@ -86,7 +86,7 @@ The screen tests start svcview with no command in the pseudo-terminal of `openCl
 | Helper | Job |
 | --- | --- |
 | `homeWithPlists(names)` | Makes a scratch home folder. For each name, it writes `<name>.plist` to `Library/LaunchAgents`, with the name as its `Label`. It also writes an output of `launchctl list` that shows no names, so each service is `not loaded`. |
-| `addPlist(home, name)` | Writes one more plist to a home folder, for example while the screen is open. |
+| `addPlist(home, name, environment, paths)` | Writes one more plist to a home folder, for example while the screen is open. `environment` gives the `EnvironmentVariables` of the plist. `paths` gives its `StandardOutPath` as `stdoutPath` and its `StandardErrorPath` as `stderrPath`; the plist has no such key when the test gives none. |
 | `setLaunchctlList(home, services)` | Writes the output of `launchctl list` that the fake `launchctl` prints for this home folder. A service with a `pid` is `running`, and a service with no `pid` is `loaded`. The `status` of a service is its `Status` column, 0 when it has none, and a negative `status` is a signal. A test can call it again while the screen is open. |
 | `setLaunchctlOutput(home, output)` | Writes any text as the output of `launchctl list`, for example a header line that svcview does not know. |
 
@@ -146,6 +146,21 @@ Docker image has no `ps`, and the real `ps` on a Mac knows nothing of the PIDs o
   the detail pane shows as `up 5s`. It writes the file to a new name and renames it over the old file, as
   `setLaunchctlList` does.
 - For any other arguments, the fake writes an error to stderr and exits with 64.
+- The fake must stay executable in git (mode `100755`), as the fake `launchctl` must.
+
+### The fake less
+
+`o` gives the terminal to `less +F -- <log path>`. The Docker image has no `less`, and the real `less` waits for keys
+that a test does not know. So `e2e/fakes` also holds a fake `less`:
+
+- The fake adds one line with its arguments to the file `less-calls.txt` in the home folder, for example
+  `+F -- /var/log/com.example.worker.out.log`.
+- Then it shows `the fake less shows: <arguments>` on the terminal, and reads lines until it reads `q`. So a test
+  waits for that text, types `q`, presses `enter`, and the screen of svcview shows again.
+- `lessCalls(home)` gives the lines of `less-calls.txt`, one for each call, or no lines when svcview did not call the
+  fake.
+- `failLess(home, exitCode)` makes each later call exit with `exitCode` at once, after the fake records it, with no
+  text on the terminal.
 - The fake must stay executable in git (mode `100755`), as the fake `launchctl` must.
 
 A test that passes its own `PATH` to `openCli` or `runCli` replaces the `PATH` with the fakes. Keep `e2e/fakes` first

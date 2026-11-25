@@ -33,6 +33,46 @@ var (
 	refreshEvery2s = config.Settings{Refresh: 2 * time.Second}
 )
 
+// macOS checks each new executable file at its first run, which costs about 0.3 s, so the tests share one fake less.
+func TestMain(m *testing.M) {
+	folder, err := os.MkdirTemp("", "svcview-fakes-")
+	if err != nil {
+		panic(err)
+	}
+	script := "#!/bin/sh\n" +
+		"{ printf '%s\\037' \"$@\"; printf '\\036'; } >> \"$FAKE_LESS_CALLS\"\n" +
+		"[ -n \"$FAKE_LESS_SIGNAL\" ] && kill -s \"$FAKE_LESS_SIGNAL\" $$\n" +
+		"exit \"${FAKE_LESS_EXIT:-0}\"\n"
+	if err := os.WriteFile(filepath.Join(folder, "less"), []byte(script), 0o755); err != nil {
+		panic(err)
+	}
+	if err := os.Setenv("PATH", folder+string(os.PathListSeparator)+os.Getenv("PATH")); err != nil {
+		panic(err)
+	}
+	code := m.Run()
+	_ = os.RemoveAll(folder)
+	os.Exit(code)
+}
+
+func fakeLess(t *testing.T, exitCode string) func() [][]string {
+	t.Helper()
+	callsFile := filepath.Join(t.TempDir(), "less-calls")
+	t.Setenv("FAKE_LESS_CALLS", callsFile)
+	t.Setenv("FAKE_LESS_EXIT", exitCode)
+	return func() [][]string {
+		data, err := os.ReadFile(callsFile)
+		if errors.Is(err, os.ErrNotExist) {
+			return nil
+		}
+		require.NoError(t, err)
+		var calls [][]string
+		for call := range strings.SplitSeq(strings.TrimSuffix(string(data), "\x1e"), "\x1e") {
+			calls = append(calls, strings.Split(strings.TrimSuffix(call, "\x1f"), "\x1f"))
+		}
+		return calls
+	}
+}
+
 func servicesNamed(names ...string) func() ([]service.Service, error) {
 	return func() ([]service.Service, error) {
 		var services []service.Service
@@ -106,6 +146,7 @@ var (
 	keyS     = tea.KeyPressMsg{Code: 's', Text: "s"}
 	keyX     = tea.KeyPressMsg{Code: 'x', Text: "x"}
 	keyR     = tea.KeyPressMsg{Code: 'r', Text: "r"}
+	keyO     = tea.KeyPressMsg{Code: 'o', Text: "o"}
 	keyY     = tea.KeyPressMsg{Code: 'y', Text: "y"}
 	keyN     = tea.KeyPressMsg{Code: 'n', Text: "n"}
 	keyQ     = tea.KeyPressMsg{Code: 'q', Text: "q"}
@@ -3128,7 +3169,7 @@ func TestScreen(t *testing.T) {
 		})
 
 		t.Run("each key other than y and ctrl+c answers no: it hides the confirmation, calls nothing, and does nothing else", func(t *testing.T) {
-			for _, key := range []tea.KeyPressMsg{keyN, escape, keyQ, up, down, keyJ, keyK, keyL, keyH, keyX, keyS, keyR, question, tab, tea.KeyPressMsg{Code: 'Y', Text: "Y"}} {
+			for _, key := range []tea.KeyPressMsg{keyN, escape, keyQ, up, down, keyJ, keyK, keyL, keyH, keyX, keyS, keyR, keyO, question, tab, tea.KeyPressMsg{Code: 'Y', Text: "Y"}} {
 				starts, stops := &serviceCalls{}, &serviceCalls{}
 				screen := openActing(t, readGiving(service.Service{Name: "com.example.a", State: service.Running, PID: 4121}, loaded, running), starts.record, stops.record, nil)
 				screen = pressKeys(screen, down)
@@ -3336,7 +3377,7 @@ func TestScreen(t *testing.T) {
 		})
 
 		t.Run("each key other than y and ctrl+c answers no: it hides the confirmation, calls nothing, and does nothing else", func(t *testing.T) {
-			for _, key := range []tea.KeyPressMsg{keyN, escape, keyQ, up, down, keyJ, keyK, keyL, keyH, keyR, keyX, keyS, question, tab, tea.KeyPressMsg{Code: 'Y', Text: "Y"}} {
+			for _, key := range []tea.KeyPressMsg{keyN, escape, keyQ, up, down, keyJ, keyK, keyL, keyH, keyR, keyX, keyS, keyO, question, tab, tea.KeyPressMsg{Code: 'Y', Text: "Y"}} {
 				starts, stops, restarts := &serviceCalls{}, &serviceCalls{}, &serviceCalls{}
 				screen := openActing(t, readGiving(service.Service{Name: "com.example.a", State: service.Running, PID: 4121}, loaded, running), starts.record, stops.record, restarts.record)
 				screen = pressKeys(screen, down)
@@ -3484,6 +3525,140 @@ func TestScreen(t *testing.T) {
 				require.Contains(t, content, "● running     PID 4123")
 				require.Contains(t, content, "up 1s")
 			})
+		})
+	})
+
+	t.Run("read the log of a service", func(t *testing.T) {
+		notLoaded := service.Service{Name: "com.example.a", State: service.NotLoaded, StdoutPath: "/Users/me/Library/Logs/a.out.log"}
+		loaded := service.Service{Name: "com.example.b", State: service.Loaded, StdoutPath: "/Users/me/Library/Logs/b.out.log"}
+		running := service.Service{Name: "com.example.c", State: service.Running, PID: 4122, StdoutPath: "/Users/me/Library/Logs/c.out.log"}
+		listBottom := "╰" + strings.Repeat("─", 30) + "╯╰" + strings.Repeat("─", 46) + "╯"
+		helpLine := " s start · x stop · r restart · o log · ? help"
+
+		t.Run("o on a not loaded, a loaded and a running service gives the terminal to less +F with the StandardOutPath of the service", func(t *testing.T) {
+			for _, svc := range []service.Service{notLoaded, loaded, running} {
+				calls := fakeLess(t, "0")
+
+				synctest.Test(t, func(t *testing.T) {
+					runFor(t, tui.NewScreen("gui/501", readGiving(svc), nil, nil, nil, nil, refreshEvery2s), 100*time.Millisecond, keyO)
+				})
+
+				require.Equal(t, [][]string{{"+F", "--", svc.StdoutPath}}, calls(), svc.State.String())
+			}
+		})
+
+		t.Run("a path with a space, a quote and a $ reaches less unchanged, with no shell, and a path that starts with + or - reaches less after --", func(t *testing.T) {
+			for _, path := range []string{"/Users/me/Library/Logs/it's a $HOME log.txt", "+Fx.log", "-x.log"} {
+				calls := fakeLess(t, "0")
+
+				synctest.Test(t, func(t *testing.T) {
+					runFor(t, tui.NewScreen("gui/501", readGiving(service.Service{Name: "com.example.a", StdoutPath: path}), nil, nil, nil, nil, refreshEvery2s), 100*time.Millisecond, keyO)
+				})
+
+				require.Equal(t, [][]string{{"+F", "--", path}}, calls(), path)
+			}
+		})
+
+		t.Run("when less exits with 0, the screen shows again with the service that was selected before o, with the same focus, and with no text on the message line", func(t *testing.T) {
+			calls := fakeLess(t, "0")
+
+			synctest.Test(t, func(t *testing.T) {
+				screen := runFor(t, tui.NewScreen("gui/501", readGiving(notLoaded, loaded, running), nil, nil, nil, nil, refreshEvery2s), 100*time.Millisecond, down, tab, keyO)
+
+				require.Equal(t, "com.example.b", selectedName(screen))
+				require.Equal(t, []string{dimBorder, blueBorder}, borderStyles(screen))
+				require.Equal(t, []string{listBottom, helpLine}, bottomLines(screen, 2))
+			})
+			require.Equal(t, [][]string{{"+F", "--", "/Users/me/Library/Logs/b.out.log"}}, calls())
+		})
+
+		t.Run("when less exits with a code other than 0, the screen shows again, and the message line names the command and the code", func(t *testing.T) {
+			fakeLess(t, "3")
+
+			synctest.Test(t, func(t *testing.T) {
+				screen := runFor(t, tui.NewScreen("gui/501", readGiving(notLoaded, running), nil, nil, nil, nil, refreshEvery2s), 100*time.Millisecond, down, keyO)
+
+				require.Equal(t, "com.example.c", selectedName(screen))
+				require.Equal(t, []string{listBottom, " less +F -- /Users/me/Library/Logs/c.out.log exited with code 3", helpLine}, bottomLines(screen, 3))
+			})
+		})
+
+		t.Run("when a signal ends less, the message line names the command and the signal", func(t *testing.T) {
+			fakeLess(t, "0")
+			t.Setenv("FAKE_LESS_SIGNAL", "HUP")
+
+			synctest.Test(t, func(t *testing.T) {
+				screen := runFor(t, tui.NewScreen("gui/501", readGiving(running), nil, nil, nil, nil, refreshEvery2s), 100*time.Millisecond, keyO)
+
+				require.Equal(t, " less +F -- /Users/me/Library/Logs/c.out.log ended by SIGHUP", bottomLines(screen, 2)[0])
+			})
+		})
+
+		t.Run("when svcview cannot start less, the message line shows why", func(t *testing.T) {
+			t.Setenv("PATH", t.TempDir())
+
+			synctest.Test(t, func(t *testing.T) {
+				screen := runSized(t, tui.NewScreen("gui/501", readGiving(running), nil, nil, nil, nil, refreshEvery2s), 120, 12, 100*time.Millisecond, keyO)
+
+				require.Equal(t, ` run less +F -- /Users/me/Library/Logs/c.out.log: exec: "less": executable file not found in $PATH`, bottomLines(screen, 2)[0])
+			})
+		})
+
+		t.Run("the text of a failure shows on one line, with each control character of the path as �", func(t *testing.T) {
+			fakeLess(t, "1")
+
+			synctest.Test(t, func(t *testing.T) {
+				screen := runFor(t, tui.NewScreen("gui/501", readGiving(service.Service{Name: "com.example.a", StdoutPath: "/Users/me/c\n\x1b[2J.log"}), nil, nil, nil, nil, refreshEvery2s), 100*time.Millisecond, keyO)
+
+				require.Equal(t, []string{" less +F -- /Users/me/c��[2J.log exited with code 1", helpLine}, bottomLines(screen, 2))
+				require.NotContains(t, screen.View().Content, "\x1b[2J")
+			})
+		})
+
+		t.Run("the next key press hides the text of a failure, and also does what it does", func(t *testing.T) {
+			fakeLess(t, "1")
+
+			synctest.Test(t, func(t *testing.T) {
+				screen := runFor(t, tui.NewScreen("gui/501", readGiving(notLoaded, loaded), nil, nil, nil, nil, refreshEvery2s), 100*time.Millisecond, keyO)
+				withFailure := bottomLines(screen, 2)[0]
+
+				screen = pressKeys(screen, down)
+
+				require.Equal(t, " less +F -- /Users/me/Library/Logs/a.out.log exited with code 1", withFailure)
+				require.Equal(t, "com.example.b", selectedName(screen))
+				require.Equal(t, []string{listBottom, helpLine}, bottomLines(screen, 2))
+			})
+		})
+
+		t.Run("o runs nothing while the help shows, with no rows, and while the list shows a read error", func(t *testing.T) {
+			failing := func() ([]service.Service, error) {
+				return []service.Service{running}, errors.New("launchctl list: exit status 3")
+			}
+			inHelp := pressKeys(openActing(t, readGiving(running), nil, nil, nil), question)
+			noRows := openActing(t, readGiving(), nil, nil, nil)
+			readError := readNow(openActing(t, readsInTurn(readGiving(running), failing), nil, nil, nil))
+
+			for name, screen := range map[string]tea.Model{"help": inHelp, "no rows": noRows, "read error": readError} {
+				_, cmd := screen.Update(keyO)
+
+				require.Nil(t, cmd, name)
+			}
+		})
+
+		t.Run("o gives the terminal to less also while the start, the stop or the restart of the selected service has not ended", func(t *testing.T) {
+			slow := func(service.Service) error {
+				time.Sleep(5 * time.Second)
+				return nil
+			}
+			for name, keys := range map[string][]tea.KeyPressMsg{"start": {keyS, keyO}, "stop": {keyX, keyY, keyO}, "restart": {keyR, keyY, keyO}} {
+				calls := fakeLess(t, "0")
+
+				synctest.Test(t, func(t *testing.T) {
+					runFor(t, tui.NewScreen("gui/501", readGiving(loaded), nil, slow, slow, slow, refreshEvery2s), 100*time.Millisecond, keys...)
+				})
+
+				require.Equal(t, [][]string{{"+F", "--", "/Users/me/Library/Logs/b.out.log"}}, calls(), name)
+			}
 		})
 	})
 
