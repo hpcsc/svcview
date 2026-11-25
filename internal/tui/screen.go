@@ -77,6 +77,10 @@ func (r row) shortName() string {
 	return r.group.ShortName(r.service.Name)
 }
 
+func (r row) nameContains(filter string) bool {
+	return strings.Contains(strings.ToLower(r.service.Name), strings.ToLower(filter))
+}
+
 type pane int
 
 const (
@@ -156,7 +160,6 @@ func (s Screen) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case servicesRead:
 		firstRead := !s.hasRead
 		s.lastRead, s.hasRead = msg, true
-		s.selected = s.selectedAfterRead()
 		cmd = tea.Tick(s.settings.Refresh, func(time.Time) tea.Msg { return refresh{} })
 		if firstRead {
 			cmd = tea.Batch(cmd, s.startStatusRuns())
@@ -178,6 +181,7 @@ func (s Screen) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case refresh:
 		return s, s.readServices
 	}
+	s.selected = s.selectedInList()
 	if s.selected != selected {
 		s.detailTop = 0
 	}
@@ -338,7 +342,7 @@ func (s Screen) nextStatusTick(group config.Group) tea.Cmd {
 
 func (s Screen) runStatuses(group config.Group) tea.Cmd {
 	var runs []tea.Cmd
-	for _, r := range s.rows() {
+	for _, r := range s.rowsOfRead() {
 		if r.group.Name == group.Name && !s.runNotEnded[r.service.Name] {
 			s.runNotEnded[r.service.Name] = true
 			runs = append(runs, s.runStatusOf(r))
@@ -387,15 +391,25 @@ func (s Screen) rowOf(svc service.Service) row {
 	return row{service: svc, group: group, groupIndex: slices.IndexFunc(s.groupOrder, func(other config.Group) bool { return other.Name == group.Name })}
 }
 
-func (s Screen) rows() []row {
+func (s Screen) rowsOfRead() []row {
 	if s.lastRead.err != nil {
 		return nil
 	}
 	return s.lastRead.rows
 }
 
-func (s Screen) selectedAfterRead() string {
-	rows := s.rows()
+func (s Screen) rowsInList() []row {
+	var rows []row
+	for _, r := range s.rowsOfRead() {
+		if r.nameContains(s.filter) {
+			rows = append(rows, r)
+		}
+	}
+	return rows
+}
+
+func (s Screen) selectedInList() string {
+	rows := s.rowsInList()
 	if len(rows) == 0 {
 		return s.selected
 	}
@@ -411,7 +425,7 @@ func (s Screen) selectedAfterMove(step int) string {
 	if at < 0 {
 		return s.selected
 	}
-	rows := s.rows()
+	rows := s.rowsInList()
 	return rows[min(max(at+step, 0), len(rows)-1)].service.Name
 }
 
@@ -420,13 +434,14 @@ func (s Screen) listTopInView() int {
 	if at < 0 {
 		return 0
 	}
-	line := s.lineOf(at)
+	rows := s.rowsInList()
+	line := s.lineOf(rows, at)
 	shown := max(s.paneHeight()-2, 1)
 	top := min(max(s.listTop, line-shown+1), line)
-	if s.startsGroup(at) {
+	if s.startsGroup(rows, at) {
 		top = min(top, max(line-1, line-shown+1))
 	}
-	return max(min(top, s.lineOf(len(s.rows())-1)+1-shown), 0)
+	return max(min(top, s.lineOf(rows, len(rows)-1)+1-shown), 0)
 }
 
 func (s Screen) detailTopInView() int {
@@ -439,7 +454,7 @@ func (s Screen) selectedService() (service.Service, bool) {
 	if at < 0 {
 		return service.Service{}, false
 	}
-	return s.rows()[at].service, true
+	return s.rowsInList()[at].service, true
 }
 
 func (s Screen) selectedActions() []config.Action {
@@ -447,7 +462,7 @@ func (s Screen) selectedActions() []config.Action {
 	if at < 0 {
 		return nil
 	}
-	return s.rows()[at].group.Actions
+	return s.rowsInList()[at].group.Actions
 }
 
 func (s Screen) serviceForKeys() (service.Service, bool) {
@@ -461,29 +476,28 @@ func (s Screen) serviceForLaunchdAction() (service.Service, bool) {
 }
 
 func (s Screen) selectedAt() int {
-	return slices.IndexFunc(s.rows(), func(r row) bool { return r.service.Name == s.selected })
+	return slices.IndexFunc(s.rowsInList(), func(r row) bool { return r.service.Name == s.selected })
 }
 
-func (s Screen) startsGroup(at int) bool {
-	rows := s.rows()
+func (s Screen) startsGroup(rows []row, at int) bool {
 	return at == 0 || rows[at].groupIndex != rows[at-1].groupIndex
 }
 
-func (s Screen) linesAbove(at int) []string {
-	if !s.startsGroup(at) {
+func (s Screen) linesAbove(rows []row, at int) []string {
+	if !s.startsGroup(rows, at) {
 		return nil
 	}
-	groupLine := terminal.ReplaceControlCharacters(s.rows()[at].group.Name)
+	groupLine := terminal.ReplaceControlCharacters(rows[at].group.Name)
 	if at == 0 {
 		return []string{groupLine}
 	}
 	return []string{"", groupLine}
 }
 
-func (s Screen) lineOf(at int) int {
+func (s Screen) lineOf(rows []row, at int) int {
 	line := at
 	for i := range at + 1 {
-		line += len(s.linesAbove(i))
+		line += len(s.linesAbove(rows, i))
 	}
 	return line
 }
@@ -533,7 +547,7 @@ func (s Screen) panes() []string {
 	list.text = s.listText(list.textWidth())[s.listTop:]
 	detail := box{width: s.width - list.width, height: list.height, borderStyle: s.borderStyle(detailPane)}
 	if at := s.selectedAt(); at >= 0 {
-		detail.title, detail.text = terminal.ReplaceControlCharacters(s.rows()[at].service.Name), s.selectedDetailText()[s.detailTop:]
+		detail.title, detail.text = terminal.ReplaceControlCharacters(s.rowsInList()[at].service.Name), s.selectedDetailText()[s.detailTop:]
 	}
 	var lines []string
 	detailLines := detail.render()
@@ -610,8 +624,9 @@ func (s Screen) listText(width int) []string {
 	}
 	var text []string
 	nameWidths := s.nameWidths()
-	for at, r := range s.rows() {
-		text = append(text, s.linesAbove(at)...)
+	rows := s.rowsInList()
+	for at, r := range rows {
+		text = append(text, s.linesAbove(rows, at)...)
 		firstCell, background := " ", ansi.Color(nil)
 		if r.service.Name == s.selected {
 			firstCell, background = ansi.NewStyle().ForegroundColor(accent).Styled("▌"), ansi.BrightBlack
@@ -623,7 +638,7 @@ func (s Screen) listText(width int) []string {
 
 func (s Screen) nameWidths() map[int]int {
 	widths := map[int]int{}
-	for _, r := range s.rows() {
+	for _, r := range s.rowsInList() {
 		widths[r.groupIndex] = max(widths[r.groupIndex], ansi.StringWidth(terminal.ReplaceControlCharacters(r.shortName())))
 	}
 	return widths
@@ -702,7 +717,7 @@ func (s Screen) selectedDetailText() []string {
 	if at < 0 {
 		return nil
 	}
-	return s.detailText(s.rows()[at].service)
+	return s.detailText(s.rowsInList()[at].service)
 }
 
 func (s Screen) detailText(svc service.Service) []string {

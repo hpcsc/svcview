@@ -36,7 +36,7 @@
     },
     {
       "n": 2,
-      "done": false,
+      "done": true,
       "title": "Show only the services whose name contains the filter",
       "language": "Go",
       "testable": true,

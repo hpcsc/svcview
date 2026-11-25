@@ -4470,5 +4470,188 @@ func TestScreen(t *testing.T) {
 
 			require.Equal(t, []string{" /com.example.worker ", " /com.example.worke…"}, []string{bottomLines(exactFit, 2)[0], bottomLines(oneLess, 2)[0]})
 		})
+
+		t.Run("the list shows only the services whose name contains the filter in any case, each under the line of its group, and no line Other when no service of Other contains it", func(t *testing.T) {
+			settings := groups(t, "Workers", "worker", "Jobs", "job")
+			screen := openWith(t, settings, servicesNamed("com.example.worker.02", "com.example.job.Worker2", "com.apple.a", "com.example.job.a", "homebrew.mxcl.redis", "com.example.worker.01"), 80, 14)
+
+			screen = pressKeys(screen, append([]tea.KeyPressMsg{slash}, typing("WORKER")...)...)
+
+			requireGolden(t, "filtered-groups", screen)
+			require.Equal(t, []string{
+				"Workers",
+				"▌○ com.example.worker.01",
+				"○ com.example.worker.02",
+				"",
+				"Jobs",
+				"○ com.example.job.Worker2",
+				"",
+			}, listRows(screen))
+		})
+
+		t.Run("the list follows each key that changes the filter", func(t *testing.T) {
+			screen := open(t, "gui/501", servicesNamed("com.example.worker", "com.example.web", "com.apple.a"), 80, 12)
+
+			afterWO := pressKeys(screen, slash, tea.KeyPressMsg{Code: 'w', Text: "w"}, tea.KeyPressMsg{Code: 'o', Text: "o"})
+			afterBackspace := pressKeys(afterWO, backspace)
+
+			require.Equal(t, []string{"Other", "▌○ com.example.worker", "", "", ""}, listRows(afterWO))
+			require.Equal(t, []string{"Other", "○ com.example.web", "▌○ com.example.worker", "", ""}, listRows(afterBackspace))
+		})
+
+		t.Run("the filter compares with the full name of a service, not with the short name that its row shows", func(t *testing.T) {
+			settings := groups(t, "Examples", `^com\.example\.`)
+			screen := openWith(t, settings, servicesNamed("com.example.a", "com.example.b", "com.apple.c"), 80, 12)
+
+			screen = pressKeys(screen, append([]tea.KeyPressMsg{slash}, typing("example")...)...)
+
+			require.Equal(t, []string{"Examples", "▌○ a", "○ b", "", ""}, listRows(screen))
+		})
+
+		t.Run("a group with no service whose name contains the filter shows no group line and no empty line before the next group", func(t *testing.T) {
+			settings := groups(t, "Workers", "worker", "Databases", "redis")
+			screen := openWith(t, settings, servicesNamed("com.example.worker.01", "homebrew.mxcl.redis", "com.apple.a"), 80, 12)
+
+			onlyDatabases := pressKeys(screen, append([]tea.KeyPressMsg{slash}, typing("redis")...)...)
+			noDatabases := pressKeys(screen, append([]tea.KeyPressMsg{slash}, typing("com.")...)...)
+
+			require.Equal(t, []string{"Databases", "▌○ homebrew.mxcl.redis", "", "", ""}, listRows(onlyDatabases))
+			require.Equal(t, []string{"Workers", "▌○ com.example.worker.01", "", "Other", "○ com.apple.a"}, listRows(noDatabases))
+		})
+
+		t.Run("an empty filter, after / alone or after backspace deletes each character, shows each service", func(t *testing.T) {
+			settings := groups(t, "Workers", "worker")
+			screen := openWith(t, settings, servicesNamed("com.example.worker.01", "com.apple.a"), 80, 12)
+			each := []string{"Workers", "▌○ com.example.worker.01", "", "Other", "○ com.apple.a"}
+
+			afterSlash := pressKeys(screen, slash)
+			afterBackspace := pressKeys(afterSlash, tea.KeyPressMsg{Code: 'z', Text: "z"}, tea.KeyPressMsg{Code: 'z', Text: "z"}, backspace, backspace)
+
+			require.Equal(t, each, listRows(afterSlash))
+			require.Equal(t, each, listRows(afterBackspace))
+		})
+
+		t.Run("the selected service stays selected while the list shows it", func(t *testing.T) {
+			screen := open(t, "gui/501", servicesNamed("com.example.a-worker", "com.example.b-worker", "com.example.c"), 80, 12)
+			screen = pressKeys(screen, down)
+
+			screen = pressKeys(screen, append([]tea.KeyPressMsg{slash}, typing("worker")...)...)
+
+			require.Equal(t, "com.example.b-worker", selectedName(screen))
+		})
+
+		t.Run("when the filter hides the selected service, the row that takes its place in the order of the list is selected, also in the next group", func(t *testing.T) {
+			settings := groups(t, "Workers", "worker")
+			screen := openWith(t, settings, servicesNamed("com.example.worker.01", "com.example.worker.02", "com.apple.a", "com.apple.b"), 80, 12)
+			screen = pressKeys(screen, down)
+
+			screen = pressKeys(screen, append([]tea.KeyPressMsg{slash}, typing("apple")...)...)
+
+			require.Equal(t, []string{"Other", "▌○ com.apple.a", "○ com.apple.b", "", ""}, listRows(screen))
+		})
+
+		t.Run("when the filter hides the selected service and it came after each row that the list shows, the last row is selected", func(t *testing.T) {
+			screen := open(t, "gui/501", servicesNamed("com.example.a-one", "com.example.b-one", "com.example.c-two"), 80, 12)
+			screen = pressKeys(screen, down, down)
+
+			screen = pressKeys(screen, append([]tea.KeyPressMsg{slash}, typing("one")...)...)
+
+			require.Equal(t, []string{"Other", "○ com.example.a-one", "▌○ com.example.b-one", "", ""}, listRows(screen))
+		})
+
+		t.Run("when the filter hides the selected service, the detail pane shows the newly selected service from its first line", func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				run := runsGiving(map[string]status.Result{
+					"com.example.worker.a": {Output: &status.Output{Events: eventsNumbered(10)}},
+					"com.example.worker.b": {Output: &status.Output{Events: eventsNumbered(10)}},
+				})
+				screen := runSized(t, tui.NewScreen("gui/501", servicesNamed("com.example.worker.a", "com.example.worker.b"), run, nil, nil, nil, workersWithStatus(t)), 80, 12, 100*time.Millisecond)
+				screen = pressKeys(screen, tab, down, down, down, down)
+				scrolled := detailPane(screen)[0]
+
+				screen = pressKeys(screen, append([]tea.KeyPressMsg{slash}, typing("worker.b")...)...)
+
+				require.Equal(t, "Events", scrolled)
+				require.Equal(t, "b", selectedName(screen))
+				require.Equal(t, "○ not loaded  PID -", detailPane(screen)[0])
+			})
+		})
+
+		t.Run("after a filter hides rows of a list that had scrolled, the list shows from its first line when the rows that it shows fit in the pane", func(t *testing.T) {
+			screen := open(t, "gui/501", servicesNamed("com.example.a", "com.example.b", "com.example.c", "com.example.d", "com.example.e", "com.example.f", "com.example.g", "com.example.h-x", "com.example.i-x", "com.example.j-x"), 80, 12)
+			scrolled := pressKeys(screen, down, down, down, down, down, down, down, down, down)
+
+			filtered := pressKeys(scrolled, append([]tea.KeyPressMsg{slash}, typing("-x")...)...)
+
+			require.Equal(t, "○ com.example.e", listRows(scrolled)[0])
+			require.Equal(t, []string{"Other", "○ com.example.h-x", "○ com.example.i-x", "▌○ com.example.j-x", ""}, listRows(filtered))
+		})
+
+		t.Run("the selected row stays in view in a filtered list that is longer than the pane", func(t *testing.T) {
+			screen := open(t, "gui/501", servicesNamed("com.example.a-x", "com.example.b-x", "com.example.c-x", "com.example.d-x", "com.example.e-x", "com.example.f-x", "com.example.g-x", "com.example.h-x", "com.example.i", "com.example.j"), 80, 12)
+			screen = pressKeys(screen, down, down, down, down, down, down, down, down, down)
+
+			screen = pressKeys(screen, append([]tea.KeyPressMsg{slash}, typing("-x")...)...)
+
+			require.Equal(t, []string{"○ com.example.d-x", "○ com.example.e-x", "○ com.example.f-x", "○ com.example.g-x", "▌○ com.example.h-x"}, listRows(screen))
+		})
+
+		t.Run("esc clears the filter, the list shows each service again, and the service that was selected in the filtered list stays selected", func(t *testing.T) {
+			screen := open(t, "gui/501", servicesNamed("com.example.a", "com.example.b-x", "com.example.c-x", "com.example.d"), 80, 12)
+			screen = pressKeys(screen, append([]tea.KeyPressMsg{slash}, typing("-x")...)...)
+			filtered := listRows(screen)
+
+			screen = pressKeys(screen, escape)
+
+			require.Equal(t, []string{"Other", "▌○ com.example.b-x", "○ com.example.c-x", "", ""}, filtered)
+			require.Equal(t, []string{"Other", "○ com.example.a", "▌○ com.example.b-x", "○ com.example.c-x", "○ com.example.d", ""}, listRows(screen))
+		})
+
+		t.Run("a refresh applies the filter to the new read: a service that is added and whose name contains the filter shows no later than 2 s after the change, and another added service stays out of the list", func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				read := changingAt(100*time.Millisecond, servicesNamed("com.example.worker.01"), servicesNamed("com.example.worker.01", "com.example.worker.02", "com.example.added"))
+
+				screen := runFor(t, tui.NewScreen("gui/501", read, nil, nil, nil, nil, refreshEvery2s), 2100*time.Millisecond, append([]tea.KeyPressMsg{slash}, typing("worker")...)...)
+
+				require.Equal(t, []string{"Other", "▌○ com.example.worker.01", "○ com.example.worker.02", "", ""}, listRows(screen))
+			})
+		})
+
+		t.Run("the header counts each service of the read, also each service that the filter hides", func(t *testing.T) {
+			screen := open(t, "gui/501", readGiving(
+				service.Service{Name: "com.example.a-running", State: service.Running},
+				service.Service{Name: "com.example.b-running", State: service.Running},
+				service.Service{Name: "com.example.c-not-loaded", State: service.NotLoaded},
+			), 80, 12)
+
+			screen = pressKeys(screen, append([]tea.KeyPressMsg{slash}, typing("not-loaded")...)...)
+
+			require.Equal(t, []string{"Other", "▌○ com.example.c-not-loaded", "", "", ""}, listRows(screen))
+			require.Contains(t, ansi.Strip(screen.View().Content), "● 2 running   ◐ 0 loaded   ○ 1 not loaded")
+		})
+
+		t.Run("a service of a group with a status command that the filter hides keeps its status runs, and its row shows its newest summary when esc shows it again", func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				starts := newRunStarts()
+				run := func(_ status.Command, svc service.Service) status.Result {
+					starts.add(svc.Name)
+					if time.Since(starts.start) < 3*time.Second {
+						return summary("idle", status.LevelInfo)
+					}
+					return summary("busy", status.LevelInfo)
+				}
+
+				screen := runSized(t, tui.NewScreen("gui/501", servicesNamed("com.example.worker.a", "com.example.worker.b"), run, nil, nil, nil, workersWithStatus(t)), 80, 12, 5*time.Second, append([]tea.KeyPressMsg{slash}, typing("worker.a")...)...)
+				filtered := listRows(screen)
+				screen = pressKeys(screen, escape)
+
+				require.Equal(t, []string{"Workers", "▌○ a  busy", "", "", ""}, filtered)
+				require.Equal(t, []string{"Workers", "▌○ a  busy", "○ b  busy"}, listRows(screen)[:3])
+				require.Equal(t, map[string][]time.Duration{
+					"com.example.worker.a": {0, 2 * time.Second, 4 * time.Second},
+					"com.example.worker.b": {0, 2 * time.Second, 4 * time.Second},
+				}, starts.get())
+			})
+		})
 	})
 }

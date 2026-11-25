@@ -224,28 +224,28 @@ shows each service again with the same service selected. Each read applies the f
 status runs keep each service of the read.
 
 **Acceptance Criteria:**
-- [ ] After `/` and `WORKER`, the list shows only the services whose name contains `worker` in any case, each under
+- [x] After `/` and `WORKER`, the list shows only the services whose name contains `worker` in any case, each under
       the line of its group, and no line `Other` when no service of `Other` contains it.
-- [ ] The list follows each key: after `/`, `w` and `o`, the list shows the services whose name contains `wo`; after
+- [x] The list follows each key: after `/`, `w` and `o`, the list shows the services whose name contains `wo`; after
       `backspace`, the services whose name contains `w`.
-- [ ] The filter compares with the full name of the service: `example` shows each row of a group whose match is
+- [x] The filter compares with the full name of the service: `example` shows each row of a group whose match is
       `^com\.example\.`, although the short names that the rows show do not contain it.
-- [ ] A group with no service whose name contains the filter shows no group line, and no empty line before the next
+- [x] A group with no service whose name contains the filter shows no group line, and no empty line before the next
       group; `Other` too.
-- [ ] An empty filter, after `/` alone or after `backspace` deletes each character, shows each service.
-- [ ] The selected service stays selected while the list shows it. When the filter hides it, the row that takes its
+- [x] An empty filter, after `/` alone or after `backspace` deletes each character, shows each service.
+- [x] The selected service stays selected while the list shows it. When the filter hides it, the row that takes its
       place in the order of the list is selected: the row after it, also in the next group, or the last row when it
       came after each row that the list shows. The detail pane shows the newly selected service from its first line.
-- [ ] After a filter hides rows of a list that had scrolled, the list shows from its first line when the rows that it
+- [x] After a filter hides rows of a list that had scrolled, the list shows from its first line when the rows that it
       shows fit in the pane, and the selected row stays in view in a filtered list that is longer than the pane.
-- [ ] `esc` clears the filter: the list shows each service again, and the service that was selected in the filtered
+- [x] `esc` clears the filter: the list shows each service again, and the service that was selected in the filtered
       list stays selected.
-- [ ] A refresh applies the filter to the new read: a service that is added and whose name contains the filter shows
+- [x] A refresh applies the filter to the new read: a service that is added and whose name contains the filter shows
       no later than 2 s after the change, and a service whose name does not contain it stays out of the list.
-- [ ] The header counts each service of the read, also each service that the filter hides.
-- [ ] A service of a group with a status command that the filter hides keeps its status runs, and its row shows its
+- [x] The header counts each service of the read, also each service that the filter hides.
+- [x] A service of a group with a status command that the filter hides keeps its status runs, and its row shows its
       newest summary as soon as `esc` shows it again.
-- [ ] e2e: with three plists and a config with the group `Workers`, `/` and `WORKER` show the rows of `Workers` and no
+- [x] e2e: with three plists and a config with the group `Workers`, `/` and `WORKER` show the rows of `Workers` and no
       line `Other`; `esc` shows each service again.
 
 **Affected Files/Modules:**
