@@ -5,7 +5,7 @@
 [34m│[m Other                        [34m│[m[2m│[m [32m●[m running     PID 4122                       [2m│[m
 [34m│[m  [33m◐[m com.example.b             [34m│[m[2m│[m up -          last exit 0                    [2m│[m
 [34m│[m [34m▌[m[32m●[m[100m com.example.c            [m [34m│[m[2m│[m                                              [2m│[m
-[34m│[m                              [34m│[m[2m│[m                                              [2m│[m
+[34m│[m                              [34m│[m[2m│[m Plist         /Users/me/Library/LaunchAgent… [2m│[m
 [34m│[m                              [34m│[m[2m│[m                                              [2m│[m
 [34m╰──────────────────────────────╯[m[2m╰──────────────────────────────────────────────╯[m
  Stop com.example.c? (y/N)

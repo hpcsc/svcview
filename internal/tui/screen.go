@@ -805,7 +805,7 @@ func (s Screen) detailText(svc service.Service) []string {
 			text = append(text, s.eventLines(result.Output.Events)...)
 		}
 	}
-	return text
+	return append(text, s.plistLines(svc)...)
 }
 
 func (s Screen) fieldLines(fields []status.Field) []string {
@@ -832,6 +832,24 @@ func (s Screen) eventLines(events []status.Event) []string {
 	lines := []string{"", "Events"}
 	for _, event := range events {
 		lines = append(lines, event.At.Local().Format("15:04")+" "+s.textStyle(s.levelColor(event.Level), nil).Styled("●")+" "+terminal.ReplaceControlCharacters(event.Text))
+	}
+	return lines
+}
+
+func (s Screen) plistLines(svc service.Service) []string {
+	if svc.PlistPath == "" {
+		return nil
+	}
+	lines := []string{"", s.detailLine("Plist", terminal.ReplaceControlCharacters(svc.PlistPath))}
+	for _, property := range svc.Properties {
+		if len(property.Values) == 0 {
+			lines = append(lines, property.Name)
+		}
+		name := property.Name
+		for _, value := range property.Values {
+			lines = append(lines, s.detailLine(name, terminal.ReplaceControlCharacters(value)))
+			name = ""
+		}
 	}
 	return lines
 }

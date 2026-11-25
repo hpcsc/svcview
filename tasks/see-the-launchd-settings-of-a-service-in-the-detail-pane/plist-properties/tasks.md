@@ -256,34 +256,34 @@ path or in a part shows as `�`. The pane cuts a line that is wider than the pa
 scroll of the detail pane counts these lines.
 
 **Acceptance Criteria:**
-- [ ] A golden file `plist`, at a width where each part fits (for example 120 columns), draws a running service with a
+- [x] A golden file `plist`, at a width where each part fits (for example 120 columns), draws a running service with a
       plist path and the properties `program` with three parts, `work folder`, `stdout`, `stderr` and `environment`
       with two names, and no status: the two lines of the data from launchd, an empty line, `Plist` and the path, then
       `program       /usr/local/bin/worker`, `              --queue`, `              jobs`, and the other properties in
       their order.
-- [ ] With a status, the lines of the plist follow the last line of the status: the last event when the output has
+- [x] With a status, the lines of the plist follow the last line of the status: the last event when the output has
       events, the last field when it has none, and the last line of a failure. The line `Status` and the lines under it
       do not move. Before the first run of the status ends, the lines of the plist follow the data from launchd.
-- [ ] A service with no plist path shows no line `Plist` and no property, and its detail pane ends with the same line
+- [x] A service with no plist path shows no line `Plist` and no property, and its detail pane ends with the same line
       as before this change. The golden files of services with no plist path, `detail.golden` and
       `all-services.golden` among them, do not change.
-- [ ] A property with no part shows its name alone on its line.
-- [ ] Each control character in the plist path and in a part of a value shows as `�`, and the screen sends no control
+- [x] A property with no part shows its name alone on its line.
+- [x] Each control character in the plist path and in a part of a value shows as `�`, and the screen sends no control
       character of them to the terminal.
-- [ ] A service whose `Env` has `WORKER_TOKEN` with a value, and whose property `environment` names `WORKER_TOKEN`,
+- [x] A service whose `Env` has `WORKER_TOKEN` with a value, and whose property `environment` names `WORKER_TOKEN`,
       shows `environment   WORKER_TOKEN` and no text of the value anywhere on the screen.
-- [ ] With the focus on the detail pane and a pane shorter than the text, `↓` moves to the last property and stops when
+- [x] With the focus on the detail pane and a pane shorter than the text, `↓` moves to the last property and stops when
       its last part is at the bottom of the pane.
-- [ ] `confirmation.golden` shows the line `Plist` of the selected service, cut with `…` at 80 columns, and no other
+- [x] `confirmation.golden` shows the line `Plist` of the selected service, cut with `…` at 80 columns, and no other
       golden file changes.
-- [ ] e2e: a plist with `ProgramArguments` `/usr/local/bin/worker`, `--queue`, `jobs`, a `WorkingDirectory`, a
+- [x] e2e: a plist with `ProgramArguments` `/usr/local/bin/worker`, `--queue`, `jobs`, a `WorkingDirectory`, a
       `StandardOutPath`, and `EnvironmentVariables` with `WORKER_TOKEN` and a value shows in the detail pane
       `program       /usr/local/bin/worker`, `--queue` in the column of the values on the next line, the work folder,
       the stdout and `environment   WORKER_TOKEN`; the screen does not contain the value, and the fake `launchctl`
       records no call.
-- [ ] e2e: a new plist with another program, written while the screen is open under another name and renamed onto the
+- [x] e2e: a new plist with another program, written while the screen is open under another name and renamed onto the
       plist, shows the new program no later than the next refresh, with no key press.
-- [ ] e2e: with `--all`, a service with no plist shows no line `Plist`.
+- [x] e2e: with `--all`, a service with no plist shows no line `Plist`.
 
 **Affected Files/Modules:**
 - `internal/tui/screen.go` — `detailText` adds the lines of the plist after the lines of the status

@@ -2157,6 +2157,103 @@ func TestScreen(t *testing.T) {
 			})
 		})
 
+		t.Run("draws, after the data from launchd, an empty line, Plist with the plist path, and each property with its name in the first column and each part of its value on a line of its own in the column of the PID", func(t *testing.T) {
+			screen := open(t, "gui/501", readGiving(service.Service{
+				Name:      "com.example.worker",
+				State:     service.Running,
+				PID:       4122,
+				Uptime:    new(3*time.Hour + 12*time.Minute),
+				PlistPath: "/Users/me/Library/LaunchAgents/com.example.worker.plist",
+				Properties: []service.Property{
+					{Name: "program", Values: []string{"/usr/local/bin/worker", "--queue", "jobs"}},
+					{Name: "work folder", Values: []string{"/Users/me/work"}},
+					{Name: "stdout", Values: []string{"/Users/me/Library/Logs/worker.out.log"}},
+					{Name: "stderr", Values: []string{"/Users/me/Library/Logs/worker.err.log"}},
+					{Name: "environment", Values: []string{"WORKER_STATUS_FILE", "WORKER_TOKEN"}},
+				},
+			}), 140, 18)
+
+			requireGolden(t, "plist", screen)
+		})
+
+		t.Run("shows the lines of the plist after the last line of the status: the last event, the last field of an output with no events, and the last line of a failure", func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				read := readGiving(
+					service.Service{Name: "com.example.worker.a", PlistPath: "/p/a.plist", Properties: []service.Property{{Name: "program", Values: []string{"/bin/a"}}}},
+					service.Service{Name: "com.example.worker.b", PlistPath: "/p/b.plist", Properties: []service.Property{{Name: "program", Values: []string{"/bin/b"}}}},
+					service.Service{Name: "com.example.worker.c", PlistPath: "/p/c.plist", Properties: []service.Property{{Name: "program", Values: []string{"/bin/c"}}}},
+				)
+				run := runsGiving(map[string]status.Result{
+					"com.example.worker.a": {Output: &status.Output{Fields: []status.Field{{Name: "mode", Value: "busy"}}, Events: eventsNumbered(1)}},
+					"com.example.worker.b": {Output: &status.Output{Fields: []status.Field{{Name: "mode", Value: "idle"}}}},
+					"com.example.worker.c": {Failure: &status.Failure{Kind: status.FailureKindError, Text: "exit code 3", Lines: []string{"broken"}}},
+				})
+
+				screen := runSized(t, tui.NewScreen("gui/501", read, nil, false, run, nil, nil, nil, workersWithStatus(t)), 80, 16, 100*time.Millisecond)
+
+				require.Equal(t, [][]string{
+					{"○ not loaded  PID -", "up -          last exit 0", "Status 1m0s ago", "mode  busy", "", "Events", "09:00 ● event 01", "", "Plist         /p/a.plist", "program       /bin/a"},
+					{"○ not loaded  PID -", "up -          last exit 0", "Status 1m0s ago", "mode  idle", "", "Plist         /p/b.plist", "program       /bin/b", "", "", ""},
+					{"○ not loaded  PID -", "up -          last exit 0", "Status 1m0s ago", "exit code 3", "broken", "", "Plist         /p/c.plist", "program       /bin/c", "", ""},
+				}, [][]string{detailPane(screen), detailPane(pressKeys(screen, down)), detailPane(pressKeys(screen, down, down))})
+			})
+		})
+
+		t.Run("before the first run of the status ends, shows the lines of the plist after the data from launchd", func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				read := readGiving(service.Service{Name: "com.example.worker.a", PlistPath: "/p/a.plist", Properties: []service.Property{{Name: "program", Values: []string{"/bin/a"}}}})
+				run := func(status.Command, service.Service) status.Result {
+					time.Sleep(30 * time.Second)
+					return status.Result{Ended: time.Now()}
+				}
+
+				screen := runSized(t, tui.NewScreen("gui/501", read, nil, false, run, nil, nil, nil, workersWithStatus(t)), 80, 12, 100*time.Millisecond)
+
+				require.Equal(t, []string{"○ not loaded  PID -", "up -          last exit 0", "", "Plist         /p/a.plist", "program       /bin/a", ""}, detailPane(screen))
+			})
+		})
+
+		t.Run("a service with no plist path shows no line Plist and no property, so its text ends with the last exit", func(t *testing.T) {
+			screen := open(t, "gui/501", readGiving(service.Service{Name: "com.example.worker", Properties: []service.Property{{Name: "program", Values: []string{"/bin/a"}}}}), 80, 12)
+
+			require.Equal(t, []string{"○ not loaded  PID -", "up -          last exit 0", "", "", "", ""}, detailPane(screen))
+		})
+
+		t.Run("a property with no part shows its name alone on its line, and the next property follows it", func(t *testing.T) {
+			screen := open(t, "gui/501", readGiving(service.Service{
+				Name:       "com.example.worker",
+				PlistPath:  "/p/w.plist",
+				Properties: []service.Property{{Name: "program"}, {Name: "environment", Values: []string{"WORKER_TOKEN"}}},
+			}), 80, 12)
+
+			require.Equal(t, []string{"○ not loaded  PID -", "up -          last exit 0", "", "Plist         /p/w.plist", "program", "environment   WORKER_TOKEN"}, detailPane(screen))
+		})
+
+		t.Run("shows each control character in the plist path and in a part of a value as �, and sends none of them to the terminal", func(t *testing.T) {
+			screen := open(t, "gui/501", readGiving(service.Service{
+				Name:       "com.example.worker",
+				PlistPath:  "/p/\x1b[2Jw.plist",
+				Properties: []service.Property{{Name: "program", Values: []string{"/bin/w\x07", "--queue\x1b]52;c;eA==\x07"}}},
+			}), 80, 12)
+
+			require.Equal(t, []string{"○ not loaded  PID -", "up -          last exit 0", "", "Plist         /p/�[2Jw.plist", "program       /bin/w�", "              --queue�]52;c;eA==�"}, detailPane(screen))
+			require.NotContains(t, screen.View().Content, "\x1b[2J")
+			require.NotContains(t, screen.View().Content, "\x1b]52")
+			require.NotContains(t, screen.View().Content, "\x07")
+		})
+
+		t.Run("shows the name of a variable of the environment property, and no text of its value, also when the service has the value in its environment", func(t *testing.T) {
+			screen := open(t, "gui/501", readGiving(service.Service{
+				Name:       "com.example.worker",
+				Env:        map[string]string{"WORKER_TOKEN": "token-s3cret-value"},
+				PlistPath:  "/p/w.plist",
+				Properties: []service.Property{{Name: "environment", Values: []string{"WORKER_TOKEN"}}},
+			}), 80, 12)
+
+			require.Contains(t, detailPane(screen), "environment   WORKER_TOKEN")
+			require.NotContains(t, screen.View().Content, "s3cret")
+		})
+
 		t.Run("with no rows, shows no service", func(t *testing.T) {
 			screen := open(t, "gui/501", servicesNamed(), 80, 12)
 
@@ -3020,6 +3117,29 @@ func TestScreen(t *testing.T) {
 					{"Status 1m7s ago", "", "Events", "09:00 ● event 01", "09:01 ● event 02", "09:02 ● event 03"},
 				}, [][]string{before, detailPane(screen)})
 			})
+		})
+
+		t.Run("with the focus on the detail pane, ↓ moves to the last property and stops when its last part is at the bottom of the pane", func(t *testing.T) {
+			screen := open(t, "gui/501", readGiving(service.Service{
+				Name:      "com.example.worker",
+				PlistPath: "/p/w.plist",
+				Properties: []service.Property{
+					{Name: "program", Values: []string{"/bin/w", "--queue", "jobs"}},
+					{Name: "work folder", Values: []string{"/w"}},
+					{Name: "environment", Values: []string{"WORKER_STATUS_FILE", "WORKER_TOKEN"}},
+				},
+			}), 80, 12)
+
+			bottom := pressKeys(screen, tab, down, down, down, down, down, down)
+
+			require.Equal(t, []string{
+				"program       /bin/w",
+				"              --queue",
+				"              jobs",
+				"work folder   /w",
+				"environment   WORKER_STATUS_FILE",
+				"              WORKER_TOKEN",
+			}, detailPane(bottom))
 		})
 
 		t.Run("a terminal with no room for a line of the detail pane does not stop the screen after ↓", func(t *testing.T) {

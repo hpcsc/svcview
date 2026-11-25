@@ -33,7 +33,7 @@
     },
     {
       "n": 2,
-      "done": false,
+      "done": true,
       "title": "Show the plist path and the properties of a service in the detail pane",
       "language": "Go",
       "testable": true,
