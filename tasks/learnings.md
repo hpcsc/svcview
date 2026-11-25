@@ -471,3 +471,17 @@
 - Observed: filter-the-list-by-name-filter
 - Learning: .scratches/ and coverage-unit.out are gitignored, so git status --porcelain is empty after an audit round that left a scratch benchmark in .scratches/bench/. Round 2 of filter-the-list-by-name named both files only in coverage_gaps. Run git status --porcelain --ignored after each round, and delete only what the round wrote, because .scratches/ also holds the documents of the user.
 - Apply when: An audit round ends, or a step checks that the tree is clean before a suite run, a receipt or clerk land.
+
+## A new export of e2e/testUtils.ts goes into the helper table of docs/e2e-tests.md
+- Type: convention
+- Recorded: 2026-11-25
+- Observed: task 2 — show-all-services-of-the-domain-all-services
+- Learning: docs/e2e-tests.md names each exported helper of e2e/testUtils.ts, with its job. In show-all-services, task 2 moved listLines from e2e/tests/config.test.ts to an export of e2e/testUtils.ts with no row in that table, and the audit raised it; no task listed docs/e2e-tests.md, so the fix was a file that no commit of the branch touched.
+- Apply when: A task adds, moves or renames a helper in e2e/testUtils.ts, or a breakdown lists the affected files of such a task.
+
+## A bool flag of urfave/cli v3 with the default false shows no default in the help
+- Type: constraint
+- Recorded: 2026-11-25
+- Observed: task 2 — show-all-services-of-the-domain-all-services
+- Learning: The help of a BoolFlag whose default is false prints no (default: false), so HideDefault: true changes nothing there, and clerk mutants shows its removal as LIVED. In show-all-services, --all first had HideDefault, and the field went after the mutant run. Set HideDefault only on a flag whose help shows a default.
+- Apply when: A task adds a flag to a command in internal/cli, or a criterion says that the help shows no default value for a flag.
