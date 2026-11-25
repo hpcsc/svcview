@@ -30,6 +30,8 @@ func readPlist(path string, modTime time.Time) plist {
 		Program              any    `plist:"Program"`
 		ProgramArguments     any    `plist:"ProgramArguments"`
 		WorkingDirectory     any    `plist:"WorkingDirectory"`
+		RunAtLoad            any    `plist:"RunAtLoad"`
+		KeepAlive            any    `plist:"KeepAlive"`
 		EnvironmentVariables any    `plist:"EnvironmentVariables"`
 		StandardOutPath      any    `plist:"StandardOutPath"`
 		StandardErrorPath    any    `plist:"StandardErrorPath"`
@@ -51,6 +53,8 @@ func readPlist(path string, modTime time.Time) plist {
 	p.properties = slices.Concat(
 		p.programProperty(decoded.ProgramArguments, decoded.Program),
 		p.textProperty("work folder", decoded.WorkingDirectory),
+		p.booleanProperty("run at load", decoded.RunAtLoad),
+		p.keepAliveProperty(decoded.KeepAlive),
 		p.textProperty("stdout", decoded.StandardOutPath),
 		p.textProperty("stderr", decoded.StandardErrorPath),
 		p.environmentProperty(),
@@ -78,6 +82,68 @@ func (p plist) textProperty(name string, value any) []service.Property {
 		return nil
 	}
 	return []service.Property{{Name: name, Values: []string{text}}}
+}
+
+func (p plist) booleanProperty(name string, value any) []service.Property {
+	held, ok := value.(bool)
+	if !ok {
+		return nil
+	}
+	return []service.Property{{Name: name, Values: []string{p.yesOrNo(held)}}}
+}
+
+func (p plist) keepAliveProperty(value any) []service.Property {
+	if conditions, ok := value.(map[string]any); ok {
+		return []service.Property{{Name: "keep alive", Values: p.conditions(conditions)}}
+	}
+	return p.booleanProperty("keep alive", value)
+}
+
+func (p plist) conditions(keepAlive map[string]any) []string {
+	texts := slices.Concat(
+		p.condition(keepAlive["SuccessfulExit"], "when the last exit is 0", "when the last exit is not 0"),
+		p.condition(keepAlive["Crashed"], "when the last exit is a crash", "when the last exit is not a crash"),
+		p.conditionOfEachName(keepAlive["PathState"], " exists", " does not exist"),
+		p.conditionOfEachName(keepAlive["OtherJobEnabled"], " is loaded or running", " is not loaded"),
+	)
+	for _, name := range slices.Sorted(maps.Keys(keepAlive)) {
+		if slices.Contains([]string{"SuccessfulExit", "Crashed", "PathState", "OtherJobEnabled"}, name) {
+			continue
+		}
+		if held, ok := keepAlive[name].(bool); ok {
+			texts = append(texts, name+" "+p.yesOrNo(held))
+		} else {
+			texts = append(texts, name)
+		}
+	}
+	return texts
+}
+
+func (p plist) condition(value any, whenTrue, whenFalse string) []string {
+	held, ok := value.(bool)
+	switch {
+	case !ok:
+		return nil
+	case held:
+		return []string{whenTrue}
+	}
+	return []string{whenFalse}
+}
+
+func (p plist) conditionOfEachName(value any, whenTrue, whenFalse string) []string {
+	byName, _ := value.(map[string]any)
+	var texts []string
+	for _, name := range slices.Sorted(maps.Keys(byName)) {
+		texts = append(texts, p.condition(byName[name], "while "+name+whenTrue, "while "+name+whenFalse)...)
+	}
+	return texts
+}
+
+func (p plist) yesOrNo(held bool) string {
+	if held {
+		return "yes"
+	}
+	return "no"
 }
 
 func (p plist) environmentProperty() []service.Property {

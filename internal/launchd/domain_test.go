@@ -227,8 +227,8 @@ func TestDomain(t *testing.T) {
 
 			require.NoError(t, err)
 			require.ElementsMatch(t, []service.Service{
-				{Name: "com.example.xml", Properties: []service.Property{{Name: "program", Values: []string{"/usr/bin/true"}}}},
-				{Name: "com.example.binary", Properties: []service.Property{{Name: "program", Values: []string{"/usr/bin/true"}}}},
+				{Name: "com.example.xml", Properties: []service.Property{{Name: "program", Values: []string{"/usr/bin/true"}}, {Name: "run at load", Values: []string{"yes"}}}},
+				{Name: "com.example.binary", Properties: []service.Property{{Name: "program", Values: []string{"/usr/bin/true"}}, {Name: "run at load", Values: []string{"yes"}}}},
 			}, withoutPlistPath(services))
 		})
 
@@ -242,7 +242,7 @@ func TestDomain(t *testing.T) {
 			require.Equal(t, []service.Service{{
 				Name:       "com.example.xml",
 				PlistPath:  filepath.Join(home, "Library", "LaunchAgents", "another-name.plist"),
-				Properties: []service.Property{{Name: "program", Values: []string{"/usr/bin/true"}}},
+				Properties: []service.Property{{Name: "program", Values: []string{"/usr/bin/true"}}, {Name: "run at load", Values: []string{"yes"}}},
 			}}, services)
 		})
 
@@ -297,7 +297,7 @@ func TestDomain(t *testing.T) {
 			require.Equal(t, []service.Service{{
 				Name:       "com.example.binary",
 				PlistPath:  filepath.Join(home, "Library", "LaunchAgents", "com.example.binary.plist"),
-				Properties: []service.Property{{Name: "program", Values: []string{"/usr/bin/true"}}},
+				Properties: []service.Property{{Name: "program", Values: []string{"/usr/bin/true"}}, {Name: "run at load", Values: []string{"yes"}}},
 			}}, services)
 		})
 
@@ -417,6 +417,110 @@ func TestDomain(t *testing.T) {
 				{Name: "work folder", Values: []string{""}},
 				{Name: "stderr", Values: []string{""}},
 				{Name: "environment"},
+			}}, propertiesByName(services))
+		})
+
+		t.Run("a RunAtLoad and a KeepAlive that are booleans give run at load and keep alive with yes or no, also when they are false", func(t *testing.T) {
+			for properties, expected := range map[string][]service.Property{
+				`<key>RunAtLoad</key><true/><key>KeepAlive</key><false/>`: {
+					{Name: "run at load", Values: []string{"yes"}},
+					{Name: "keep alive", Values: []string{"no"}},
+				},
+				`<key>RunAtLoad</key><false/><key>KeepAlive</key><true/>`: {
+					{Name: "run at load", Values: []string{"no"}},
+					{Name: "keep alive", Values: []string{"yes"}},
+				},
+			} {
+				fakeLaunchctlList(t, "launchctl-list-no-services.txt")
+				home := homeWithWorkerPlist(t, properties)
+
+				services, err := launchd.NewDomain(home, 501).Services()
+
+				require.NoError(t, err, properties)
+				require.Equal(t, map[string][]service.Property{"com.example.worker": expected}, propertiesByName(services), properties)
+			}
+		})
+
+		t.Run("a KeepAlive dictionary gives one part for each condition, in the order SuccessfulExit, Crashed, PathState by path, OtherJobEnabled by name, then each other condition by its name with yes or no", func(t *testing.T) {
+			fakeLaunchctlList(t, "launchctl-list-no-services.txt")
+			home := homeWithWorkerPlist(t, `<key>KeepAlive</key><dict>
+<key>NetworkState</key><true/>
+<key>OtherJobEnabled</key><dict><key>com.example.b</key><true/><key>com.example.a</key><false/></dict>
+<key>AfterInitialDemand</key><true/>
+<key>PathState</key><dict><key>/b</key><true/><key>/a</key><false/></dict>
+<key>Crashed</key><true/>
+<key>SuccessfulExit</key><false/>
+</dict>`)
+
+			services, err := launchd.NewDomain(home, 501).Services()
+
+			require.NoError(t, err)
+			require.Equal(t, map[string][]service.Property{"com.example.worker": {{Name: "keep alive", Values: []string{
+				"when the last exit is not 0",
+				"when the last exit is a crash",
+				"while /a does not exist",
+				"while /b exists",
+				"while com.example.a is not loaded",
+				"while com.example.b is loaded or running",
+				"AfterInitialDemand yes",
+				"NetworkState yes",
+			}}}}, propertiesByName(services))
+		})
+
+		t.Run("a SuccessfulExit that is true, a Crashed that is false, and another condition that is false give when the last exit is 0, when the last exit is not a crash, and the name of the condition with no", func(t *testing.T) {
+			fakeLaunchctlList(t, "launchctl-list-no-services.txt")
+			home := homeWithWorkerPlist(t, `<key>KeepAlive</key><dict><key>SuccessfulExit</key><true/><key>Crashed</key><false/><key>NetworkState</key><false/></dict>`)
+
+			services, err := launchd.NewDomain(home, 501).Services()
+
+			require.NoError(t, err)
+			require.Equal(t, map[string][]service.Property{"com.example.worker": {{Name: "keep alive", Values: []string{
+				"when the last exit is 0",
+				"when the last exit is not a crash",
+				"NetworkState no",
+			}}}}, propertiesByName(services))
+		})
+
+		t.Run("a RunAtLoad or a KeepAlive of a type that launchd does not take gives no property, a condition of a type that launchd does not take gives no part, another condition that is not a boolean shows its name alone, and an empty KeepAlive gives keep alive with no part", func(t *testing.T) {
+			for properties, expected := range map[string][]service.Property{
+				`<key>RunAtLoad</key><string>yes</string><key>KeepAlive</key><string>yes</string><key>WorkingDirectory</key><string>/w</string>`: {
+					{Name: "work folder", Values: []string{"/w"}},
+				},
+				`<key>KeepAlive</key><dict><key>SuccessfulExit</key><string>true</string><key>Crashed</key><integer>1</integer><key>PathState</key><string>/a</string><key>OtherJobEnabled</key><array/><key>NetworkState</key><true/></dict>`: {
+					{Name: "keep alive", Values: []string{"NetworkState yes"}},
+				},
+				`<key>KeepAlive</key><dict><key>PathState</key><dict><key>/a</key><string>yes</string><key>/b</key><true/></dict><key>OtherJobEnabled</key><dict><key>com.example.a</key><integer>1</integer><key>com.example.b</key><false/></dict><key>AfterInitialDemand</key><string>soon</string></dict>`: {
+					{Name: "keep alive", Values: []string{"while /b exists", "while com.example.b is not loaded", "AfterInitialDemand"}},
+				},
+				`<key>KeepAlive</key><dict/>`: {
+					{Name: "keep alive"},
+				},
+			} {
+				fakeLaunchctlList(t, "launchctl-list-no-services.txt")
+				home := homeWithWorkerPlist(t, properties)
+
+				services, err := launchd.NewDomain(home, 501).Services()
+
+				require.NoError(t, err, properties)
+				require.Equal(t, map[string][]service.Property{"com.example.worker": expected}, propertiesByName(services), properties)
+			}
+		})
+
+		t.Run("a plist with the program, the work folder, RunAtLoad, KeepAlive, the log paths and the environment gives program, work folder, run at load, keep alive, stdout, stderr and environment in this order, whatever the order of the plist", func(t *testing.T) {
+			fakeLaunchctlList(t, "launchctl-list-no-services.txt")
+			home := homeWith(t, map[string]string{"com.example.worker.plist": "keep-alive.plist"})
+
+			services, err := launchd.NewDomain(home, 501).Services()
+
+			require.NoError(t, err)
+			require.Equal(t, map[string][]service.Property{"com.example.worker": {
+				{Name: "program", Values: []string{"/usr/local/bin/worker"}},
+				{Name: "work folder", Values: []string{"/Users/me/work"}},
+				{Name: "run at load", Values: []string{"no"}},
+				{Name: "keep alive", Values: []string{"when the last exit is not 0", "when the last exit is a crash"}},
+				{Name: "stdout", Values: []string{"/Users/me/Library/Logs/worker.out.log"}},
+				{Name: "stderr", Values: []string{"/Users/me/Library/Logs/worker.err.log"}},
+				{Name: "environment", Values: []string{"WORKER_STATUS_FILE"}},
 			}}, propertiesByName(services))
 		})
 
@@ -1083,6 +1187,24 @@ func TestDomain(t *testing.T) {
 			require.NoError(t, err)
 			require.Equal(t, map[string][]service.Property{"com.example.worker": {
 				{Name: "program", Values: []string{"/usr/local/bin/worker-2", "--queue"}},
+			}}, propertiesByName(services))
+		})
+
+		t.Run("a plist whose KeepAlive changes with its modification time gives the new conditions at the next read", func(t *testing.T) {
+			fakeLaunchctlList(t, "launchctl-list-no-services.txt")
+			home := homeWith(t, nil)
+			path := filepath.Join(home, "Library", "LaunchAgents", "com.example.worker.plist")
+			writeWorkerPlistModifiedAt(t, path, `<key>KeepAlive</key><true/>`, modTime)
+			domain := launchd.NewDomain(home, 501)
+			_, err := domain.Services()
+			require.NoError(t, err)
+			writeWorkerPlistModifiedAt(t, path, `<key>KeepAlive</key><dict><key>SuccessfulExit</key><true/></dict>`, modTime.Add(time.Second))
+
+			services, err := domain.Services()
+
+			require.NoError(t, err)
+			require.Equal(t, map[string][]service.Property{"com.example.worker": {
+				{Name: "keep alive", Values: []string{"when the last exit is 0"}},
 			}}, propertiesByName(services))
 		})
 

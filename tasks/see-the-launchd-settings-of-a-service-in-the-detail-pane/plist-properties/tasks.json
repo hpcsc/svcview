@@ -96,7 +96,7 @@
     },
     {
       "n": 4,
-      "done": false,
+      "done": true,
       "title": "Show run at load and keep alive with each of its conditions",
       "language": "Go",
       "testable": true,

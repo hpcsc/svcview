@@ -75,6 +75,17 @@ describe('the properties of the plist in the detail pane', () => {
     await session.waitForText('program       /usr/local/bin/other', { timeout: 5000 })
   })
 
+  it('shows last exit 1 and keep alive when the last exit is 0 for a loaded service whose KeepAlive has SuccessfulExit true', async () => {
+    const home = homeWithPlists([])
+    writePlist(home, 'com.example.worker', '\t<key>KeepAlive</key>\n\t<dict>\n\t\t<key>SuccessfulExit</key>\n\t\t<true/>\n\t</dict>\n')
+    setLaunchctlList(home, [{ name: 'com.example.worker', status: 1 }])
+
+    const session = await openCli(scratchDir(), [], { HOME: home })
+
+    await session.waitForText('keep alive    when the last exit is 0')
+    expect(await session.text()).toContain('up -          last exit 1')
+  })
+
   it('with --all, shows no line Plist for a service with no plist', async () => {
     const home = homeWithPlists([])
     setLaunchctlList(home, [{ name: 'com.apple.a', pid: 4123 }])

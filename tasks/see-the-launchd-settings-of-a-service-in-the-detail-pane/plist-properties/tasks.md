@@ -399,28 +399,28 @@ dictionary gives one part for each condition, in the order `SuccessfulExit`, `Cr
 | Each other condition, for example `NetworkState` or `AfterInitialDemand` | its name, then `yes` or `no` for a boolean |
 
 **Acceptance Criteria:**
-- [ ] `RunAtLoad` true gives `run at load` with `yes`, and false gives `no`. `KeepAlive` true gives `keep alive` with
+- [x] `RunAtLoad` true gives `run at load` with `yes`, and false gives `no`. `KeepAlive` true gives `keep alive` with
       `yes`, and false gives `no`.
-- [ ] A `KeepAlive` with `SuccessfulExit` false, `Crashed` true, `PathState` with `/b` true and `/a` false,
+- [x] A `KeepAlive` with `SuccessfulExit` false, `Crashed` true, `PathState` with `/b` true and `/a` false,
       `OtherJobEnabled` with `com.example.b` true and `com.example.a` false, `NetworkState` true and
       `AfterInitialDemand` true gives `keep alive` with exactly these parts in this order:
       `when the last exit is not 0`, `when the last exit is a crash`, `while /a does not exist`, `while /b exists`,
       `while com.example.a is not loaded`, `while com.example.b is loaded or running`, `AfterInitialDemand yes`,
       `NetworkState yes`.
-- [ ] `SuccessfulExit` true gives `when the last exit is 0`, and `Crashed` false gives
+- [x] `SuccessfulExit` true gives `when the last exit is 0`, and `Crashed` false gives
       `when the last exit is not a crash`.
-- [ ] A `RunAtLoad` that is not a boolean, and a `KeepAlive` that is neither a boolean nor a dictionary, give no
+- [x] A `RunAtLoad` that is not a boolean, and a `KeepAlive` that is neither a boolean nor a dictionary, give no
       property. A condition whose value has a type that launchd does not take (a `SuccessfulExit` or a `Crashed` that is
       not a boolean, a `PathState` or an `OtherJobEnabled` that is not a dictionary, a path or a name whose value is not
       a boolean) gives no part, and the other conditions keep theirs. Another condition whose value is not a boolean
       shows its name alone. An empty `KeepAlive` dictionary gives `keep alive` with no part.
-- [ ] A plist with each property of Task 1 and of this task gives exactly `program`, `work folder`, `run at load`,
+- [x] A plist with each property of Task 1 and of this task gives exactly `program`, `work folder`, `run at load`,
       `keep alive`, `stdout`, `stderr`, `environment`.
-- [ ] A plist whose `KeepAlive` changes with its modification time gives the new conditions at the next read.
-- [ ] The services of each test that reads `xml.plist` or `binary.plist`, which have `RunAtLoad` true, have
+- [x] A plist whose `KeepAlive` changes with its modification time gives the new conditions at the next read.
+- [x] The services of each test that reads `xml.plist` or `binary.plist`, which have `RunAtLoad` true, have
       `run at load` with `yes` where the test expects their properties, so a boolean of a binary plist gives the same
       text as one of an XML plist.
-- [ ] e2e: a plist with `KeepAlive` and `SuccessfulExit` true, whose service `launchctl list` shows with no PID and the
+- [x] e2e: a plist with `KeepAlive` and `SuccessfulExit` true, whose service `launchctl list` shows with no PID and the
       Status 1, shows `last exit 1` and `keep alive    when the last exit is 0` in the detail pane.
 
 **Affected Files/Modules:**
