@@ -61,7 +61,7 @@ terminal, for example in a pipe, it prints the help and opens no screen.
 │                              ││ 09:00 ● claimed ENG-692                      │
 │                              ││                                              │
 ╰──────────────────────────────╯╰──────────────────────────────────────────────╯
- s start · x stop · r restart · ? help
+ s start · x stop · r restart · o log · ? help
 ```
 
 This screen has the group `Workers`, with the match `^com\.example\.worker\.` and a
@@ -72,8 +72,8 @@ This screen has the group `Workers`, with the match `^com\.example\.worker\.` an
 | The header | The domain `gui/<uid>` of the user, and the number of services in each state. |
 | The list | One row for each service that has a plist in `~/Library/LaunchAgents`, in [the groups of the config files](#groups), and then in the group `Other`. Each group starts with a line with its name, and an empty line separates two groups. In each group, the services are sorted by name. Each row starts with the glyph of the state of the service, and a row in a group shows the short name of the service. svcview cuts a name that is too long for the list with `…`. When the list has more lines than the pane, it scrolls to keep the selected row in view. When the selected row is the first row of its group, and the pane has room for more than one line, the line of the group shows too. In a group with a status command, a row shows [the summary of the status](#in-the-list-and-the-detail-pane) after the short name. The list takes 40 percent of the width. At start, the list has [the focus](#the-focus-and-the-scroll). |
 | The detail pane | The selected service. Its title is the full name of the service. The pane shows the state, the PID, the uptime, and the last exit. In a group with a status command, it also shows the age of the status, and the [fields and the events](#in-the-list-and-the-detail-pane) of the last output or the [failure](#failures) of the last run. When the detail pane has [the focus](#the-focus-and-the-scroll), `↑` and `↓`, or `k` and `j`, scroll it. |
-| The message line | The [confirmation](#start-stop-and-restart-a-service) of `x` or of `r`, what launchctl printed when a start, a stop or a restart fails, or the text of `r` on a `not loaded` service. The line shows above the help line only while it has a text, and the panes are one line shorter while it shows. See [The message line](#the-message-line). |
-| The help line | `s start · x stop · r restart · ? help` |
+| The message line | The [confirmation](#start-stop-and-restart-a-service) of `x` or of `r`, what launchctl printed when a start, a stop or a restart fails, the text of `r` on a `not loaded` service, the text of `o` on a service with [no log path](#the-log-of-a-service), or why `less` failed. The line shows above the help line only while it has a text, and the panes are one line shorter while it shows. See [The message line](#the-message-line). |
+| The help line | `s start · x stop · r restart · o log · ? help` |
 
 The name of a service is the `Label` of its plist. svcview gets the state, the PID, and the last exit of each
 service from `launchctl list`, and the uptime from `ps`.
@@ -154,6 +154,7 @@ and no rows. When `ps` fails, no service shows an uptime.
 | `s` | Start the selected service. See [Start, stop and restart a service](#start-stop-and-restart-a-service). |
 | `x` | Stop the selected service, after a confirmation. `y` answers yes to the confirmation, and each other key answers no. |
 | `r` | Restart the selected service, after a confirmation. `y` answers yes to the confirmation, and each other key answers no. |
+| `o` | Show the log of the selected service. See [The log of a service](#the-log-of-a-service). |
 | `?` | Show the help, which lists all keys, or hide it. |
 | `esc` | Hide the help. |
 | `q` or `ctrl+c` | Quit. |
@@ -215,6 +216,42 @@ new state at the next refresh after the action ends. These rules apply to the ke
 2. `s`, `x` and `r` do nothing while the help shows, and while the list shows an error.
 3. When svcview quits, it does not wait for a start, a stop or a restart that still runs.
 
+### The log of a service
+
+`o` gives the terminal to `less +F -- <log path>`. The log path of a service is the `StandardOutPath` of its plist,
+or its `StandardErrorPath` when the plist has no `StandardOutPath`. svcview gives each argument to `less` as it is,
+with no shell. The `--` makes `less` read a path that starts with `+` or `-` as a file, and not as a command.
+
+`less +F` shows the end of the file and each new line, as `tail -f` does. `ctrl-c` stops the follow, and `q` ends
+`less`. Then the screen shows again, with the same service selected and the same focus. A `ctrl-c` that `less` gets
+does not end svcview.
+
+`o` works on a service in each state, also while a start, a stop or a restart of the service runs, and asks no
+confirmation. `o` does nothing while the help shows, and while the list shows an error. While a confirmation shows,
+`o` answers no, as each key other than `y` does.
+
+While `less` runs, svcview draws nothing, reads no key, reads no services, and starts no status run. A start, a stop,
+a restart or a status run that started before goes on, and the screen shows its end after `less` ends.
+
+When the plist has neither path, `o` runs nothing, and the message line says so:
+
+```
+ com.example.worker.01 has no log path in its plist
+```
+
+svcview does not read the log, does not check that the file exists, and does not resolve a relative path: `less`
+gets the path as the plist gives it. `less` reports a file that it cannot open, for example
+`/Users/me/Library/Logs/worker.out.log: No such file or directory`, and exits with 1. The screen covers that text
+when it shows again, and the message line shows the exit code:
+
+```
+ less +F -- /Users/me/Library/Logs/worker.out.log exited with code 1
+```
+
+`less` gets the environment of svcview, with the `LESS` of the user. svcview reads no `PAGER`. When `LESS` holds
+`-F`, which ends `less` when the file fits on one screen, `less` ends at the first `ctrl-c` on a log that fits on one
+screen, and the screen shows again.
+
 ### The message line
 
 When launchctl fails in a start, a stop or a restart, the message line above the help line shows what launchctl
@@ -223,6 +260,13 @@ message line names the command and its exit code, for example
 `launchctl kickstart gui/501/com.example.worker.01 exited with code 113`. svcview kills a launchctl that does not end
 within 30 s, with each process that it started, and the message line says so, for example
 `launchctl bootout gui/501/com.example.worker.01 did not end: svcview killed it after 30s`.
+
+When `less` exits with a code other than 0 after `o`, the message line names the command and its exit code, for
+example `less +F -- /Users/me/Library/Logs/worker.out.log exited with code 1`. When a signal ends
+`less`, it names the signal, for example `less +F -- /Users/me/Library/Logs/worker.out.log ended by SIGTERM`. When
+svcview cannot start `less`, it says why, for example
+`run less +F -- /Users/me/Library/Logs/worker.out.log: exec: "less": executable file not found in $PATH`. The text
+of `o` on a service with [no log path](#the-log-of-a-service) shows on the message line too.
 
 The message line shows the lines of the text on one line, with a space between them. It shows each control
 character as `�`, and cuts a text that is wider than the terminal with `…`. It has no color.
@@ -594,8 +638,11 @@ The parse error names the place in the output as a JSON pointer, and says what v
 
 svcview starts each status command in a process group of its own. It stops that process group with `SIGKILL` at
 `timeout`, when the program ends, and when svcview quits. svcview quits on `q` and `ctrl+c`, when its terminal
-closes, and on `SIGTERM`. Thus no process that the command starts runs longer than the run, for example the `sleep`
-of `sh -c 'sleep 30 &'`. A process that leaves the process group, for example with `setsid`, does not stop.
+closes, and on `SIGTERM` and `SIGINT`. While [`less`](#the-log-of-a-service) has the terminal, svcview ignores
+`SIGINT`, so a `ctrl-c` that `less` gets does not end svcview. A `SIGTERM` or a close of the terminal then stops each
+status run at once, and svcview quits when `less` ends. Thus no process that the command starts runs longer than the
+run, for example the `sleep` of `sh -c 'sleep 30 &'`. A process that leaves the process group, for example with
+`setsid`, does not stop.
 
 svcview keeps the last 20 lines of stderr and the first 20 lines of an output that is not valid, and a maximum of
 4096 bytes of each line. When the detail pane has [the focus](#the-focus-and-the-scroll), `↑` and `↓`, or `k` and

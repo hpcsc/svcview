@@ -364,21 +364,21 @@ does while `less` runs, the text of a service with no log path, the failure of `
 `SIGINT` rule of the screen. The Keys table matches the help of the screen.
 
 **Acceptance Criteria:**
-- [ ] The Keys table lists `o` as the help shows it.
-- [ ] The example screen and the table of the parts of the screen show the help line
+- [x] The Keys table lists `o` as the help shows it.
+- [x] The example screen and the table of the parts of the screen show the help line
       `s start · x stop · r restart · o log · ? help`. The row of the message line names the text of `o` on a
       service with no log path, and the failure of `less`.
-- [ ] A section on the log says that `o` gives the terminal to `less +F -- <StandardOutPath>`, or to the
+- [x] A section on the log says that `o` gives the terminal to `less +F -- <StandardOutPath>`, or to the
       `StandardErrorPath` when the plist has no `StandardOutPath`; that `less` shows the end of the file and each
       new line, `ctrl-c` stops the follow, and `q` ends `less`; that the screen then shows again with the same
       service selected; that `o` works in each state and while an action of the service runs; and that while `less`
       runs, svcview draws nothing, reads no services and starts no status run.
-- [ ] It says that `less` gets the `LESS` of the user, so that with `-F`, `less` ends at `ctrl-c` when the log fits
+- [x] It says that `less` gets the `LESS` of the user, so that with `-F`, `less` ends at `ctrl-c` when the log fits
       on one screen; and that svcview does not check the file, so `less` reports a file that it cannot open, and the
       message line shows its exit code.
-- [ ] "The message line" names the text of `o` and the failure of a program. The text on the signals of the screen
+- [x] "The message line" names the text of `o` and the failure of a program. The text on the signals of the screen
       (`docs/cli.md:596-597`) names `SIGINT`, and says that a `ctrl-c` that `less` gets does not end svcview.
-- [ ] Each link to a section of `docs/cli.md` still finds its section.
+- [x] Each link to a section of `docs/cli.md` still finds its section.
 
 **Affected Files/Modules:**
 - `docs/cli.md` — the log, the message line, the help line, and the signals of the screen
