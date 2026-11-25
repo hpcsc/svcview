@@ -70,10 +70,11 @@ This screen has the group `Workers`, with the match `^com\.example\.worker\.` an
 | Part | What it shows |
 | --- | --- |
 | The header | The domain `gui/<uid>` of the user, and the number of services in each state. |
-| The list | One row for each service that has a plist in `~/Library/LaunchAgents`, in [the groups of the config files](#groups), and then in the group `Other`. Each group starts with a line with its name, and an empty line separates two groups. In each group, the services are sorted by name. Each row starts with the glyph of the state of the service, and a row in a group shows the short name of the service. svcview cuts a name that is too long for the list with `…`. When the list has more lines than the pane, it scrolls to keep the selected row in view. When the selected row is the first row of its group, and the pane has room for more than one line, the line of the group shows too. In a group with a status command, a row shows [the summary of the status](#in-the-list-and-the-detail-pane) after the short name. The list takes 40 percent of the width. At start, the list has [the focus](#the-focus-and-the-scroll). |
+| The list | One row for each service that has a plist in `~/Library/LaunchAgents`, in [the groups of the config files](#groups), and then in the group `Other`. Each group starts with a line with its name, and an empty line separates two groups. In each group, the services are sorted by name. Each row starts with the glyph of the state of the service, and a row in a group shows the short name of the service. svcview cuts a name that is too long for the list with `…`. When the list has more lines than the pane, it scrolls to keep the selected row in view. When the selected row is the first row of its group, and the pane has room for more than one line, the line of the group shows too. In a group with a status command, a row shows [the summary of the status](#in-the-list-and-the-detail-pane) after the short name. A [filter](#the-filter) hides each service whose name does not contain it, and each group with no service that the list shows. The list takes 40 percent of the width. At start, the list has [the focus](#the-focus-and-the-scroll). |
 | The detail pane | The selected service. Its title is the full name of the service. The pane shows the state, the PID, the uptime, and the last exit. In a group with a status command, it also shows the age of the status, and the [fields and the events](#in-the-list-and-the-detail-pane) of the last output or the [failure](#failures) of the last run. When the detail pane has [the focus](#the-focus-and-the-scroll), `↑` and `↓`, or `k` and `j`, scroll it. |
+| The filter line | `/` and the [filter](#the-filter) of the list, with a cursor after the filter while the line is open. The line shows under the panes, or under the help, and above the message line, while the filter line is open and while a filter is kept. The panes, or the help, are one line shorter while it shows. |
 | The message line | The [confirmation](#start-stop-and-restart-a-service) of `x` or of `r`, what launchctl printed when a start, a stop or a restart fails, the text of `r` on a `not loaded` service, the text of `o` on a service with [no log path](#the-log-of-a-service), or why `less` failed. After the key of an [action](#the-actions-of-a-group), the confirmation of the action, a template value that the plist does not have, or why the command failed. The line shows above the help line only while it has a text, and the panes are one line shorter while it shows. See [The message line](#the-message-line). |
-| The help line | `s start · x stop · r restart · o log · ? help`. When the selected service is in a group with [actions](#the-actions-of-a-group), the key and the name of each action show after `o log`, for example `s start · x stop · r restart · o log · L worker log · ? help`. |
+| The help line | `s start · x stop · r restart · o log · ? help`. When the selected service is in a group with [actions](#the-actions-of-a-group), the key and the name of each action show after `o log`, for example `s start · x stop · r restart · o log · L worker log · ? help`. While the [filter line](#the-filter) is open, the help line is `enter keep the filter · esc clear the filter`. |
 
 The name of a service is the `Label` of its plist. svcview gets the state, the PID, and the last exit of each
 service from `launchctl list`, and the uptime from `ps`.
@@ -134,12 +135,84 @@ the pane or above it. A refresh, and a run that gives a text of the same length,
 that fails shows no service in the detail pane, so the next read that succeeds shows the selected service from the
 first line.
 
+### The filter
+
+`/` opens the filter line, and the list then shows only the services whose name contains the filter:
+
+```
+╰──────────────────────────────╯╰──────────────────────────────────────────────╯
+ /worker█
+ enter keep the filter · esc clear the filter
+```
+
+The filter line shows under the panes and above the [message line](#the-message-line), with `/`, the filter, and a
+cursor after the filter. The panes are one line shorter while it shows. `/` also moves
+[the focus](#the-focus-and-the-scroll) to the list. `/` does nothing while the help shows. While a confirmation shows,
+`/` answers no, as each key other than `y` does.
+
+While the filter line is open, each key that types text adds its text to the end of the filter: each letter, digit
+and sign, and the space. The keys of svcview and the keys of the [actions](#the-actions-of-a-group) go into the filter
+too, so `s`, `x`, `r`, `o`, `q`, `?`, `h`, `j`, `k`, `l` and the key of an action do nothing else. A paste does not go
+into the filter. These keys do not go into the filter:
+
+| Key | What it does while the filter line is open |
+| --- | --- |
+| `backspace` | Delete the last character of the filter. On an empty filter, `backspace` does nothing, and the line stays open. |
+| `enter` | Keep the filter, and close the line. On an empty filter, `enter` only closes the line. |
+| `esc` | Clear the filter, and close the line. The list shows each service again. |
+| `ctrl+c` | Quit. |
+| `↑`, `↓`, `tab`, `←`, `→`, and each other key that types no text | Nothing. The cursor stays after the last character of the filter. |
+
+While the filter line is open, the help line shows `enter keep the filter · esc clear the filter`. A key that goes into
+the filter hides the message line, as each key press does. An error of a start, a stop or a restart that ends while the
+filter line is open shows on the message line, under the filter line.
+
+After each key, the list shows only the services whose name contains the filter, with no regard to case. The filter is
+a part of the name: it is not a regular expression and not a glob. The filter compares with the full name of the
+service, also in a group whose rows show a short name, so the filter `example` shows each row of a group with the
+match `^com\.example\.`. A group with no service whose name contains the filter shows no group line, and no empty
+line, `Other` too. An empty filter shows each service.
+
+The selected service stays selected while the list shows it. When the filter hides it, the row at its place in the
+order of the list is selected: the row after it, also in the next group, or the last row when it came after each row
+that the list shows. The detail pane shows the newly selected service from its first line. When the rows that the list
+shows fit in the pane, the list shows from its first line.
+
+When the name of no service contains the filter, the list shows one line:
+
+```
+no service matches
+```
+
+No service is selected then, so the detail pane shows no service, and the help line shows no key of an action. While
+the list shows a read error, it shows the error, whatever the filter.
+
+`enter` keeps the filter. The filter line stays, with `/` and the filter and no cursor, and the keys act again, on the
+services that the list shows. `↑` and `↓`, or `k` and `j`, select a service among them, and `s`, `x`, `r`, `o` and
+the keys of the actions act on the selected service, which is always a service that the list shows. When the list
+shows `no service matches`, these keys do nothing. The help line shows the keys of svcview and of the actions of the
+selected service again. `/` opens the filter line again with the kept filter, and the next key adds its text to the
+end of it.
+
+`esc` clears a kept filter: the filter line hides, and the list shows each service again. The service that was
+selected in the filtered list stays selected. While the help shows over a kept filter, the filter line shows under
+the help, `esc` only hides the help, and the next `esc` clears the filter.
+
+Each read applies the filter, as [Refresh](#refresh) says. The header counts each service of the read, also each
+service that the filter hides. A service that the filter hides keeps its [status runs](#the-status-command), so its
+row shows its newest summary as soon as the list shows it again. svcview keeps no filter when it quits.
+
+The filter line shows each control character of the filter as `�`, and svcview cuts a filter line that is wider than
+the terminal with `…`.
+
 ### Refresh
 
 One `refresh` after each read ends, svcview reads the plists and runs `launchctl list` and `ps` again, with no key
 press. The setting `refresh` of [the config file](#the-config-file) sets the time, and the default is 2 s. svcview
 reads a plist again only when the modification time of the file changes. The same service stays selected. When the
-selected service is gone, the row after it in the list is selected, or the last row when it was the last.
+selected service is gone, the row after it in the list is selected, or the last row when it was the last. A
+[filter](#the-filter) applies to each read, also a kept filter: a service that is added shows only when its name
+contains the filter.
 
 When `launchctl list` fails, or prints a header line other than `PID`, `Status`, `Label`, the list shows the error
 and no rows. When `ps` fails, no service shows an uptime.
@@ -152,14 +225,20 @@ and no rows. When `ps` fails, no service shows an uptime.
 | `tab` | Move the focus to the other pane. |
 | `l` | Move the focus to the detail pane. When the detail pane has the focus, `l` does nothing. |
 | `h` | Move the focus to the list. When the list has the focus, `h` does nothing. |
+| `/` | Open the [filter line](#the-filter), and move the focus to the list. With a kept filter, the line opens with that filter. |
+| `enter` | Keep the filter, and close the filter line, so that the keys act on the services that the list shows. While the filter line is not open, `enter` does nothing. |
+| `backspace` | Delete the last character of the filter, while the filter line is open. |
 | `s` | Start the selected service. See [Start, stop and restart a service](#start-stop-and-restart-a-service). |
 | `x` | Stop the selected service, after a confirmation. `y` answers yes to the confirmation, and each other key answers no. |
 | `r` | Restart the selected service, after a confirmation. `y` answers yes to the confirmation, and each other key answers no. |
 | `o` | Show the log of the selected service. See [The log of a service](#the-log-of-a-service). |
 | The key of an action, for example `L` | Run the command of the action on the selected service, when the service is in the group of the action. See [The actions of a group](#the-actions-of-a-group). |
 | `?` | Show the help, which lists all keys, also the keys of the actions of the group of the selected service, or hide it. |
-| `esc` | Hide the help. |
+| `esc` | Hide the help, or clear the filter. |
 | `q` or `ctrl+c` | Quit. |
+
+While the filter line is open, each key that types text goes into the filter, and does not do what this table says.
+See [The filter](#the-filter).
 
 ### Start, stop and restart a service
 
@@ -215,7 +294,8 @@ new state at the next refresh after the action ends. These rules apply to the ke
 
 1. While the start, the stop or the restart of a service runs, `s`, `x` and `r` do nothing on that service. They
    still act on another service.
-2. `s`, `x` and `r` do nothing while the help shows, and while the list shows an error.
+2. `s`, `x` and `r` do nothing while the help shows, and while the list shows an error. While the
+   [filter line](#the-filter) is open, they go into the filter.
 3. When svcview quits, it does not wait for a start, a stop or a restart that still runs.
 
 ### The log of a service
@@ -817,9 +897,9 @@ A key is one character that prints and that is not a space, for example `L`, `E`
 keys. Write a key that is not a letter or a digit in single quotes, for example `key: '!'`: with no quotes, YAML
 reads some of these characters as a part of its syntax.
 
-An action cannot take a key of svcview. The keys of svcview are `?`, `h`, `j`, `k`, `l`, `o`, `q`, `r`, `s` and `x`,
-and `/`, which svcview keeps for a filter of the list. These keys in upper case, for example `L`, `S` and `X`, are not
-keys of svcview. `y` answers a confirmation only while a confirmation shows, so an action can take `y`.
+An action cannot take a key of svcview. The keys of svcview are `?`, `/`, `h`, `j`, `k`, `l`, `o`, `q`, `r`, `s` and
+`x`, and `/` opens the [filter line](#the-filter). These keys in upper case, for example `L`, `S` and `X`, are not keys
+of svcview. `y` answers a confirmation only while a confirmation shows, so an action can take `y`.
 
 No two actions of one group can have the same key. Two groups can each have an action with the same key: the key runs
 the action of the group of the selected service. Two actions of one group can have the same name.
@@ -839,7 +919,8 @@ While the command runs, svcview draws nothing, reads no key, reads no services, 
 `less` runs. svcview does not show what the command prints: the screen covers it when the screen shows again.
 
 The key works on a service in each state, also while a start, a stop or a restart of the service runs. The key does
-nothing while the help shows, and while the list shows an error. While a confirmation shows, the key answers no, as
+nothing while the help shows, and while the list shows an error. While the [filter line](#the-filter) is open, the
+key goes into the filter. While a confirmation shows, the key answers no, as
 each key other than `y` does.
 
 When a text of `command` uses a template value that the plist of the selected service does not have, svcview runs no

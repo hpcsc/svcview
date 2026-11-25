@@ -404,16 +404,16 @@ what `backspace`, `enter` and `esc` do, how the list, the group lines and the se
 and the status runs keep each service.
 
 **Acceptance Criteria:**
-- [ ] A section "The filter" under "The screen" describes `/`, the filter line and where it shows, the keys that go
+- [x] A section "The filter" under "The screen" describes `/`, the filter line and where it shows, the keys that go
       into the filter, `backspace`, `enter`, `esc`, the help line while the line is open, the list and the selected
       service after each key, `no service matches`, the header counts, and the status runs of a hidden service.
-- [ ] The table of parts has a row for the filter line, the row of the list says that a filter hides rows, and the row
+- [x] The table of parts has a row for the filter line, the row of the list says that a filter hides rows, and the row
       of the help line gives the help line of an open filter line.
-- [ ] The table of "Keys" has rows for `/`, `enter` and `backspace`, and the row of `esc` says that it hides the help
+- [x] The table of "Keys" has rows for `/`, `enter` and `backspace`, and the row of `esc` says that it hides the help
       or clears the filter, as the help that `?` shows does.
-- [ ] "The key of an action" says that `/` opens the filter line, in place of a key that svcview keeps for a filter.
-- [ ] "Refresh" says that a kept filter applies to each read.
-- [ ] Each statement matches what Tasks 1 to 4 built.
+- [x] "The key of an action" says that `/` opens the filter line, in place of a key that svcview keeps for a filter.
+- [x] "Refresh" says that a kept filter applies to each read.
+- [x] Each statement matches what Tasks 1 to 4 built.
 
 **Affected Files/Modules:**
 - `docs/cli.md` — a section on the filter, the table of parts, "Keys", "Refresh" and "The key of an action"
