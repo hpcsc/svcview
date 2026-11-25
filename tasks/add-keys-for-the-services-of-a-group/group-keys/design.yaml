@@ -1,0 +1,104 @@
+design: planned
+types:
+  - name: CommandTemplate
+    package: internal/status
+    change: new
+    does: the program and its arguments of a command from a config file, as Go templates of the template values
+    owns:
+      - the command is a list of one or more texts, the program first and then its arguments, and the program is not empty
+      - each text is a Go template that uses only the template values Name, Env with a name after it, StdoutPath, StderrPath and PlistPath, with the same walk of the parse tree that NewCommand does today
+      - Apply gives the command line with the template values of one service, or the failure of the kind template value of the first value that the plist does not have, such as the plist has no WORKER_LOG
+      - Apply runs no program
+    fields: [templates]
+    methods: [Apply]
+  - name: Command
+    package: internal/status
+    change: changed
+    does: the status command of a group, as the config file sets it
+    owns:
+      - the command holds a CommandTemplate, and the every, the timeout and the stale after of the status
+      - its checks of the texts, its failures of a template value, its run and its command line do not change
+    fields: [template, Every, Timeout, StaleAfter]
+    methods: [Run, CommandLine]
+  - name: Action
+    package: internal/config
+    change: new
+    does: one entry of the setting actions of a group, a key that the services of the group get on the screen
+    owns:
+      - the key is one character that prints and that is not a space, such as L, and the case counts, so L is not l
+      - the key is not a key of svcview, which are the one-character keys that the screen handles and / of the filter of the list
+      - the name is a text that is not empty, which the help line and the help show after the key
+      - the command is a CommandTemplate
+      - confirm is true or false, and false when the action has no confirm
+    fields: [Key, Name, Command, Confirm]
+    methods: []
+  - name: Group
+    package: internal/config
+    change: changed
+    does: a named set of services from the config file, the services whose names its match matches
+    owns:
+      - a group has no actions, or the actions of its setting actions, in the order of the file
+      - no two actions of one group have the same key, and two groups can each have an action with the same key
+      - an error in actions stops svcview at start, and the error names the file, the group, and the action by its place in actions
+      - a group is not comparable, because its actions are a list, so the screen tells two groups apart by their names, which are unique across all config files
+    fields: [Name, match, Status, Actions, configFile]
+    methods: [ShortName]
+  - name: Screen
+    package: internal/tui
+    change: changed
+    does: the Bubble Tea model of the screen of svcview
+    owns:
+      - the help line shows the keys of svcview up to o log, then the key and the name of each action of the group of the selected service in the order of the file, then ? help, and with no selected service or a group with no actions it shows s start · x stop · r restart · o log · ? help
+      - the help that ? shows lists each action of the group of the selected service with its key and its name, after o
+      - the key of an action acts only when a service of the group of that action is selected, and on a service of another group it does nothing
+      - the key of an action applies the template values of the selected service when it is pressed, and a value that the plist does not have shows its failure on the message line and runs nothing, also with confirm
+      - the key of an action with no confirm gives the terminal to its command line through giveTerminalTo
+      - the key of an action with confirm shows the confirmation Run <name> for <service>? (y/N), and y gives the terminal to the command line that the key made
+      - the key of an action does nothing while the help shows, with no rows, and while the list shows a read error, works in each state of the service, also while an action on launchd of the service has not ended, and answers no while a confirmation shows, as o does
+      - each text of a config file that the screen shows, the name of an action too, shows each control character as �
+    fields: [settings, groupOrder, message, confirmation, selected, showHelp]
+    methods: [Init, Update, View, giveTerminalTo]
+  - name: confirmation
+    package: internal/tui
+    change: changed
+    does: a question on the message line that waits for y before svcview acts on one service
+    owns:
+      - the service is the one that was selected when the question showed, not the one that is selected when y comes
+      - y does what the key that asked does, and no other thing, the stop after x, the restart after r, and after the key of an action the command line that the key made gets the terminal
+      - each key other than y and ctrl+c answers no and runs nothing
+    fields: [question, service]
+    methods: []
+functions:
+  - status.NewCommandTemplate(texts) (CommandTemplate, error)
+words:
+  - concept: what a key of the screen does to the selected service, a start, a stop, a restart, or the command of an entry of actions of a group
+    word: action
+    not: [operation, shortcut, binding, hotkey, custom key, plugin, hook, job]
+  - concept: the program and its arguments of a status command or of an action, as the config file gives them, before svcview applies the template values
+    word: command template
+    not: [argv template, command spec, command pattern, recipe]
+  - concept: the program and its arguments after svcview applies the template values
+    word: command line
+    not: [argv, invocation, shell line]
+  - concept: a value of a service that a text of a command can use, such as {{.Env.WORKER_LOG}}
+    word: template value
+    not: [variable, placeholder, parameter, field]
+  - concept: a key that the screen handles itself, such as s, o or ?, which no action can take
+    word: key of svcview
+    not: [reserved key, built-in key, system key, default key]
+  - concept: the setting of an action that makes svcview ask before it runs the command
+    word: confirm
+    not: [ask, prompt, require_confirmation, dangerous]
+  - concept: the question that x, r, or the key of an action with confirm asks, which y answers
+    word: confirmation
+    not: [prompt, dialog, modal, popup]
+  - concept: the line at the bottom of the screen that shows the keys of the actions and ? help
+    word: help line
+    not: [footer, status bar, key bar, hint line]
+  - concept: svcview stops drawing and reading keys, and a program runs in the terminal until it ends, and then the screen shows again
+    word: give the terminal to
+    not: [exec, shell out, suspend, hand off, spawn]
+  - concept: the line above the help line that shows a confirmation, the error of an action, the failure of a program, or the failure of a template value of an action
+    word: message line
+    not: [status line, footer, notification, toast, flash, banner]
+dependencies: []

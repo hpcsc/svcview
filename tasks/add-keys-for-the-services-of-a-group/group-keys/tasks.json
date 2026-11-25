@@ -1,0 +1,175 @@
+{
+  "story": "The keys of a group run its commands on the selected service",
+  "story_id": "launchd-tui/US-011",
+  "tasks_file": "tasks/add-keys-for-the-services-of-a-group/group-keys/tasks.md",
+  "tasks": [
+    {
+      "n": 1,
+      "done": false,
+      "title": "Move the texts of a command into status.CommandTemplate",
+      "language": "Go",
+      "testable": true,
+      "certainty": "high",
+      "blast_radius": "low",
+      "patterns_to_follow": [
+        "internal/status/command.go:38-62",
+        "internal/status/command.go:144-155",
+        "internal/status/values.go:47-62",
+        "internal/status/values_test.go:131-139",
+        "internal/status/command_test.go:189-264"
+      ],
+      "depends_on": [],
+      "affected_files": [
+        "internal/status/command_template.go",
+        "internal/status/command.go",
+        "internal/status/command_template_test.go"
+      ]
+    },
+    {
+      "n": 2,
+      "done": false,
+      "title": "Read the actions of a group from the config file",
+      "language": "Go",
+      "testable": true,
+      "certainty": "medium",
+      "blast_radius": "low",
+      "patterns_to_follow": [
+        "internal/config/group.go:39-66",
+        "internal/config/group.go:83-116",
+        "internal/config/group.go:118-160",
+        "internal/config/config.go:73-96",
+        "internal/config/config_test.go:573-720",
+        "internal/tui/screen.go:289-298",
+        "internal/tui/screen.go:335-338",
+        "task:1"
+      ],
+      "depends_on": [1],
+      "affected_files": [
+        "internal/config/action.go",
+        "internal/config/group.go",
+        "internal/config/config_test.go",
+        "internal/tui/screen.go"
+      ]
+    },
+    {
+      "n": 3,
+      "done": false,
+      "title": "Refuse a key of svcview and a key that two actions of one group use",
+      "language": "Go",
+      "testable": true,
+      "certainty": "high",
+      "blast_radius": "low",
+      "patterns_to_follow": [
+        "internal/config/config.go:80-89",
+        "internal/config/group.go:23-37",
+        "internal/config/config_test.go:558-571",
+        "e2e/tests/config.test.ts:84-100",
+        "task:2"
+      ],
+      "depends_on": [2],
+      "affected_files": [
+        "internal/config/action.go",
+        "internal/config/group.go",
+        "internal/config/config_test.go",
+        "e2e/tests/actions.test.ts"
+      ]
+    },
+    {
+      "n": 4,
+      "done": false,
+      "title": "Show the keys of the actions of the selected group in the help line and in the help",
+      "language": "Go",
+      "testable": true,
+      "certainty": "medium",
+      "blast_radius": "low",
+      "patterns_to_follow": [
+        "internal/tui/screen.go:24",
+        "internal/tui/screen.go:428-442",
+        "internal/tui/screen.go:481-495",
+        "internal/tui/screen_test.go:295-300",
+        "internal/tui/screen_test.go:3735-3742",
+        "internal/tui/screen_test.go:3793-3807",
+        "e2e/tests/log.test.ts:66-79",
+        "task:2"
+      ],
+      "depends_on": [3],
+      "affected_files": [
+        "internal/tui/screen.go",
+        "internal/tui/screen_test.go",
+        "internal/tui/testdata/",
+        "e2e/tests/actions.test.ts"
+      ]
+    },
+    {
+      "n": 5,
+      "done": false,
+      "title": "Give the terminal to the command of an action with its key",
+      "language": "Go",
+      "testable": true,
+      "certainty": "medium",
+      "blast_radius": "high",
+      "patterns_to_follow": [
+        "internal/tui/screen.go:222-230",
+        "internal/tui/screen.go:317-333",
+        "internal/tui/screen.go:387-398",
+        "internal/tui/screen_test.go:37-74",
+        "internal/tui/screen_test.go:3531-3726",
+        "e2e/tests/log.test.ts:17-52",
+        "e2e/tests/log.test.ts:66-79",
+        "e2e/testUtils.ts:33-58",
+        "task:4"
+      ],
+      "depends_on": [4],
+      "affected_files": [
+        "internal/tui/screen.go",
+        "internal/tui/screen_test.go",
+        "e2e/tests/actions.test.ts"
+      ]
+    },
+    {
+      "n": 6,
+      "done": false,
+      "title": "Ask for a confirmation before the command of an action with confirm",
+      "language": "Go",
+      "testable": true,
+      "certainty": "medium",
+      "blast_radius": "high",
+      "patterns_to_follow": [
+        "internal/tui/screen.go:56-64",
+        "internal/tui/screen.go:209-221",
+        "internal/tui/screen.go:247-257",
+        "internal/tui/screen_test.go:3114-3308",
+        "internal/tui/screen_test.go:3345-3356",
+        "task:5"
+      ],
+      "depends_on": [5],
+      "affected_files": [
+        "internal/tui/screen.go",
+        "internal/tui/screen_test.go",
+        "e2e/tests/actions.test.ts"
+      ]
+    },
+    {
+      "n": 7,
+      "done": false,
+      "title": "Describe the actions of a group in docs/cli.md",
+      "language": "Markdown",
+      "testable": false,
+      "certainty": "high",
+      "blast_radius": "low",
+      "patterns_to_follow": [
+        "docs/cli.md:146-160",
+        "docs/cli.md:219-253",
+        "docs/cli.md:255-277",
+        "docs/cli.md:372-401",
+        "docs/cli.md:441-478",
+        "docs/cli.md:767-802"
+      ],
+      "depends_on": [3, 6],
+      "affected_files": [
+        "docs/cli.md"
+      ]
+    }
+  ],
+  "design_file": "tasks/add-keys-for-the-services-of-a-group/group-keys/design.yaml"
+}
