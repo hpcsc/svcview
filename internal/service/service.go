@@ -33,6 +33,11 @@ func (e LastExit) Failed() bool {
 	return e.Code != 0 || e.Signal != ""
 }
 
+type Property struct {
+	Name   string
+	Values []string
+}
+
 type Service struct {
 	Name       string
 	State      State
@@ -43,6 +48,7 @@ type Service struct {
 	StdoutPath string
 	StderrPath string
 	PlistPath  string
+	Properties []Property
 }
 
 func (s Service) LogPath() string {

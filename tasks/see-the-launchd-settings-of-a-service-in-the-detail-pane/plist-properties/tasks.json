@@ -5,7 +5,7 @@
   "tasks": [
     {
       "n": 1,
-      "done": false,
+      "done": true,
       "title": "Read the program, the work folder, the log paths and the names of the environment as properties of a service",
       "language": "Go",
       "testable": true,
@@ -57,7 +57,9 @@
         "e2e/testUtils.ts:72-77",
         "task:1"
       ],
-      "depends_on": [1],
+      "depends_on": [
+        1
+      ],
       "affected_files": [
         "internal/tui/screen.go",
         "internal/tui/screen_test.go",
@@ -83,7 +85,9 @@
         "internal/tui/screen_test.go:3025-3033",
         "task:2"
       ],
-      "depends_on": [2],
+      "depends_on": [
+        2
+      ],
       "affected_files": [
         "internal/tui/screen.go",
         "internal/tui/screen_test.go",
@@ -106,7 +110,10 @@
         "task:1",
         "task:2"
       ],
-      "depends_on": [1, 2],
+      "depends_on": [
+        1,
+        2
+      ],
       "affected_files": [
         "internal/launchd/plist.go",
         "internal/launchd/domain_test.go",
@@ -129,7 +136,9 @@
         "task:1",
         "task:4"
       ],
-      "depends_on": [4],
+      "depends_on": [
+        4
+      ],
       "affected_files": [
         "internal/launchd/plist.go",
         "internal/launchd/domain_test.go",
@@ -155,7 +164,10 @@
         "task:4",
         "task:5"
       ],
-      "depends_on": [3, 5],
+      "depends_on": [
+        3,
+        5
+      ],
       "affected_files": [
         "docs/cli.md"
       ]

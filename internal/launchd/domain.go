@@ -86,6 +86,7 @@ func (d *Domain) servicesOfPlists(plists []plist, listed launchctlList) []servic
 	for _, p := range plists {
 		svc := listed.service(p.name)
 		svc.Env, svc.StdoutPath, svc.StderrPath, svc.PlistPath = p.env, p.stdoutPath, p.stderrPath, p.path
+		svc.Properties = p.properties
 		services = append(services, svc)
 	}
 	return services

@@ -187,30 +187,30 @@ An XML plist and a binary plist give the same properties. A change to the plist 
 read. A service with no plist has no properties.
 
 **Acceptance Criteria:**
-- [ ] A plist with `ProgramArguments` `/usr/local/bin/worker`, `--queue`, `jobs`, a `WorkingDirectory`, a
+- [x] A plist with `ProgramArguments` `/usr/local/bin/worker`, `--queue`, `jobs`, a `WorkingDirectory`, a
       `StandardOutPath`, a `StandardErrorPath`, and `EnvironmentVariables` with `WORKER_TOKEN` and `WORKER_STATUS_FILE`
       gives a service whose properties are exactly `program` with the three arguments in their order, `work folder`,
       `stdout`, `stderr`, and `environment` with `WORKER_STATUS_FILE` and `WORKER_TOKEN`. No text of a property holds
       the value of a variable.
-- [ ] The service of `binary.plist`, a binary plist, has `program` with `/usr/bin/true`, as the service of `xml.plist`
+- [x] The service of `binary.plist`, a binary plist, has `program` with `/usr/bin/true`, as the service of `xml.plist`
       has.
-- [ ] A plist with `Program` and no `ProgramArguments` gives `program` with the `Program`. A plist with both gives
+- [x] A plist with `Program` and no `ProgramArguments` gives `program` with the `Program`. A plist with both gives
       `program` with the arguments of `ProgramArguments` only.
-- [ ] A plist with only a `Label` gives a service with no properties.
-- [ ] A `ProgramArguments` that is not an array, or a `Program` or a `WorkingDirectory` that is not a text, gives no
+- [x] A plist with only a `Label` gives a service with no properties.
+- [x] A `ProgramArguments` that is not an array, or a `Program` or a `WorkingDirectory` that is not a text, gives no
       property, and the other properties keep theirs. An argument that is not a text is left out, and the other
       arguments keep their order. A log path that is not a text gives no `stdout` or `stderr`, and a variable whose
       value is not a text gives no name, as the environment and the log paths of the service do today.
-- [ ] An empty text gives a part that is empty. An empty `ProgramArguments` or `EnvironmentVariables` gives its property
+- [x] An empty text gives a part that is empty. An empty `ProgramArguments` or `EnvironmentVariables` gives its property
       with no part.
-- [ ] The `Env`, `StdoutPath`, `StderrPath` and `PlistPath` of each service do not change, and no file in
+- [x] The `Env`, `StdoutPath`, `StderrPath` and `PlistPath` of each service do not change, and no file in
       `internal/status` changes.
-- [ ] A plist whose `ProgramArguments` changes with its modification time gives the new program at the next read, and
+- [x] A plist whose `ProgramArguments` changes with its modification time gives the new program at the next read, and
       a plist whose modification time does not change keeps its properties.
-- [ ] With `AllServices`, a service with no plist has no properties, and a service with a plist has the properties of
+- [x] With `AllServices`, a service with no plist has no properties, and a service with a plist has the properties of
       its plist.
-- [ ] A read of a plist with each of these properties records no call of `launchctl` other than `list`.
-- [ ] Each test that compares whole services read from `xml.plist`, `binary.plist` or an `environment*.plist` fixture
+- [x] A read of a plist with each of these properties records no call of `launchctl` other than `list`.
+- [x] Each test that compares whole services read from `xml.plist`, `binary.plist` or an `environment*.plist` fixture
       expects the properties of the fixture, or compares the services without their properties, and still checks
       what its name says.
 
