@@ -60,7 +60,7 @@
     },
     {
       "n": 3,
-      "done": false,
+      "done": true,
       "title": "Describe --all in docs/cli.md and the README",
       "language": "Markdown",
       "testable": false,

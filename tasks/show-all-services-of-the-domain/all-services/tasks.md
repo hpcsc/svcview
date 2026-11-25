@@ -257,23 +257,23 @@ that `svcview status` does not take `--all`. The README says that the screen lis
 or with `--all` each service of the domain.
 
 **Acceptance Criteria:**
-- [ ] The section "The screen" shows `svcview --all` in its shell block, and says that it opens the screen with each
+- [x] The section "The screen" shows `svcview --all` in its shell block, and says that it opens the screen with each
       name that `launchctl list` prints, also the services of macOS, and that with no flag the list shows only the
       services that have a plist in `~/Library/LaunchAgents`.
-- [ ] The row "The list" of the table of the screen, and the paragraph on the name of a service, say that with
+- [x] The row "The list" of the table of the screen, and the paragraph on the name of a service, say that with
       `--all` the list also shows each service with no plist, whose name is the name that `launchctl list` prints, and
       which has no environment and no log paths.
-- [ ] "Template values" says that a service with no plist gives the reasons of its table for `{{.Env.X}}`,
+- [x] "Template values" says that a service with no plist gives the reasons of its table for `{{.Env.X}}`,
       `{{.StdoutPath}}`, `{{.StderrPath}}` and `{{.PlistPath}}`, and that `{{.Name}}` is the name that `launchctl list`
       prints.
-- [ ] "The log of a service" says that `o` on a service with no plist shows `<name> has no log path in its plist`.
-- [ ] "Start, stop and restart a service" says that `<name>` is also the name that `launchctl list` prints, that `s`
+- [x] "The log of a service" says that `o` on a service with no plist shows `<name> has no log path in its plist`.
+- [x] "Start, stop and restart a service" says that `<name>` is also the name that `launchctl list` prints, that `s`
       on a service with no plist runs `kickstart` because the service is `loaded` or does nothing because it is
       `running`, and that after `x` on a service with no plist `launchctl list` does not print it, so the list does
       not show it and svcview cannot start it until the next login.
-- [ ] "Test a status command with `svcview status`" says that `svcview status` does not take `--all`, and finds only a
+- [x] "Test a status command with `svcview status`" says that `svcview status` does not take `--all`, and finds only a
       service that has a plist in `~/Library/LaunchAgents`.
-- [ ] `README.md` says in its first paragraph that the screen lists each service that has a plist in
+- [x] `README.md` says in its first paragraph that the screen lists each service that has a plist in
       `~/Library/LaunchAgents`, or with `--all` each service that `launchctl list` prints, and the row
       `internal/launchd` of its Layout says that the package also runs `launchctl list`.
 

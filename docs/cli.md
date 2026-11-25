@@ -36,10 +36,18 @@ task cli -- --help     # run the CLI from the source, with the arguments after -
 
 ```shell
 svcview                # open the screen
+svcview --all          # open the screen with each service that launchctl list prints, also the services of macOS
 ```
 
 `svcview` with no command opens the screen when stdin and stdout are both terminals. When stdin or stdout is not a
-terminal, for example in a pipe, it prints the help and opens no screen.
+terminal, for example in a pipe, it prints the help and opens no screen. `svcview --all` does the same.
+
+With no flag, the list shows only the services that have a plist in `~/Library/LaunchAgents`. `svcview --all` opens
+the screen with each name that `launchctl list` prints in the domain `gui/<uid>`, also the services of macOS, for
+example `com.apple.Finder`. These are the services of the user that `launchctl list` prints without root. `--all` has
+no short form, and no setting of a config file turns it on. The screen shows no mark that `--all` is on, and the
+header counts each service of the read, also each service with no plist. `--all` is a flag of the screen only:
+`svcview status`, `svcview version` and `svcview update` do not take it.
 
 ```
 ╭ svcview ──────────────────────────────────────────────────────────── gui/501 ╮
@@ -70,14 +78,27 @@ This screen has the group `Workers`, with the match `^com\.example\.worker\.` an
 | Part | What it shows |
 | --- | --- |
 | The header | The domain `gui/<uid>` of the user, and the number of services in each state. |
-| The list | One row for each service that has a plist in `~/Library/LaunchAgents`, in [the groups of the config files](#groups), and then in the group `Other`. Each group starts with a line with its name, and an empty line separates two groups. In each group, the services are sorted by name. Each row starts with the glyph of the state of the service, and a row in a group shows the short name of the service. svcview cuts a name that is too long for the list with `…`. When the list has more lines than the pane, it scrolls to keep the selected row in view. When the selected row is the first row of its group, and the pane has room for more than one line, the line of the group shows too. In a group with a status command, a row shows [the summary of the status](#in-the-list-and-the-detail-pane) after the short name. A [filter](#the-filter) hides each service whose name does not contain it, and each group with no service that the list shows. The list takes 40 percent of the width. At start, the list has [the focus](#the-focus-and-the-scroll). |
+| The list | One row for each service that has a plist in `~/Library/LaunchAgents`, and with `--all` also for each [service with no plist](#a-service-with-no-plist), in [the groups of the config files](#groups), and then in the group `Other`. Each group starts with a line with its name, and an empty line separates two groups. In each group, the services are sorted by name. Each row starts with the glyph of the state of the service, and a row in a group shows the short name of the service. svcview cuts a name that is too long for the list with `…`. When the list has more lines than the pane, it scrolls to keep the selected row in view. When the selected row is the first row of its group, and the pane has room for more than one line, the line of the group shows too. In a group with a status command, a row shows [the summary of the status](#in-the-list-and-the-detail-pane) after the short name. A [filter](#the-filter) hides each service whose name does not contain it, and each group with no service that the list shows. The list takes 40 percent of the width. At start, the list has [the focus](#the-focus-and-the-scroll). |
 | The detail pane | The selected service. Its title is the full name of the service. The pane shows the state, the PID, the uptime, and the last exit. In a group with a status command, it also shows the age of the status, and the [fields and the events](#in-the-list-and-the-detail-pane) of the last output or the [failure](#failures) of the last run. When the detail pane has [the focus](#the-focus-and-the-scroll), `↑` and `↓`, or `k` and `j`, scroll it. |
 | The filter line | `/` and the [filter](#the-filter) of the list, with a cursor after the filter while the line is open. The line shows under the panes, or under the help, and above the message line, while the filter line is open and while a filter is kept. The panes, or the help, are one line shorter while it shows. |
 | The message line | The [confirmation](#start-stop-and-restart-a-service) of `x` or of `r`, what launchctl printed when a start, a stop or a restart fails, the text of `r` on a `not loaded` service, the text of `o` on a service with [no log path](#the-log-of-a-service), or why `less` failed. After the key of an [action](#the-actions-of-a-group), the confirmation of the action, a template value that the plist does not have, or why the command failed. The line shows above the help line only while it has a text, and the panes are one line shorter while it shows. See [The message line](#the-message-line). |
 | The help line | `s start · x stop · r restart · o log · ? help`. When the selected service is in a group with [actions](#the-actions-of-a-group), the key and the name of each action show after `o log`, for example `s start · x stop · r restart · o log · L worker log · ? help`. While the [filter line](#the-filter) is open, the help line is `enter keep the filter · esc clear the filter`. |
 
-The name of a service is the `Label` of its plist. svcview gets the state, the PID, and the last exit of each
-service from `launchctl list`, and the uptime from `ps`.
+The name of a service is the `Label` of its plist. With `--all`, the list also shows each
+[service with no plist](#a-service-with-no-plist), whose name is the name that `launchctl list` prints, and which has
+no environment and no log paths. svcview gets the state, the PID, and the last exit of each service from
+`launchctl list`, and the uptime from `ps`.
+
+### A service with no plist
+
+With `--all`, the list also shows each service that `launchctl list` prints and that no plist in
+`~/Library/LaunchAgents` names. svcview reads no plist outside `~/Library/LaunchAgents`, and it does not run
+`launchctl print`. Thus a service with no plist has no environment, no log paths and no plist path, also when a plist
+in another folder, for example `/Library/LaunchAgents` or `/System/Library/LaunchAgents`, defines it.
+
+A service with no plist shows its state, its PID, its uptime and its last exit, as each other service does. It goes
+into the group that its name matches, or into `Other`. No glyph, color or text marks it. It is `loaded` or `running`,
+because `launchctl list` prints it.
 
 ### Glyphs and colors
 
@@ -251,8 +272,9 @@ See [The filter](#the-filter).
 | `loaded` | `launchctl kickstart gui/<uid>/<name>` | `launchctl bootout gui/<uid>/<name>`, after the confirmation | `launchctl kickstart -k gui/<uid>/<name>`, after the confirmation |
 | `running` | Nothing | `launchctl bootout gui/<uid>/<name>`, after the confirmation | `launchctl kickstart -k gui/<uid>/<name>`, after the confirmation |
 
-`<plist path>` is the path of the plist in `~/Library/LaunchAgents`, and `<name>` is the `Label` of the plist. svcview
-gives each argument to `launchctl` as it is, with no shell.
+`<plist path>` is the path of the plist in `~/Library/LaunchAgents`, and `<name>` is the `Label` of the plist. For a
+[service with no plist](#a-service-with-no-plist), `<name>` is the name that `launchctl list` prints. svcview gives
+each argument to `launchctl` as it is, with no shell.
 
 `x` and `r` ask for a confirmation on the message line, with the full name of the service:
 
@@ -271,6 +293,12 @@ A stop runs `bootout`, not `launchctl kill`. `bootout` removes the service from 
 it again, also when its plist has `KeepAlive`. The service stays `not loaded` until the next login, or until `s`
 starts it. svcview does not run `launchctl disable`, so a service whose plist has `RunAtLoad` starts again at the
 next login. svcview starts no service on its own.
+
+The keys act on a [service with no plist](#a-service-with-no-plist) as on each other service in the same state. Such
+a service is `loaded` or `running`, so `s` runs `kickstart` because the service is `loaded`, or does nothing because
+it is `running`. `x` asks `Stop <name>? (y/N)`, as for each other service, and then runs `bootout`. After the stop,
+`launchctl list` does not print the service, so the list does not show it. svcview has no plist to bootstrap, so it
+cannot start the service until the next login.
 
 A restart runs `kickstart -k`. When the service is `running`, launchd kills its process and then runs the service
 again, so the service reads its own config files again or leaves a bad state, with no separate stop and start. When
@@ -320,6 +348,9 @@ When the plist has neither path, `o` runs nothing, and the message line says so:
 ```
  com.example.worker.01 has no log path in its plist
 ```
+
+A [service with no plist](#a-service-with-no-plist) has no log path, so `o` shows the same text with its name, for
+example `com.apple.Finder has no log path in its plist`, and runs nothing.
 
 svcview does not read the log, does not check that the file exists, and does not resolve a relative path: `less`
 gets the path as the plist gives it. `less` reports a file that it cannot open, for example
@@ -521,7 +552,8 @@ folder of svcview. The `EnvironmentVariables` of the plist reach the command onl
 
 When the first read of the services ends, svcview runs the command of each service of the group. After that, it
 runs the command of each service of the group every `every`. The command runs in each state of the service, also
-`not loaded`. These rules apply to the runs:
+`not loaded`. With `--all`, it also runs for each [service with no plist](#a-service-with-no-plist) that the group
+matches, with no limit on the number of runs. These rules apply to the runs:
 
 1. svcview does not start a second run for a service until the run of that service ends. The next run starts at
    the first `every` after the run ends.
@@ -538,7 +570,7 @@ rules.
 
 | Value | Content |
 | --- | --- |
-| `{{.Name}}` | The name of the service, that is the `Label` of its plist. |
+| `{{.Name}}` | The name of the service, that is the `Label` of its plist. For a [service with no plist](#a-service-with-no-plist), the name that `launchctl list` prints. |
 | `{{.Env.X}}` | The value of `X` in `EnvironmentVariables`. A variable with an empty value gives an empty text. |
 | `{{.StdoutPath}}` | `StandardOutPath` |
 | `{{.StderrPath}}` | `StandardErrorPath` |
@@ -556,6 +588,10 @@ shows the reason in red:
 
 For the command of an [action](#the-actions-of-a-group), svcview runs no command, and the message line shows the same
 reason, for example `the plist has no WORKER_LOG`.
+
+A [service with no plist](#a-service-with-no-plist) has none of these values. Thus `{{.Env.X}}`, `{{.StdoutPath}}`,
+`{{.StderrPath}}` and `{{.PlistPath}}` give the reasons of this table for it, as for a plist that does not have the
+value.
 
 A text can use the functions of Go templates and variables, for example `{{.Name | printf "%s.json"}}` or
 `{{$file := .Env.WORKER_STATUS_FILE}}{{$file}}`. In the body of a `with`, `.` is the value of the `with`, so a
@@ -772,9 +808,14 @@ command before you ship it, for example in the install script of a program.
 svcview status com.example.worker.01
 ```
 
-svcview reads the config files and the services as the screen does: `config.yaml`, each file of `conf.d`, and the
-plists in `~/Library/LaunchAgents`. It finds the service with that name and the group of the service. Then it runs the
-status command of the group one time, with the `timeout` of the group, and prints four parts in this order:
+`svcview status` does not take `--all`, so it finds only a service that has a plist in `~/Library/LaunchAgents`.
+`svcview status --all <name>` prints `flag provided but not defined: -all` and the help of `svcview status`, exits
+with 1, and runs no status command.
+
+svcview reads the config files and the services as the screen does with no flag: `config.yaml`, each file of
+`conf.d`, and the plists in `~/Library/LaunchAgents`. It finds the service with that name and the group of the
+service. Then it runs the status command of the group one time, with the `timeout` of the group, and prints four
+parts in this order:
 
 | Part | What it shows |
 | --- | --- |
