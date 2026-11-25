@@ -68,9 +68,9 @@
 ## Each key of the screen goes into the help and docs/cli.md
 - Type: convention
 - Recorded: 2026-11-25
-- Observed: add-keys-for-the-services-of-a-group-group-keys
-- Learning: The story says that ? shows all keys, so Screen.helpText must list every key that Screen.Update handles, ctrl+c too, and the Keys table of docs/cli.md must match it; the match-request step found ctrl+c missing from the help after the audit, and keys.golden shows the help. A new one-character key also goes into keysOfSvcview in internal/config/action.go, so that no action of a group can take it; the screen test 'config.Read refuses only the keys of svcview, and each other printable ASCII key of an action reaches that action on the screen' fails when the two lists differ.
-- Apply when: A task adds or changes a key of the screen, for example / for the filter of the list, or plans the criteria of a story that says that ? shows all keys.
+- Observed: task 2 — show-all-services-with-one-key-all-services-key
+- Learning: The story says that ? shows all keys, so Screen.helpText must list every key that Screen.Update handles, ctrl+c too, and the Keys table of docs/cli.md must match it; the match-request step found ctrl+c missing from the help after the audit, and keys.golden shows the help. A new one-character key also goes into keysOfSvcview in internal/config/action.go, so that no action of a group can take it; the screen test 'config.Read refuses only the keys of svcview, and each other printable ASCII key of an action reaches that action on the screen' fails when the two lists differ. Four tests open the help in a terminal with room for exactly its lines: keys.golden (80 by 21), keys-with-actions.golden (80 by 23), and the tests that ? pads a wide key of an action and that the name of an action shows each control character as a replacement character (19 rows). A new line of the help needs one more row in each of the four; the breakdown of all-services-key named only the two golden files.
+- Apply when: A task adds or changes a key of the screen, for example / for the filter of the list or a for all services, or plans the criteria of a story that says that ? shows all keys.
 ## Plan the layout change of the screen as the first task
 - Type: constraint
 - Recorded: 2026-11-23
@@ -485,3 +485,31 @@
 - Observed: task 2 — show-all-services-of-the-domain-all-services
 - Learning: The help of a BoolFlag whose default is false prints no (default: false), so HideDefault: true changes nothing there, and clerk mutants shows its removal as LIVED. In show-all-services, --all first had HideDefault, and the field went after the mutant run. Set HideDefault only on a flag whose help shows a default.
 - Apply when: A task adds a flag to a command in internal/cli, or a criterion says that the help shows no default value for a flag.
+
+## A key that starts a read outside the refresh keeps one read and one chain of refreshes
+- Type: pattern
+- Recorded: 2026-11-25
+- Observed: task 3 — show-all-services-with-one-key-all-services-key
+- Learning: Screen keeps one read at a time with readNotEnded, which NewScreen sets to true because Init starts the first read, and one chain of refreshes because each refresh carries the readsStarted count from when the screen asked for it: a refresh with an older count starts no read, since a tea.Tick cannot be stopped. A read whose all differs from Screen.all shows nothing and starts the read that the screen asks for at once. The breakdown called the task that built this low certainty, and it went green on the first try, so a later key or message that starts a read is medium certainty with this precedent.
+- Apply when: A task in internal/tui starts a read of the services, or another command that the refresh also starts, from a key or a message outside the refresh, or a breakdown assesses the certainty of such a task.
+
+## A mutant that answers each read with another read times out on the synctest clock
+- Type: constraint
+- Recorded: 2026-11-25
+- Observed: task 3 — show-all-services-with-one-key-all-services-key
+- Learning: When a mutant makes Update answer each servicesRead with a new read at once, for example the removal of all from servicesRead, the fake reads take no time, the clock of the synctest bubble never moves, and the package tests hang, so clerk mutants reports TIMED OUT again with --id. Apply the mutant on a copy of the tree in the scratchpad, run one test that does not use synctest, such as the golden test of a read of all services, and accept the row with that test and the loop as the reason.
+- Apply when: clerk mutants reports TIMED OUT for a line in internal/tui that decides whether a read, a refresh or a status run starts another one.
+
+## go test -run splits its pattern at / before it matches
+- Type: constraint
+- Recorded: 2026-11-25
+- Observed: task 2 — show-all-services-with-one-key-all-services-key
+- Learning: A -run pattern with an alternation that spans a /, such as 'TestScreen/(keys/a|show_the_actions_of_a_group/b)', matches no subtest, so go test -update writes no golden file and gives no error. Run one go test -update for each golden test, with a part of its name, and check git diff internal/tui/testdata before the next run.
+- Apply when: A task updates golden files in internal/tui/testdata with go test -update, for example keys.golden and keys-with-actions.golden after a change to the help.
+
+## A dependency that gets a second variant takes the name of its variant
+- Type: recurring-finding
+- Recorded: 2026-11-25
+- Observed: task 1 — show-all-services-with-one-key-all-services-key
+- Learning: all-services-key planned the Screen field read beside a new readAll, so read meant only the read of the services with a plist, while readServices, lastRead, servicesRead and startRead use the word for any read; the audit raised the two meanings, and the field became readWithPlist. It is the narrow form of 'A word that design.yaml widens must fit the names that already use it': when a story adds a second variant of a field, a parameter or a function that the code already names with a general word, plan the old one under the name of its variant in the first task.
+- Apply when: Planning or building a task that adds a second variant beside an existing field, parameter or function of internal/tui, internal/config or internal/launchd, for example a second read, a second action or a second status command.
