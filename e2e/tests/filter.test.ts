@@ -50,4 +50,23 @@ describe('the filter of the list', () => {
     await session.waitForText('○ com.apple.a')
     expect(await session.text()).toContain('Other')
   })
+
+  it('/ and zzz show no service matches, and backspace three times shows the rows again', async () => {
+    const home = homeWithPlists(['com.example.worker'])
+    const session = await openCli(scratchDir(), [], { HOME: home })
+    await session.waitForText('▌○ com.example.worker')
+
+    await session.type('/')
+    await session.type('zzz')
+
+    await session.waitForText('no service matches')
+    expect(await session.text()).not.toContain('com.example.worker')
+
+    await session.press('backspace')
+    await session.press('backspace')
+    await session.press('backspace')
+
+    await session.waitForText('▌○ com.example.worker')
+    expect(await session.text()).not.toContain('no service matches')
+  })
 })

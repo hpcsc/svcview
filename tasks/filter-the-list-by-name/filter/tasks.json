@@ -69,7 +69,7 @@
     },
     {
       "n": 3,
-      "done": false,
+      "done": true,
       "title": "Show no service matches when the filter hides each service",
       "language": "Go",
       "testable": true,

@@ -4653,5 +4653,71 @@ func TestScreen(t *testing.T) {
 				}, starts.get())
 			})
 		})
+
+		t.Run("with a filter that the name of no service contains, the list shows no service matches, and the detail pane shows no service", func(t *testing.T) {
+			screen := openWith(t, groupsWithActions(t), servicesNamed("com.example.worker.01", "com.apple.a"), 80, 12)
+
+			screen = pressKeys(screen, append([]tea.KeyPressMsg{slash}, typing("zzz")...)...)
+
+			requireGolden(t, "no-service-matches", screen)
+			require.Equal(t, []string{"no service matches", "", "", "", ""}, listRows(screen))
+			require.Equal(t, []string{"", "", "", "", ""}, detailPane(screen))
+			require.NotContains(t, strings.Split(screen.View().Content, "\n")[3], "com.example")
+		})
+
+		t.Run("before the first read ends, a filter shows no line in the list", func(t *testing.T) {
+			var screen tea.Model = tui.NewScreen("gui/501", servicesNamed("com.example.a"), nil, nil, nil, nil, refreshEvery2s)
+			screen, _ = screen.Update(tea.WindowSizeMsg{Width: 80, Height: 12})
+
+			screen = pressKeys(screen, slash, tea.KeyPressMsg{Code: 'z', Text: "z"})
+
+			require.Equal(t, " /z ", bottomLines(screen, 2)[0])
+			require.Equal(t, []string{"", "", "", "", ""}, listRows(screen))
+		})
+
+		t.Run("with no services, a filter shows no service matches, and no filter shows no line", func(t *testing.T) {
+			screen := open(t, "gui/501", servicesNamed(), 80, 12)
+
+			withFilter := pressKeys(screen, slash, tea.KeyPressMsg{Code: 'a', Text: "a"})
+			noFilter := pressKeys(screen, slash)
+
+			require.Equal(t, []string{"no service matches", "", "", "", ""}, listRows(withFilter))
+			require.Equal(t, []string{"", "", "", "", ""}, listRows(noFilter))
+		})
+
+		t.Run("while the list shows a read error after a read that selected a service, it shows the error and not no service matches, whatever the filter", func(t *testing.T) {
+			failing := func() ([]service.Service, error) {
+				return []service.Service{{Name: "com.example.a"}}, errors.New("exit status 3")
+			}
+			for _, filter := range []string{"zzz", "example"} {
+				screen := open(t, "gui/501", readsInTurn(servicesNamed("com.example.a"), failing), 80, 12)
+				screen = pressKeys(screen, append([]tea.KeyPressMsg{slash}, typing(filter)...)...)
+
+				screen = readNow(screen)
+
+				require.Equal(t, []string{"exit status 3", "", "", "", ""}, listRows(screen), filter)
+			}
+		})
+
+		t.Run("backspace that makes the filter contained in a name again shows the rows, and a row is selected", func(t *testing.T) {
+			screen := open(t, "gui/501", servicesNamed("com.example.a", "com.example.b"), 80, 12)
+			screen = pressKeys(screen, slash, tea.KeyPressMsg{Code: 'b', Text: "b"}, tea.KeyPressMsg{Code: 'z', Text: "z"})
+			noMatch := listRows(screen)
+
+			screen = pressKeys(screen, backspace)
+
+			require.Equal(t, []string{"no service matches", "", "", "", ""}, noMatch)
+			require.Equal(t, []string{"Other", "▌○ com.example.b", "", "", ""}, listRows(screen))
+		})
+
+		t.Run("a read that adds a service whose name contains the filter shows its row in place of no service matches", func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				read := changingAt(100*time.Millisecond, servicesNamed("com.example.a"), servicesNamed("com.example.a", "com.example.zzz"))
+
+				screen := runFor(t, tui.NewScreen("gui/501", read, nil, nil, nil, nil, refreshEvery2s), 2100*time.Millisecond, append([]tea.KeyPressMsg{slash}, typing("zzz")...)...)
+
+				require.Equal(t, []string{"Other", "▌○ com.example.zzz", "", "", ""}, listRows(screen))
+			})
+		})
 	})
 }

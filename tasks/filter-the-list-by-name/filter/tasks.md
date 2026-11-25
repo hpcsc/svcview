@@ -290,16 +290,16 @@ one line `no service matches`, and the detail pane shows no service. A read erro
 and with no filter, a read with no services shows an empty list, as today.
 
 **Acceptance Criteria:**
-- [ ] With a filter that the name of no service of the read contains, the list pane shows the one line
+- [x] With a filter that the name of no service of the read contains, the list pane shows the one line
       `no service matches`, the detail pane shows no title and no text, and the help line shows no key of an action. A
       golden file shows it.
-- [ ] With no services and a filter, the list shows `no service matches`; with no services and no filter, the list
+- [x] With no services and a filter, the list shows `no service matches`; with no services and no filter, the list
       shows no line, as `no-services.golden` shows.
-- [ ] While the list shows a read error, after a read that selected a service, it shows the error and not
+- [x] While the list shows a read error, after a read that selected a service, it shows the error and not
       `no service matches`, whatever the filter.
-- [ ] `backspace` that makes the filter contained in a name again shows the rows, and a row is selected.
-- [ ] A read that adds a service whose name contains the filter shows its row in place of `no service matches`.
-- [ ] e2e: `/` and `zzz` show `no service matches`; `backspace` three times shows the rows again.
+- [x] `backspace` that makes the filter contained in a name again shows the rows, and a row is selected.
+- [x] A read that adds a service whose name contains the filter shows its row in place of `no service matches`.
+- [x] e2e: `/` and `zzz` show `no service matches`; `backspace` three times shows the rows again.
 
 **Affected Files/Modules:**
 - `internal/tui/screen.go` — `listText` shows `no service matches`

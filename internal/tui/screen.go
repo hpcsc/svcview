@@ -622,6 +622,9 @@ func (s Screen) listText(width int) []string {
 		}
 		return text
 	}
+	if s.hasRead && len(s.rowsInList()) == 0 && s.filter != "" {
+		return []string{"no service matches"}
+	}
 	var text []string
 	nameWidths := s.nameWidths()
 	rows := s.rowsInList()
