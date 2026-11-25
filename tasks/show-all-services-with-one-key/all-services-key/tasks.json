@@ -98,7 +98,7 @@
     },
     {
       "n": 4,
-      "done": false,
+      "done": true,
       "title": "Describe a in docs/cli.md and the README",
       "language": "Markdown",
       "testable": false,

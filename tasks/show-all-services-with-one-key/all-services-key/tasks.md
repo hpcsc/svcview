@@ -345,20 +345,20 @@ with a plist, the screen reads them at once, the header shows `· all` after the
 open filter line, and an action cannot take `a`. `README.md` names `a` beside `--all`.
 
 **Acceptance Criteria:**
-- [ ] A section "All services" under "The screen" describes `a`, the mark with the example `gui/501 · all`, the read at
+- [x] A section "All services" under "The screen" describes `a`, the mark with the example `gui/501 · all`, the read at
       once, `--all` at start, the selection and a kept filter after `a`, `a` while the help, a confirmation or the
       open filter line shows, and the services that `a` adds to a group with a status command.
-- [ ] "The screen" says that `--all` sets the services that svcview shows at start and that `a` changes them while it
+- [x] "The screen" says that `--all` sets the services that svcview shows at start and that `a` changes them while it
       runs, in place of the sentence that the screen shows no mark that `--all` is on.
-- [ ] The row of the header in the table of parts names the mark.
-- [ ] "Keys" has a row for `a`, as the help that `?` shows does.
-- [ ] "Refresh" says that `a` reads the services at once, and that the next read comes one `refresh` after that read
+- [x] The row of the header in the table of parts names the mark.
+- [x] "Keys" has a row for `a`, as the help that `?` shows does.
+- [x] "Refresh" says that `a` reads the services at once, and that the next read comes one `refresh` after that read
       ends.
-- [ ] "The filter" names `a` among the keys of svcview that go into the filter.
-- [ ] "The key of an action" lists `a` among the keys of svcview.
-- [ ] "A service with no plist" says that `a` shows these services too.
-- [ ] `README.md` says that `a` changes the list between the two while the screen is open.
-- [ ] Each statement matches what Tasks 1 to 3 built.
+- [x] "The filter" names `a` among the keys of svcview that go into the filter.
+- [x] "The key of an action" lists `a` among the keys of svcview.
+- [x] "A service with no plist" says that `a` shows these services too.
+- [x] `README.md` says that `a` changes the list between the two while the screen is open.
+- [x] Each statement matches what Tasks 1 to 3 built.
 
 **Affected Files/Modules:**
 - `docs/cli.md` — a section on `a`; "The screen", the table of parts, "A service with no plist", "The filter",

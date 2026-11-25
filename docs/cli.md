@@ -45,9 +45,10 @@ terminal, for example in a pipe, it prints the help and opens no screen. `svcvie
 With no flag, the list shows only the services that have a plist in `~/Library/LaunchAgents`. `svcview --all` opens
 the screen with each name that `launchctl list` prints in the domain `gui/<uid>`, also the services of macOS, for
 example `com.apple.Finder`. These are the services of the user that `launchctl list` prints without root. `--all` has
-no short form, and no setting of a config file turns it on. The screen shows no mark that `--all` is on, and the
-header counts each service of the read, also each service with no plist. `--all` is a flag of the screen only:
-`svcview status`, `svcview version` and `svcview update` do not take it.
+no short form, and no setting of a config file turns it on. `--all` sets the services that svcview shows at start, and
+[`a`](#all-services) changes them while svcview runs. While the list shows all services, the header shows `· all`
+after the domain. The header counts each service of the read, also each service with no plist. `--all` is a flag of
+the screen only: `svcview status`, `svcview version` and `svcview update` do not take it.
 
 ```
 ╭ svcview ──────────────────────────────────────────────────────────── gui/501 ╮
@@ -77,22 +78,22 @@ This screen has the group `Workers`, with the match `^com\.example\.worker\.` an
 
 | Part | What it shows |
 | --- | --- |
-| The header | The domain `gui/<uid>` of the user, and the number of services in each state. |
-| The list | One row for each service that has a plist in `~/Library/LaunchAgents`, and with `--all` also for each [service with no plist](#a-service-with-no-plist), in [the groups of the config files](#groups), and then in the group `Other`. Each group starts with a line with its name, and an empty line separates two groups. In each group, the services are sorted by name. Each row starts with the glyph of the state of the service, and a row in a group shows the short name of the service. svcview cuts a name that is too long for the list with `…`. When the list has more lines than the pane, it scrolls to keep the selected row in view. When the selected row is the first row of its group, and the pane has room for more than one line, the line of the group shows too. In a group with a status command, a row shows [the summary of the status](#in-the-list-and-the-detail-pane) after the short name. A [filter](#the-filter) hides each service whose name does not contain it, and each group with no service that the list shows. The list takes 40 percent of the width. At start, the list has [the focus](#the-focus-and-the-scroll). |
+| The header | The domain `gui/<uid>` of the user, with `· all` after it while the list shows [all services](#all-services), and the number of services in each state. |
+| The list | One row for each service that has a plist in `~/Library/LaunchAgents`, and with `--all` or after [`a`](#all-services) also for each [service with no plist](#a-service-with-no-plist), in [the groups of the config files](#groups), and then in the group `Other`. Each group starts with a line with its name, and an empty line separates two groups. In each group, the services are sorted by name. Each row starts with the glyph of the state of the service, and a row in a group shows the short name of the service. svcview cuts a name that is too long for the list with `…`. When the list has more lines than the pane, it scrolls to keep the selected row in view. When the selected row is the first row of its group, and the pane has room for more than one line, the line of the group shows too. In a group with a status command, a row shows [the summary of the status](#in-the-list-and-the-detail-pane) after the short name. A [filter](#the-filter) hides each service whose name does not contain it, and each group with no service that the list shows. The list takes 40 percent of the width. At start, the list has [the focus](#the-focus-and-the-scroll). |
 | The detail pane | The selected service. Its title is the full name of the service. The pane shows the state, the PID, the uptime, and the last exit. In a group with a status command, it also shows the age of the status, and the [fields and the events](#in-the-list-and-the-detail-pane) of the last output or the [failure](#failures) of the last run. When the detail pane has [the focus](#the-focus-and-the-scroll), `↑` and `↓`, or `k` and `j`, scroll it. |
 | The filter line | `/` and the [filter](#the-filter) of the list, with a cursor after the filter while the line is open. The line shows under the panes, or under the help, and above the message line, while the filter line is open and while a filter is kept. The panes, or the help, are one line shorter while it shows. |
 | The message line | The [confirmation](#start-stop-and-restart-a-service) of `x` or of `r`, what launchctl printed when a start, a stop or a restart fails, the text of `r` on a `not loaded` service, the text of `o` on a service with [no log path](#the-log-of-a-service), or why `less` failed. After the key of an [action](#the-actions-of-a-group), the confirmation of the action, a template value that the plist does not have, or why the command failed. The line shows above the help line only while it has a text, and the panes are one line shorter while it shows. See [The message line](#the-message-line). |
 | The help line | `s start · x stop · r restart · o log · ? help`. When the selected service is in a group with [actions](#the-actions-of-a-group), the key and the name of each action show after `o log`, for example `s start · x stop · r restart · o log · L worker log · ? help`. While the [filter line](#the-filter) is open, the help line is `enter keep the filter · esc clear the filter`. |
 
-The name of a service is the `Label` of its plist. With `--all`, the list also shows each
-[service with no plist](#a-service-with-no-plist), whose name is the name that `launchctl list` prints, and which has
-no environment and no log paths. svcview gets the state, the PID, and the last exit of each service from
+The name of a service is the `Label` of its plist. With `--all`, or after [`a`](#all-services), the list also shows
+each [service with no plist](#a-service-with-no-plist), whose name is the name that `launchctl list` prints, and which
+has no environment and no log paths. svcview gets the state, the PID, and the last exit of each service from
 `launchctl list`, and the uptime from `ps`.
 
 ### A service with no plist
 
-With `--all`, the list also shows each service that `launchctl list` prints and that no plist in
-`~/Library/LaunchAgents` names. svcview reads no plist outside `~/Library/LaunchAgents`, and it does not run
+With `--all`, or after [`a`](#all-services), the list also shows each service that `launchctl list` prints and that no
+plist in `~/Library/LaunchAgents` names. svcview reads no plist outside `~/Library/LaunchAgents`, and it does not run
 `launchctl print`. Thus a service with no plist has no environment, no log paths and no plist path, also when a plist
 in another folder, for example `/Library/LaunchAgents` or `/System/Library/LaunchAgents`, defines it.
 
@@ -171,10 +172,10 @@ cursor after the filter. The panes are one line shorter while it shows. `/` also
 [the focus](#the-focus-and-the-scroll) to the list. `/` does nothing while the help shows. While a confirmation shows,
 `/` answers no, as each key other than `y` does.
 
-While the filter line is open, each key that types text adds its text to the end of the filter: each letter, digit
-and sign, and the space. The keys of svcview and the keys of the [actions](#the-actions-of-a-group) go into the filter
-too, so `s`, `x`, `r`, `o`, `q`, `?`, `h`, `j`, `k`, `l` and the key of an action do nothing else. A paste does not go
-into the filter. These keys do not go into the filter:
+While the filter line is open, each key that types text adds its text to the end of the filter: each letter, digit and
+sign, and the space. The keys of svcview and the keys of the [actions](#the-actions-of-a-group) go into the filter
+too, so `a`, `s`, `x`, `r`, `o`, `q`, `?`, `h`, `j`, `k`, `l` and the key of an action do nothing else. A paste does
+not go into the filter. These keys do not go into the filter:
 
 | Key | What it does while the filter line is open |
 | --- | --- |
@@ -226,6 +227,52 @@ row shows its newest summary as soon as the list shows it again. svcview keeps n
 The filter line shows each control character of the filter as `�`, and svcview cuts a filter line that is wider than
 the terminal with `…`.
 
+### All services
+
+`a` changes the list between all services and the services with a plist. All services are each name that
+`launchctl list` prints in the domain `gui/<uid>`, as with `--all`. The services with a plist are the services that
+have a plist in `~/Library/LaunchAgents`, as with no flag. `--all` sets the list at start, and `a` changes it while
+svcview runs. svcview keeps no choice of `a` when it quits, so each start shows the list that `--all` gives.
+
+While the list shows all services, the header shows `· all` after the domain, for example `gui/501 · all`:
+
+```
+╭ svcview ────────────────────────────────────────────────────── gui/501 · all ╮
+│  ● 41 running   ◐ 230 loaded   ○ 2 not loaded                                │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+The mark says which services the rows on the screen come from. After `a`, the list and the header keep the rows and
+the mark of the last read until the read of the new services ends, and then change together. Before the first read
+ends, the header shows the domain alone, also with `--all`. When a read of all services fails, the list shows the
+error, and the header shows `· all` and no counts. On a narrow terminal, svcview cuts the title `svcview` with `…`
+first, and does not cut the domain or `all`.
+
+`a` reads the new services at once, so they show as soon as `launchctl list` and `ps` end, with no wait for the
+[refresh](#refresh). svcview runs one read at a time. When a read runs at `a`, svcview starts no second read. When
+that read ends, its rows do not show if it read the other services, and svcview then reads the services that `a` asks
+for at once. The next read comes one `refresh` after a read ends, also after the read of `a`, so `a` adds no second
+refresh.
+
+The selected service stays selected when the new list shows it. When the new list does not show it, the row at its
+place in the order of the list is selected: the row after it, also in the next group, or the last row when it came
+after each row. The detail pane shows the newly selected service from its first line, and the list scrolls to keep the
+selected row in view. A kept [filter](#the-filter) stays, and applies to the new list: the list shows only the new
+services whose name contains the filter, or `no service matches`. `a` does not change the filter, the focus or the
+setting `refresh`.
+
+While the [filter line](#the-filter) is open, `a` goes into the filter, as each other letter does. While the help
+shows, `a` does nothing. While a confirmation shows, `a` answers no, as each key other than `y` does. The help that
+`?` shows lists `a`, and the help line does not show it. An [action](#the-actions-of-a-group) cannot take `a`, so a
+config file with an action on `a` stops svcview at start. An action can take `A`.
+
+In a group with a [status command](#the-status-command), a service that `a` adds gets its first run at the next
+`every` of its group, as a service that a read adds. `a` starts no status run. A service that `a` shows again shows
+the status of its last run until its group runs again.
+
+`s`, `x`, `r`, `o` and the keys of the actions act on a [service with no plist](#a-service-with-no-plist) as on each
+other service in its state, and `x` asks `Stop <name>? (y/N)` for each service.
+
 ### Refresh
 
 One `refresh` after each read ends, svcview reads the plists and runs `launchctl list` and `ps` again, with no key
@@ -234,6 +281,9 @@ reads a plist again only when the modification time of the file changes. The sam
 selected service is gone, the row after it in the list is selected, or the last row when it was the last. A
 [filter](#the-filter) applies to each read, also a kept filter: a service that is added shows only when its name
 contains the filter.
+
+`a` reads the services that it asks for at once, and the next read comes one `refresh` after that read ends. See
+[All services](#all-services).
 
 When `launchctl list` fails, or prints a header line other than `PID`, `Status`, `Label`, the list shows the error
 and no rows. When `ps` fails, no service shows an uptime.
@@ -249,6 +299,7 @@ and no rows. When `ps` fails, no service shows an uptime.
 | `/` | Open the [filter line](#the-filter), and move the focus to the list. With a kept filter, the line opens with that filter. |
 | `enter` | Keep the filter, and close the filter line, so that the keys act on the services that the list shows. While the filter line is not open, `enter` does nothing. |
 | `backspace` | Delete the last character of the filter, while the filter line is open. |
+| `a` | Show all services, or only the services with a plist. svcview reads the new services at once. See [All services](#all-services). |
 | `s` | Start the selected service. See [Start, stop and restart a service](#start-stop-and-restart-a-service). |
 | `x` | Stop the selected service, after a confirmation. `y` answers yes to the confirmation, and each other key answers no. |
 | `r` | Restart the selected service, after a confirmation. `y` answers yes to the confirmation, and each other key answers no. |
@@ -550,10 +601,11 @@ svcview runs the program and its arguments with no shell. Thus `$HOME`, `;`, `|`
 the program as they are. For a shell, write `[sh, -c, '...']`. The command runs with the environment and the working
 folder of svcview. The `EnvironmentVariables` of the plist reach the command only through `{{.Env.X}}`.
 
-When the first read of the services ends, svcview runs the command of each service of the group. After that, it
-runs the command of each service of the group every `every`. The command runs in each state of the service, also
-`not loaded`. With `--all`, it also runs for each [service with no plist](#a-service-with-no-plist) that the group
-matches, with no limit on the number of runs. These rules apply to the runs:
+When the first read of the services ends, svcview runs the command of each service of the group. After that, it runs
+the command of each service of the group every `every`. The command runs in each state of the service, also
+`not loaded`. With `--all`, or after [`a`](#all-services), it also runs for each
+[service with no plist](#a-service-with-no-plist) that the group matches, with no limit on the number of runs. These
+rules apply to the runs:
 
 1. svcview does not start a second run for a service until the run of that service ends. The next run starts at
    the first `every` after the run ends.
@@ -938,9 +990,10 @@ A key is one character that prints and that is not a space, for example `L`, `E`
 keys. Write a key that is not a letter or a digit in single quotes, for example `key: '!'`: with no quotes, YAML
 reads some of these characters as a part of its syntax.
 
-An action cannot take a key of svcview. The keys of svcview are `?`, `/`, `h`, `j`, `k`, `l`, `o`, `q`, `r`, `s` and
-`x`, and `/` opens the [filter line](#the-filter). These keys in upper case, for example `L`, `S` and `X`, are not keys
-of svcview. `y` answers a confirmation only while a confirmation shows, so an action can take `y`.
+An action cannot take a key of svcview. The keys of svcview are `?`, `/`, `a`, `h`, `j`, `k`, `l`, `o`, `q`, `r`, `s`
+and `x`. `/` opens the [filter line](#the-filter), and `a` changes the list between [all services](#all-services) and
+the services with a plist. These keys in upper case, for example `A`, `L`, `S` and `X`, are not keys of svcview. `y`
+answers a confirmation only while a confirmation shows, so an action can take `y`.
 
 No two actions of one group can have the same key. Two groups can each have an action with the same key: the key runs
 the action of the group of the selected service. Two actions of one group can have the same name.

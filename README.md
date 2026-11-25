@@ -2,7 +2,8 @@
 
 svcview is a terminal UI for the launchd services of the user on macOS. With no command, in a terminal, it opens a
 screen that lists each service that has a plist in `~/Library/LaunchAgents`, or with `--all` each service that
-`launchctl list` prints, also the services of macOS. `docs/proposal-launchd-tui.md` gives the design.
+`launchctl list` prints, also the services of macOS. `a` changes the list between the two while the screen is open.
+`docs/proposal-launchd-tui.md` gives the design.
 
 ## Requirements
 
