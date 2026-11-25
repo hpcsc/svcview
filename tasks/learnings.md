@@ -527,3 +527,38 @@
 - Observed: task 1 — show-the-keys-of-the-filter-and-of-all-services-in-the-help-line-help-line-keys
 - Learning: clerk mutants makes only RETURN_EMPTY on a line that joins text literals, such as the return of Screen.helpLine, so the audit of help-line-keys reported that no mutant removed, swapped or moved the new keys. A proposals file with one mutant for each removed or swapped literal, and one whose old and new span several lines with \n to move the literals before the loop over the actions, ran with mise exec -- clerk mutants --base <base> --proposals <file> --proposals-anywhere --operators none, and the screen tests killed all four.
 - Apply when: A task adds, removes or reorders text literals that svcview shows, for example a key on the help line or a line of the help, and clerk mutants reports only RETURN_EMPTY for that line.
+
+## Plan a field with the word that the criteria use for its elements
+- Type: recurring-finding
+- Recorded: 2026-11-25
+- Observed: task 1 — see-the-launchd-settings-of-a-service-in-the-detail-pane-plist-properties
+- Learning: design.yaml planned service.Property.Values while the breakdown, the test names and docs/cli.md called each element a part and kept value for the whole value. The audit of plist-properties raised it after five tasks used Values, so the rename to Parts became a commit of its own that could not fold.
+- Apply when: Planning a field or a type in design.yaml whose elements the criteria, the test names or the docs name with another word, for example a slice field of service.Service or of a result type.
+
+## A new property of a plist needs no test of its own for a re-read
+- Type: recurring-finding
+- Recorded: 2026-11-25
+- Observed: task 1,4 — see-the-launchd-settings-of-a-service-in-the-detail-pane-plist-properties
+- Learning: readIfChanged keeps the whole plist and readPlist builds every property again, so the test of a changed EnvironmentVariables and the test of a Label with the same modification time already fail for each property. The audit of plist-properties found that tests of a changed ProgramArguments, a changed KeepAlive and an unchanged modification time could not fail alone, and they were removed.
+- Apply when: Planning or writing the criteria of a task that reads a new property in internal/launchd/plist.go, for example a criterion that a changed property shows at the next read.
+
+## require.Equal tells a nil slice from an empty one
+- Type: recurring-finding
+- Recorded: 2026-11-25
+- Observed: task 1 — see-the-launchd-settings-of-a-service-in-the-detail-pane-plist-properties
+- Learning: The tests of a property with no part compared {Name: "program"} with require.Equal, which pinned Values to nil, so a correct make([]string, 0, n) in the read failed them while the screen drew the same lines. propertiesByName in internal/launchd/domain_test.go now makes an empty slice nil before the comparison.
+- Apply when: A Go test compares with require.Equal a struct or a map whose slice field can be empty, for example service.Property in internal/launchd or a result type in internal/status.
+
+## Continue a long text in a column with ansi.Hardwrap and preserveSpace true
+- Type: pattern
+- Recorded: 2026-11-25
+- Observed: task 3 — see-the-launchd-settings-of-a-service-in-the-detail-pane-plist-properties
+- Learning: Screen.partLines wraps each part at the room after the column of 14 cells with ansi.Hardwrap(text, room, true): it breaks cell by cell, moves a wide character whole, and returns the text unchanged for a room under 1, so box.render cuts it. With preserveSpace false a space at the break is lost, and ansi.Wrap breaks at words.
+- Apply when: A task in internal/tui shows a text from outside on more than one line at the width of a pane, for example a path, a command line or an error in the detail pane.
+
+## Give the commit agent the words of design.yaml
+- Type: convention
+- Recorded: 2026-11-25
+- Observed: task 1 — see-the-launchd-settings-of-a-service-in-the-detail-pane-plist-properties
+- Learning: The commit message of the first task of plist-properties called the entries of a plist settings, the word of the story, while design.yaml gives property to a plist entry and setting to an entry of a config file, so the message needed an amend. A prompt to the commit agent that names the words of design.yaml gave messages with the right words for the other tasks.
+- Apply when: Invoking the commit skill in a run whose design.yaml has a words list, or whose story uses a word that design.yaml replaces.
