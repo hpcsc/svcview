@@ -220,9 +220,9 @@ func (s Screen) press(key tea.KeyPressMsg) (Screen, tea.Cmd) {
 			s.confirmation = newConfirmation("Restart", svc, s.restart)
 		}
 	case "o":
-		svc, ok := s.selectedService()
+		svc, ok := s.serviceForKeys()
 		switch {
-		case !ok || s.showHelp:
+		case !ok:
 		case svc.LogPath() == "":
 			s.message = terminal.ReplaceControlCharacters(svc.Name) + " has no log path in its plist"
 		default:
@@ -240,8 +240,28 @@ func (s Screen) press(key tea.KeyPressMsg) (Screen, tea.Cmd) {
 		default:
 			s.selected = s.selectedAfterMove(step)
 		}
+	default:
+		return s.runAction(key.String())
 	}
 	return s, nil
+}
+
+func (s Screen) runAction(key string) (Screen, tea.Cmd) {
+	svc, ok := s.serviceForKeys()
+	if !ok {
+		return s, nil
+	}
+	actions := s.selectedActions()
+	at := slices.IndexFunc(actions, func(action config.Action) bool { return action.Key == key })
+	if at < 0 {
+		return s, nil
+	}
+	commandLine, failure := actions[at].Command.Apply(svc)
+	if failure != nil {
+		s.message = terminal.ReplaceControlCharacters(failure.Text)
+		return s, nil
+	}
+	return s, s.giveTerminalTo(commandLine)
 }
 
 func (s Screen) answer(key tea.KeyPressMsg) (Screen, tea.Cmd) {
@@ -400,9 +420,14 @@ func (s Screen) selectedActions() []config.Action {
 	return s.rows()[at].group.Actions
 }
 
-func (s Screen) serviceToActOn() (service.Service, bool) {
+func (s Screen) serviceForKeys() (service.Service, bool) {
 	svc, ok := s.selectedService()
-	return svc, ok && !s.showHelp && !s.actionNotEnded[svc.Name]
+	return svc, ok && !s.showHelp
+}
+
+func (s Screen) serviceToActOn() (service.Service, bool) {
+	svc, ok := s.serviceForKeys()
+	return svc, ok && !s.actionNotEnded[svc.Name]
 }
 
 func (s Screen) selectedAt() int {

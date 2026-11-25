@@ -386,22 +386,22 @@ while the list shows a read error; while a confirmation shows, it answers no. A 
 not end svcview.
 
 **Acceptance Criteria:**
-- [ ] The key of an action, on a selected service of its group, runs the command line with the template values of
+- [x] The key of an action, on a selected service of its group, runs the command line with the template values of
       that service, each text as one argument and with no shell, for a not loaded, a loaded and a running service.
-- [ ] Two groups with an action on the same key each run the command of their own group, and the key on a service of
+- [x] Two groups with an action on the same key each run the command of their own group, and the key on a service of
       `Other` runs nothing and shows nothing.
-- [ ] An action whose key is a key of svcview in upper case, for example `L`, runs its command, and `l` still moves
+- [x] An action whose key is a key of svcview in upper case, for example `L`, runs its command, and `l` still moves
       the focus to the detail pane.
-- [ ] When the command exits with 0, the screen shows again with the same service selected, the same focus, and no
+- [x] When the command exits with 0, the screen shows again with the same service selected, the same focus, and no
       text on the message line. When it exits with a code other than 0, ends by a signal, or cannot start, the message
       line says so with the command line, as it does for `o`.
-- [ ] When a text of the command uses a template value that the plist does not have, the key runs no command, and the
+- [x] When a text of the command uses a template value that the plist does not have, the key runs no command, and the
       message line shows the failure, for example `the plist has no WORKER_LOG`, with each control character as `�`.
       The next key press hides it.
-- [ ] The key does nothing while the help shows, with no rows, and while the list shows a read error after a read
+- [x] The key does nothing while the help shows, with no rows, and while the list shows a read error after a read
       that selected a service. It runs its command while a start, a stop or a restart of the service has not ended.
       While a confirmation shows, it answers no.
-- [ ] An e2e test with the action `[less, +F, '{{.Env.WORKER_LOG}}']` on `L`: `L` gives the terminal to the fake
+- [x] An e2e test with the action `[less, +F, '{{.Env.WORKER_LOG}}']` on `L`: `L` gives the terminal to the fake
       `less` with the `WORKER_LOG` of the plist of the selected service, and after `q` the screen shows again with
       the same service selected; `ctrl-c` while the fake `less` has the terminal reaches it and does not end svcview;
       `L` on a service whose plist has no `WORKER_LOG` shows `the plist has no WORKER_LOG` on the line above the help

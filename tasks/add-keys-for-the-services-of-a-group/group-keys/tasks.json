@@ -108,7 +108,7 @@
     },
     {
       "n": 5,
-      "done": false,
+      "done": true,
       "title": "Give the terminal to the command of an action with its key",
       "language": "Go",
       "testable": true,

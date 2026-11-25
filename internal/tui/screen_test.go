@@ -406,7 +406,12 @@ func openStarting(t *testing.T, read func() ([]service.Service, error), start fu
 
 func openActing(t *testing.T, read func() ([]service.Service, error), start, stop, restart func(service.Service) error) tea.Model {
 	t.Helper()
-	var screen tea.Model = tui.NewScreen("gui/501", read, nil, start, stop, restart, refreshEvery2s)
+	return openActingWith(t, refreshEvery2s, read, start, stop, restart)
+}
+
+func openActingWith(t *testing.T, settings config.Settings, read func() ([]service.Service, error), start, stop, restart func(service.Service) error) tea.Model {
+	t.Helper()
+	var screen tea.Model = tui.NewScreen("gui/501", read, nil, start, stop, restart, settings)
 	first := screen.Init()
 	screen, _ = screen.Update(tea.WindowSizeMsg{Width: 80, Height: 12})
 	screen, _ = screen.Update(first())
@@ -3833,6 +3838,239 @@ func TestScreen(t *testing.T) {
 			require.Contains(t, ansi.Strip(help.View().Content), "│ L         worker�[2Jlog ")
 			require.NotContains(t, screen.View().Content, "\x1b[2J")
 			require.NotContains(t, help.View().Content, "\x1b[2J")
+		})
+	})
+
+	t.Run("run the action of a group", func(t *testing.T) {
+		keyUpperL := tea.KeyPressMsg{Code: 'L', Text: "L"}
+		listBottom := "╰" + strings.Repeat("─", 30) + "╯╰" + strings.Repeat("─", 46) + "╯"
+		helpLine := " s start · x stop · r restart · o log · L worker log · ? help"
+		workerLog := func(t *testing.T) config.Settings {
+			t.Helper()
+			settings := groups(t, "Workers", `^com\.example\.worker\.`, "Databases", "redis")
+			settings.Groups[0].Actions = []config.Action{newAction(t, "L", "worker log", "less", "+F", "{{.Env.WORKER_LOG}}")}
+			return settings
+		}
+		worker := func(name string, state service.State) service.Service {
+			return service.Service{Name: "com.example.worker." + name, State: state, Env: map[string]string{"WORKER_LOG": "/Users/me/worker/" + name + ".log"}}
+		}
+
+		t.Run("the key of an action on a not loaded, a loaded and a running service of its group gives the terminal to the command line with the template values of that service, each text as one argument and with no shell", func(t *testing.T) {
+			settings := groups(t, "Workers", `^com\.example\.worker\.`)
+			settings.Groups[0].Actions = []config.Action{newAction(t, "L", "worker log", "less", "+F", "{{.Env.WORKER_LOG}}", "--name={{.Name}} $HOME ; *")}
+			for _, svc := range []service.Service{worker("01", service.NotLoaded), worker("02", service.Loaded), worker("03", service.Running)} {
+				calls := fakeLess(t, "0")
+
+				synctest.Test(t, func(t *testing.T) {
+					runFor(t, tui.NewScreen("gui/501", readGiving(svc), nil, nil, nil, nil, settings), 100*time.Millisecond, keyUpperL)
+				})
+
+				require.Equal(t, [][]string{{"+F", svc.Env["WORKER_LOG"], "--name=" + svc.Name + " $HOME ; *"}}, calls(), svc.Name)
+			}
+		})
+
+		t.Run("config.Read refuses only the keys of svcview, and each other printable ASCII key of an action reaches that action on the screen", func(t *testing.T) {
+			var refused []string
+			for key := '!'; key <= '~'; key++ {
+				folder := t.TempDir()
+				quoted := "'" + strings.ReplaceAll(string(key), "'", "''") + "'"
+				content := "groups:\n  - name: Workers\n    match: worker\n    actions:\n      - {key: " + quoted + ", name: probe, command: [less, '{{.Env.PROBE}}']}\n"
+				require.NoError(t, os.WriteFile(filepath.Join(folder, "config.yaml"), []byte(content), 0o644))
+
+				settings, err := config.Read(folder, os.Getuid(), func(*os.File) (int, error) { return 0, nil })
+				if err != nil {
+					require.ErrorContains(t, err, "is a key of svcview", string(key))
+					refused = append(refused, string(key))
+					continue
+				}
+				screen := pressKeys(openWith(t, settings, servicesNamed("com.example.worker.01"), 80, 12), tea.KeyPressMsg{Code: key, Text: string(key)})
+
+				require.Equal(t, " the plist has no PROBE", bottomLines(screen, 2)[0], string(key))
+			}
+			require.Equal(t, []string{"/", "?", "h", "j", "k", "l", "o", "q", "r", "s", "x"}, refused)
+		})
+
+		t.Run("two groups with an action on the same key each run the command of their own group with the values of the selected service", func(t *testing.T) {
+			settings := groups(t, "Workers", `^com\.example\.worker\.`, "Jobs", `^com\.example\.job\.`)
+			settings.Groups[0].Actions = []config.Action{newAction(t, "L", "worker log", "less", "+F", "{{.Env.WORKER_LOG}}")}
+			settings.Groups[1].Actions = []config.Action{newAction(t, "L", "job log", "less", "{{.Env.JOB_LOG}}", "--job")}
+			workerService := service.Service{Name: "com.example.worker.01", Env: map[string]string{"WORKER_LOG": "/Users/me/w/worker.log", "JOB_LOG": "/Users/me/w/job.log"}}
+			jobService := service.Service{Name: "com.example.job.a", Env: map[string]string{"WORKER_LOG": "/Users/me/j/worker.log", "JOB_LOG": "/Users/me/j/job.log"}}
+			for _, run := range []struct {
+				keys     []tea.KeyPressMsg
+				expected []string
+			}{
+				{[]tea.KeyPressMsg{keyUpperL}, []string{"+F", "/Users/me/w/worker.log"}},
+				{[]tea.KeyPressMsg{down, keyUpperL}, []string{"/Users/me/j/job.log", "--job"}},
+			} {
+				calls := fakeLess(t, "0")
+
+				synctest.Test(t, func(t *testing.T) {
+					runFor(t, tui.NewScreen("gui/501", readGiving(workerService, jobService), nil, nil, nil, nil, settings), 100*time.Millisecond, run.keys...)
+				})
+
+				require.Equal(t, [][]string{run.expected}, calls(), run.expected)
+			}
+		})
+
+		t.Run("each key of a group with two actions runs the command of its own action, and a key that no action of the group has runs nothing and changes nothing", func(t *testing.T) {
+			svc := service.Service{Name: "com.example.worker.01", Env: map[string]string{"WORKER_LOG": "/Users/me/worker/01.log"}, StderrPath: "/Users/me/worker/01.err.log"}
+			for key, expected := range map[string][]string{"L": {"+F", "/Users/me/worker/01.log"}, "E": {"/Users/me/worker/01.err.log"}} {
+				calls := fakeLess(t, "0")
+
+				synctest.Test(t, func(t *testing.T) {
+					runFor(t, tui.NewScreen("gui/501", readGiving(svc), nil, nil, nil, nil, groupsWithActions(t)), 100*time.Millisecond, tea.KeyPressMsg{Code: rune(key[0]), Text: key})
+				})
+
+				require.Equal(t, [][]string{expected}, calls(), key)
+			}
+			screen := openWith(t, groupsWithActions(t), readGiving(svc), 80, 12)
+			for _, key := range []tea.KeyPressMsg{{Code: 'B', Text: "B"}, {Code: 'z', Text: "z"}, {Code: 'e', Text: "e"}} {
+				after, cmd := screen.Update(key)
+
+				require.Nil(t, cmd, key.String())
+				require.Equal(t, screen.View().Content, after.View().Content, key.String())
+			}
+		})
+
+		t.Run("the key of an action on a service of a group with no actions, or of Other, runs nothing and changes nothing", func(t *testing.T) {
+			screen := openWith(t, workerLog(t), readGiving(worker("01", service.Running), service.Service{Name: "homebrew.mxcl.redis"}, service.Service{Name: "com.apple.a"}), 80, 14)
+			for name, keys := range map[string][]tea.KeyPressMsg{"Databases": {down}, "Other": {down, down}} {
+				before := pressKeys(screen, keys...)
+
+				after, cmd := before.Update(keyUpperL)
+
+				require.Nil(t, cmd, name)
+				require.Equal(t, before.View().Content, after.View().Content, name)
+			}
+			require.NotNil(t, press(screen, keyUpperL))
+		})
+
+		t.Run("an action with the key L runs its command, and l still moves the focus to the detail pane and runs nothing", func(t *testing.T) {
+			screen := openWith(t, workerLog(t), readGiving(worker("01", service.Running)), 80, 12)
+
+			afterL, cmd := screen.Update(keyL)
+
+			require.Nil(t, cmd)
+			require.Equal(t, []string{dimBorder, blueBorder}, borderStyles(afterL))
+			require.NotNil(t, press(screen, keyUpperL))
+		})
+
+		t.Run("when the command exits with 0, the screen shows again with the service that was selected before the key, with the same focus, and with no text on the message line", func(t *testing.T) {
+			calls := fakeLess(t, "0")
+
+			synctest.Test(t, func(t *testing.T) {
+				screen := runFor(t, tui.NewScreen("gui/501", readGiving(worker("01", service.Running), worker("02", service.Loaded), worker("03", service.NotLoaded)), nil, nil, nil, nil, workerLog(t)), 100*time.Millisecond, down, tab, keyUpperL)
+
+				require.Equal(t, "02", selectedName(screen))
+				require.Equal(t, []string{dimBorder, blueBorder}, borderStyles(screen))
+				require.Equal(t, []string{listBottom, helpLine}, bottomLines(screen, 2))
+			})
+			require.Equal(t, [][]string{{"+F", "/Users/me/worker/02.log"}}, calls())
+		})
+
+		t.Run("when the command exits with a code other than 0, the screen shows again, and the message line names the command line and the code", func(t *testing.T) {
+			fakeLess(t, "3")
+
+			synctest.Test(t, func(t *testing.T) {
+				screen := runFor(t, tui.NewScreen("gui/501", readGiving(worker("01", service.Running), worker("02", service.Loaded)), nil, nil, nil, nil, workerLog(t)), 100*time.Millisecond, down, keyUpperL)
+
+				require.Equal(t, "02", selectedName(screen))
+				require.Equal(t, []string{listBottom, " less +F /Users/me/worker/02.log exited with code 3", helpLine}, bottomLines(screen, 3))
+			})
+		})
+
+		t.Run("when a signal ends the command, the message line names the command line and the signal", func(t *testing.T) {
+			fakeLess(t, "0")
+			t.Setenv("FAKE_LESS_SIGNAL", "HUP")
+
+			synctest.Test(t, func(t *testing.T) {
+				screen := runFor(t, tui.NewScreen("gui/501", readGiving(worker("01", service.Running)), nil, nil, nil, nil, workerLog(t)), 100*time.Millisecond, keyUpperL)
+
+				require.Equal(t, " less +F /Users/me/worker/01.log ended by SIGHUP", bottomLines(screen, 2)[0])
+			})
+		})
+
+		t.Run("when svcview cannot start the program of the command, the message line shows why", func(t *testing.T) {
+			t.Setenv("PATH", t.TempDir())
+
+			synctest.Test(t, func(t *testing.T) {
+				screen := runSized(t, tui.NewScreen("gui/501", readGiving(worker("01", service.Running)), nil, nil, nil, nil, workerLog(t)), 120, 12, 100*time.Millisecond, keyUpperL)
+
+				require.Equal(t, ` run less +F /Users/me/worker/01.log: exec: "less": executable file not found in $PATH`, bottomLines(screen, 2)[0])
+			})
+		})
+
+		t.Run("when a text of the command uses a template value that the plist does not have, the key runs no command, the message line shows the failure, and the next key press hides it and does what it does", func(t *testing.T) {
+			screen := openWith(t, workerLog(t), readGiving(service.Service{Name: "com.example.worker.01"}, worker("02", service.Running)), 80, 12)
+
+			screen, cmd := screen.Update(keyUpperL)
+			withFailure := bottomLines(screen, 3)
+			screen = pressKeys(screen, down)
+
+			require.Nil(t, cmd)
+			require.Equal(t, []string{listBottom, " the plist has no WORKER_LOG", helpLine}, withFailure)
+			require.Equal(t, "02", selectedName(screen))
+			require.Equal(t, []string{listBottom, helpLine}, bottomLines(screen, 2))
+		})
+
+		t.Run("the failure of a template value shows each control character as �", func(t *testing.T) {
+			settings := groups(t, "Workers", `^com\.example\.worker\.`)
+			settings.Groups[0].Actions = []config.Action{newAction(t, "L", "worker log", "less", "{{slice \"x\x1b[2J\" 9}}")}
+			screen := openWith(t, settings, readGiving(worker("01", service.Running)), 120, 12)
+
+			screen, cmd := screen.Update(keyUpperL)
+
+			require.Nil(t, cmd)
+			require.Contains(t, bottomLines(screen, 2)[0], `<slice "x�[2J" 9>`)
+			require.NotContains(t, screen.View().Content, "\x1b[2J")
+		})
+
+		t.Run("the key runs nothing and shows nothing while the help shows, with no rows, and while the list shows a read error after a read that selected a service of its group", func(t *testing.T) {
+			for name, svc := range map[string]service.Service{"with WORKER_LOG": worker("01", service.Running), "with no WORKER_LOG": {Name: "com.example.worker.01"}} {
+				failing := func() ([]service.Service, error) {
+					return []service.Service{svc}, errors.New("launchctl list: exit status 3")
+				}
+				inHelp := pressKeys(openWith(t, workerLog(t), readGiving(svc), 80, 12), question)
+				noRows := openWith(t, workerLog(t), readGiving(), 80, 12)
+				readError := readNow(openWith(t, workerLog(t), readsInTurn(readGiving(svc), failing), 80, 12))
+
+				for state, screen := range map[string]tea.Model{"help": inHelp, "no rows": noRows, "read error": readError} {
+					after, cmd := screen.Update(keyUpperL)
+
+					require.Nil(t, cmd, name, state)
+					require.Equal(t, screen.View().Content, after.View().Content, name, state)
+				}
+			}
+		})
+
+		t.Run("the key gives the terminal to the command also while the start, the stop or the restart of the selected service has not ended", func(t *testing.T) {
+			slow := func(service.Service) error {
+				time.Sleep(5 * time.Second)
+				return nil
+			}
+			for name, keys := range map[string][]tea.KeyPressMsg{"start": {keyS, keyUpperL}, "stop": {keyX, keyY, keyUpperL}, "restart": {keyR, keyY, keyUpperL}} {
+				calls := fakeLess(t, "0")
+
+				synctest.Test(t, func(t *testing.T) {
+					runFor(t, tui.NewScreen("gui/501", readGiving(worker("01", service.Loaded)), nil, slow, slow, slow, workerLog(t)), 100*time.Millisecond, keys...)
+				})
+
+				require.Equal(t, [][]string{{"+F", "/Users/me/worker/01.log"}}, calls(), name)
+			}
+		})
+
+		t.Run("while a confirmation shows, the key of an action answers no: it hides the confirmation, runs nothing, and calls nothing", func(t *testing.T) {
+			stops := &serviceCalls{}
+			screen := openActingWith(t, workerLog(t), readGiving(worker("01", service.Running)), nil, stops.record, nil)
+
+			screen = pressKeys(screen, keyX)
+			screen, cmd := screen.Update(keyUpperL)
+			runAll(cmd)
+
+			require.Nil(t, cmd)
+			require.Empty(t, stops.get())
+			require.Equal(t, []string{listBottom, helpLine}, bottomLines(screen, 2))
 		})
 	})
 
