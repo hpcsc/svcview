@@ -11,7 +11,8 @@ job, or idle.
 - Shows the summary, the fields, and the events that a status command reports, and marks a status that is stale.
 - Lets another program add its group, its status command, and its own keys with one file in `conf.d/`.
 
-`docs/cli.md` describes each key and each setting. `docs/proposal-launchd-tui.md` gives the design.
+`docs/cli.md` describes each key and each setting. `docs/design.md` describes how svcview works inside, with
+diagrams. `docs/proposal-launchd-tui.md` gives the reasons for the design.
 
 ## Install
 
