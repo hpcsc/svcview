@@ -179,3 +179,13 @@ export async function openCli(cwd: string, args: string[] = [], env: Record<stri
   onTestFinished(() => session.close())
   return session
 }
+
+export function listLines(screen: string): string[] {
+  const lines = screen.split('\n')
+  const list: string[] = []
+  for (const line of lines.slice(lines.findIndex((line) => line.includes('╭ Services')) + 1)) {
+    if (line.startsWith('╰')) break
+    list.push(line.split('│')[1].trim())
+  }
+  return list
+}

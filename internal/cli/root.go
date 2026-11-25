@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io"
 	"os"
 	"os/signal"
 
@@ -41,6 +40,13 @@ func newCommand() *cli.Command {
 		Name:                  "svcview",
 		Version:               version.Current(),
 		EnableShellCompletion: true,
+		Flags: []cli.Flag{
+			&cli.BoolFlag{
+				Name:  "all",
+				Usage: "show each service that launchctl list prints, also the services of macOS",
+				Local: true,
+			},
+		},
 		Commands: endAtInterrupt(
 			newVersionCommand(),
 			newUpdateCommand(),
@@ -57,24 +63,28 @@ func showScreenOrHelp(ctx context.Context, cmd *cli.Command) error {
 	if !isTerminal(cmd.Root().Reader) || !isTerminal(cmd.Root().Writer) {
 		return cli.ShowRootCommandHelp(cmd)
 	}
-	return showScreen(ctx, cmd.Root().Reader, cmd.Root().Writer)
+	return showScreen(ctx, cmd)
 }
 
-func showScreen(ctx context.Context, input io.Reader, output io.Writer) error {
+func showScreen(ctx context.Context, cmd *cli.Command) error {
 	settings, domain, err := readSettingsAndDomain()
 	if err != nil {
 		return err
+	}
+	read := domain.Services
+	if cmd.Bool("all") {
+		read = domain.AllServices
 	}
 	runs := newStatusRuns(ctx)
 	start := func(svc service.Service) error { return domain.Start(ctx, svc) }
 	stop := func(svc service.Service) error { return domain.Stop(ctx, svc) }
 	restart := func(svc service.Service) error { return domain.Restart(ctx, svc) }
-	screen := tui.NewScreen(domain.String(), domain.Services, runs.run, start, stop, restart, settings)
+	screen := tui.NewScreen(domain.String(), read, runs.run, start, stop, restart, settings)
 	interrupts := make(chan os.Signal, 1)
 	// Bubble Tea stops its SIGINT handler when ctx ends, and less can still have the terminal then.
 	signal.Notify(interrupts, os.Interrupt)
 	defer signal.Stop(interrupts)
-	_, err = tea.NewProgram(screen, tea.WithContext(ctx), tea.WithInput(input), tea.WithOutput(output)).Run()
+	_, err = tea.NewProgram(screen, tea.WithContext(ctx), tea.WithInput(cmd.Root().Reader), tea.WithOutput(cmd.Root().Writer)).Run()
 	runs.stop()
 	return err
 }

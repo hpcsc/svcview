@@ -89,6 +89,7 @@ The screen tests start svcview with no command in the pseudo-terminal of `openCl
 | `addPlist(home, name, environment, paths)` | Writes one more plist to a home folder, for example while the screen is open. `environment` gives the `EnvironmentVariables` of the plist. `paths` gives its `StandardOutPath` as `stdoutPath` and its `StandardErrorPath` as `stderrPath`; the plist has no such key when the test gives none. |
 | `setLaunchctlList(home, services)` | Writes the output of `launchctl list` that the fake `launchctl` prints for this home folder. A service with a `pid` is `running`, and a service with no `pid` is `loaded`. The `status` of a service is its `Status` column, 0 when it has none, and a negative `status` is a signal. A test can call it again while the screen is open. |
 | `setLaunchctlOutput(home, output)` | Writes any text as the output of `launchctl list`, for example a header line that svcview does not know. |
+| `listLines(screen)` | Gives the lines of the `Services` pane in the text of the screen, with the border and the spaces at each end of a line removed. A test compares them to check the groups and the rows of the list, for example `['Workers', '▌○ 01', '○ 02', '', 'Other', '○ com.apple.a']`. |
 
 ```ts
 const session = await openCli(scratchDir(), [], { HOME: homeWithPlists(['com.example.worker']) })

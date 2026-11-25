@@ -195,22 +195,22 @@ with no flag reads with `Domain.Services`, as today. `svcview --help` lists `--a
 of the root command only: `svcview status`, `svcview version` and `svcview update` do not take it.
 
 **Acceptance Criteria:**
-- [ ] `svcview --help` lists `--all` under `GLOBAL OPTIONS`, with the usage
+- [x] `svcview --help` lists `--all` under `GLOBAL OPTIONS`, with the usage
       `show each service that launchctl list prints, also the services of macOS` and no default value, as `--help`
       and `--version` show none.
-- [ ] `svcview --all` without a terminal prints the help and reads no input, as `svcview` does.
-- [ ] `svcview status --all <name>` fails with the error of a flag that the command does not define, and runs no
+- [x] `svcview --all` without a terminal prints the help and reads no input, as `svcview` does.
+- [x] `svcview status --all <name>` fails with the error of a flag that the command does not define, and runs no
       status command.
-- [ ] In a terminal, `svcview --all` with plists for some names and a `launchctl list` that also prints names that no
+- [x] In a terminal, `svcview --all` with plists for some names and a `launchctl list` that also prints names that no
       plist has shows a row for each name, and the header counts each of these services.
-- [ ] With `--all`, the detail pane of a `running` service with no plist shows its state, its PID, `up 3h12m` and its
+- [x] With `--all`, the detail pane of a `running` service with no plist shows its state, its PID, `up 3h12m` and its
       last exit, for example `last exit SIGKILL` for a Status of -9.
-- [ ] With `--all` and a group of `config.yaml` whose match takes the name of a service with no plist, the service
+- [x] With `--all` and a group of `config.yaml` whose match takes the name of a service with no plist, the service
       shows under the line of the group with its short name; a service with no plist that no group matches shows
       under `Other`.
-- [ ] `svcview` with no flag, on the same plists and the same `launchctl list`, shows only the services that have a
+- [x] `svcview` with no flag, on the same plists and the same `launchctl list`, shows only the services that have a
       plist, and the header counts only them.
-- [ ] With `--all`, a group whose status command uses `{{.Env.WORKER_STATUS_FILE}}` shows
+- [x] With `--all`, a group whose status command uses `{{.Env.WORKER_STATUS_FILE}}` shows
       `the plist has no WORKER_STATUS_FILE` in the row of a service with no plist; the key of an action whose command
       uses `{{.Env.WORKER_LOG}}` shows `the plist has no WORKER_LOG` on the message line and runs no `less`; and `o`
       shows `<name> has no log path in its plist` and runs no `less`.

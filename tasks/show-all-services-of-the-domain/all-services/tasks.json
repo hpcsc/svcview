@@ -31,7 +31,7 @@
     },
     {
       "n": 2,
-      "done": false,
+      "done": true,
       "title": "Show each service of the domain on the screen with svcview --all",
       "language": "Go",
       "testable": true,

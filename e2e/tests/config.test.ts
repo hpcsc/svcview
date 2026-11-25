@@ -2,17 +2,17 @@ import { execFileSync } from 'node:child_process'
 import { rmSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it, onTestFinished, vi } from 'vitest'
-import { addPlist, buildTag, homeWithPlists, openCli, runCli, scratchDir, writeConfD, writeConfig } from '../testUtils'
-
-function listLines(screen: string): string[] {
-  const lines = screen.split('\n')
-  const list: string[] = []
-  for (const line of lines.slice(lines.findIndex((line) => line.includes('╭ Services')) + 1)) {
-    if (line.startsWith('╰')) break
-    list.push(line.split('│')[1].trim())
-  }
-  return list
-}
+import {
+  addPlist,
+  buildTag,
+  homeWithPlists,
+  listLines,
+  openCli,
+  runCli,
+  scratchDir,
+  writeConfD,
+  writeConfig,
+} from '../testUtils'
 
 describe('the config file', () => {
   it('an unknown setting in $XDG_CONFIG_HOME/svcview/config.yaml stops svcview with the exit code 1 and an error that names the file, before the screen opens', async () => {

@@ -6,6 +6,8 @@ import (
 	"bytes"
 	"context"
 	"io"
+	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -43,6 +45,39 @@ func TestRootCommand(t *testing.T) {
 			require.NoError(t, err)
 			require.Contains(t, output, "print the tag svcview was built from")
 			require.Contains(t, output, "replace svcview with the latest release")
+		})
+
+		t.Run("with --all and without a terminal, prints the commands and reads no input", func(t *testing.T) {
+			output, err := run(t, "--all")
+
+			require.NoError(t, err)
+			require.Contains(t, output, "print the tag svcview was built from")
+			require.Contains(t, output, "replace svcview with the latest release")
+		})
+	})
+
+	t.Run("help", func(t *testing.T) {
+		t.Run("lists --all under GLOBAL OPTIONS, with its usage and no default value", func(t *testing.T) {
+			output, err := run(t, "--help")
+
+			require.NoError(t, err)
+			_, options, found := strings.Cut(output, "GLOBAL OPTIONS:")
+			require.True(t, found, output)
+			require.Regexp(t, `(?m)^\s+--all\s+show each service that launchctl list prints, also the services of macOS$`, options)
+		})
+	})
+
+	t.Run("subcommand", func(t *testing.T) {
+		t.Run("svcview status does not take --all: it fails with the error of a flag that it does not define, and runs no status command", func(t *testing.T) {
+			home := newHome(t)
+			addPlist(t, home, "com.example.worker", "")
+			marker := filepath.Join(home, "ran")
+			writeConfig(t, home, workersWithCommand(`[touch, '`+marker+`']`))
+
+			_, err := run(t, "status", "--all", "com.example.worker")
+
+			require.ErrorContains(t, err, "flag provided but not defined: -all")
+			require.NoFileExists(t, marker)
 		})
 	})
 
