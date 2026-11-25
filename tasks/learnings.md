@@ -29,9 +29,9 @@
 
 ## Only e2e tests reach the terminal branch of the root command
 - Type: constraint
-- Recorded: 2026-11-24
-- Observed: task 3,5 — start-and-stop-a-service-start-and-stop
-- Learning: The Go tests have no terminal, so the branch of internal/cli that opens the screen (showScreenOrHelp, showScreen) and the code that only it calls show as LIVED, NOT COVERED or CALLER GAPS in clerk mutants. The e2e tests kill them; accept each row with the e2e test that fails on it, after you check it by hand in Docker: copy the file to the scratchpad, apply the mutant, run docker build -q -f e2e/Dockerfile -t svcview-e2e-mutant . and docker container run --rm svcview-e2e-mutant npx vitest run tests/<file>.test.ts, then put the file back with /bin/cp -f and remove the image.
+- Recorded: 2026-11-25
+- Observed: task 3 — restart-a-service-restart
+- Learning: The Go tests have no terminal, so the branch of internal/cli that opens the screen (showScreenOrHelp, showScreen) and the code that only it calls show as LIVED, NOT COVERED or CALLER GAPS in clerk mutants. A new method of launchd.Domain that only showScreen calls, such as Domain.Restart, shows as the CALLER GAPS row with the key internal/launchd/domain.go:(*Domain).Restart in a run with --base. The e2e tests kill them; accept each row with the e2e test that fails on it, after you check it by hand in Docker: copy the file to the scratchpad, apply the mutant, run docker build -q -f e2e/Dockerfile -t svcview-e2e-mutant . and docker container run --rm svcview-e2e-mutant npx vitest run tests/<file>.test.ts, then put the file back with /bin/cp -f and remove the image.
 - Apply when: A task changes the root action, showScreen, or the terminal check in internal/cli, or wires a new launchd or tui type into the screen.
 ## Run clerk mutants and clerk audit run under mise exec
 - Type: constraint
@@ -41,9 +41,9 @@
 - Apply when: Running clerk mutants, clerk audit run, the suite step or task test:unit, gopls or another Go tool in this repo.
 ## Fake a program that svcview runs with a script first on PATH
 - Type: pattern
-- Recorded: 2026-11-24
-- Observed: task 2 — test-a-status-command-with-svcview-status-status-subcommand
-- Learning: macOS checks each new executable file at its first run, which costs about 0.3 s, so internal/launchd/domain_test.go writes one fake launchctl and one fake ps in TestMain and each test gives them its output file through FAKE_LAUNCHCTL_LIST, FAKE_PS_OUTPUT and FAKE_PS_CALLS (fakeLaunchctlList, fakePs); only a test that needs another script writes its own with fakeProgram. A fake script for each test made the package tests 27 s in place of 15 s, and clerk mutants then stopped at its limit of 10 minutes. internal/cli has its own fake launchctl, which TestMain in internal/cli/status_test.go puts first on PATH for the whole package: it prints $HOME/launchctl-list.txt, and fails with the text of $HOME/launchctl-failure.txt. e2e tests keep the fakes in e2e/fakes, which openCli and runCli put first on PATH: launchctl prints $HOME/launchctl-list.txt, and ps prints 03:12:07 for each PID. Put a command after a long one in a fake (sleep 60; echo never), because dash runs the last command in place of the shell.
+- Recorded: 2026-11-25
+- Observed: task 3 — restart-a-service-restart
+- Learning: macOS checks each new executable file at its first run, which costs about 0.3 s, so internal/launchd/domain_test.go writes one fake launchctl and one fake ps in TestMain and each test gives them its output file through FAKE_LAUNCHCTL_LIST, FAKE_PS_OUTPUT and FAKE_PS_CALLS (fakeLaunchctlList, fakePs); only a test that needs another script writes its own with fakeProgram. A fake script for each test made the package tests 27 s in place of 15 s, and clerk mutants then stopped at its limit of 10 minutes. internal/cli has its own fake launchctl, which TestMain in internal/cli/status_test.go puts first on PATH for the whole package: it prints $HOME/launchctl-list.txt, and fails with the text of $HOME/launchctl-failure.txt. e2e tests keep the fakes in e2e/fakes, which openCli and runCli put first on PATH: launchctl prints $HOME/launchctl-list.txt, and ps prints for each PID the elapsed time in $HOME/ps-elapsed.txt, which setPsElapsed writes, or 03:12:07 when no test wrote one. Put a command after a long one in a fake (sleep 60; echo never), because dash runs the last command in place of the shell.
 - Apply when: A task runs another program from internal/launchd or internal/cli, for example launchctl kickstart or bootout for an action, or fakes one in a unit or e2e test.
 ## Run each outside program with a deadline
 - Type: constraint
@@ -389,3 +389,38 @@
 - Observed: move-with-the-keys-of-vim-vim-keys
 - Learning: Under -race in the full suite, the subtest of TestStatusSubcommand/run for an output larger than 1 MiB can show status timeout in place of status invalid, because yes does not write 1 MiB before the timeout of the status command. In vim-keys it failed once in the suite, on a branch with no change in internal/cli or internal/status, and passed three times alone. Run it alone with -count=1 -race before you treat it as a regression, then run the suite again for the receipt.
 - Apply when: The suite step or task test:unit fails in TestStatusSubcommand with status timeout where the test expects status invalid, on a branch that does not change internal/cli or internal/status.
+
+## launchctl kickstart -k ends the old process with SIGTERM and gives the new PID at once
+- Type: constraint
+- Recorded: 2026-11-25
+- Observed: task 1,3 — restart-a-service-restart
+- Learning: A probe against the real launchd, with a LaunchAgent that runs /bin/sleep 600 from a plist in the scratchpad and a bootout in a trap, showed four facts that the fake launchctl cannot show. launchctl list shows the new PID, with a ps etime of 00:00, as soon as kickstart -k returns. The Status column of the service is -15 after it, so svcview reads the last exit as SIGTERM, and LastExit.Failed() makes the glyph of the row and the last exit red after a restart that worked. kickstart -k of a loaded service with no process starts it. kickstart -k of a service that is not loaded exits with 113 and prints 'Could not find service "<name>" in domain for user gui: <uid>'.
+- Apply when: A task restarts, stops or kills a service through launchctl, shows the last exit after an action, or plans a criterion about what the screen shows after an action.
+
+## An e2e test finds the help line by a short part of it
+- Type: convention
+- Recorded: 2026-11-25
+- Observed: task 2,4 — restart-a-service-restart
+- Learning: The help line changes with each new key of the screen. In restart-a-service, the audit raised a lookup that matched the whole help line, startsWith(' s start · x stop · r restart · ? help'), in two e2e files, because the change of the help line had to edit a test of a failed start too. Find an anchor line with a short part that a new key does not change, as screen.test.ts and status.test.ts do: lines.findIndex((line) => line.includes('? help')).
+- Apply when: An e2e test reads the line above or below the help line, or finds a line of the screen as an anchor.
+
+## A method that holds the guard of the keys replaces each copy of the guard
+- Type: pattern
+- Recorded: 2026-11-25
+- Observed: task 3 — restart-a-service-restart
+- Learning: In restart-a-service, Screen.serviceToActOn took the guard of x and r: a selected service, no help, and no action of the service that has not ended. The audit raised that s kept its own copy of the same guard, so a later change to the rule does not reach s. When you add a method for a rule that more than one key of the screen has, make each of those keys use it in the same task.
+- Apply when: A task in internal/tui adds a key that acts on the selected service, or a method that holds a guard of the keys.
+
+## TestStatusSubcommand gives status timeout when the machine is busy
+- Type: constraint
+- Recorded: 2026-11-25
+- Observed: task 2 — restart-a-service-restart
+- Learning: The first task test:unit of restart-a-service failed 5 subtests of TestStatusSubcommand in internal/cli: the output of yes that is larger than 1 MiB gave status timeout in place of status invalid. That run took 18.8 s in place of about 9 s, and the package passed alone and in the next full run. Run the suite again before you read such a failure as a defect of the task.
+- Apply when: task test:unit fails in internal/cli TestStatusSubcommand with status timeout, in a task that does not change internal/cli or internal/status.
+
+## clerk land does not read --integrate from the request
+- Type: constraint
+- Recorded: 2026-11-25
+- Observed: restart-a-service-restart
+- Learning: In restart-a-service, the request held --integrate, and facts.flags gave integrate: true with the source request. Bare clerk land reported integrate: false with integrate_source default, archived the breakdown, and moved the run to the learn step. clerk land --integrate then refused, because the run was at the learn step. Pass --integrate to clerk land when the request asks to land, or land with git merge --ff-only <branch> on main after clerk learn.
+- Apply when: A run whose request holds --integrate, or says to land on main, reaches the land step.
