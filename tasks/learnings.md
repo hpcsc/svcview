@@ -54,11 +54,10 @@
 
 ## Show no data of a read before the first read ends
 - Type: convention
-- Recorded: 2026-11-23
-- Observed: task 4 — see-the-launchd-services-in-a-list-launchd-state
-- Learning: Screen.lastRead is the zero servicesRead until the first read ends, and Screen.hasRead says whether one ended. A pane or a line that shows what a read gave must check hasRead, or it shows zeros or empty values as if a read happened (the header counts did until an audit found it).
-- Apply when: A task in internal/tui adds a pane or a line that shows data from the read, for example the detail pane.
-
+- Recorded: 2026-11-25
+- Observed: task 3 — filter-the-list-by-name-filter
+- Learning: Screen.lastRead is the zero servicesRead until the first read ends, and Screen.hasRead says whether one ended. A pane or a line that shows what a read gave must check hasRead, or it shows zeros or empty values as if a read happened (the header counts did until an audit found it). A text that the list shows in place of rows must check it too: no service matches showed for a filter typed before the first read ended, until an audit gap found it.
+- Apply when: A task in internal/tui adds a pane or a line that shows data from the read, for example the detail pane, or a text that the list shows in place of rows, for example no service matches.
 ## A value that can be 0 and can be missing is a pointer
 - Type: convention
 - Recorded: 2026-11-23
@@ -451,3 +450,24 @@
 - Observed: task 5 — add-keys-for-the-services-of-a-group-group-keys
 - Learning: The group-keys design gave 'action' to any thing that a key does, but internal/tui already named only the start, stop and restart on launchd actionOn, actionEnded and actionNotEnded, with a guard that the action of a group does not use. The audit raised the two meanings, and the rename to launchdAction... could not fold into the task that caused it, because a later task rewrote the same lines. When the words of design.yaml widen a word that code already uses in a narrow sense, plan the rename of the old names in the first task that adds the new meaning.
 - Apply when: Planning a story whose design.yaml gives a word that internal/tui, internal/config or internal/launchd already uses a wider or different meaning.
+
+## A screen test of more than one launchd action gives each action its own screen
+- Type: pattern
+- Recorded: 2026-11-25
+- Observed: task 4 — filter-the-list-by-name-filter
+- Learning: Screen keeps launchdActionNotEnded, runNotEnded and statuses in maps that each copy of the Screen value shares, so after s on a model, x with y or r with y on the same model or a copy of it finds the start not ended and calls nothing. A test of Task 4 in filter-the-list-by-name pressed s, x and r on one start model and saw only the start; a function that builds a fresh screen for each key fixed it.
+- Apply when: A test in internal/tui presses more than one of s, x and r, or uses one start model for more than one launchd action.
+
+## A method that runs once for each row of the list takes the rows as a parameter
+- Type: convention
+- Recorded: 2026-11-25
+- Observed: task 2 — filter-the-list-by-name-filter
+- Learning: Screen.rowsInList filters the rows of the read and builds a new slice on each call. lineOf, linesAbove and startsGroup run once for each row, so they take the rows as a parameter; a version that called rowsInList inside them copied about n² rows for each Update and View, 243 MB for one key at 500 services, which the audit measured.
+- Apply when: A task in internal/tui adds a method that runs once for each row of the list, or adds work to rowsInList, for example a fold of a group.
+
+## git status does not show the files that an audit round leaves in .scratches
+- Type: constraint
+- Recorded: 2026-11-25
+- Observed: filter-the-list-by-name-filter
+- Learning: .scratches/ and coverage-unit.out are gitignored, so git status --porcelain is empty after an audit round that left a scratch benchmark in .scratches/bench/. Round 2 of filter-the-list-by-name named both files only in coverage_gaps. Run git status --porcelain --ignored after each round, and delete only what the round wrote, because .scratches/ also holds the documents of the user.
+- Apply when: An audit round ends, or a step checks that the tree is clean before a suite run, a receipt or clerk land.
