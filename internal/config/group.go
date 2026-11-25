@@ -127,11 +127,17 @@ func readActions(node *yaml.Node, groupLabel string) ([]Action, error) {
 		return nil, fmt.Errorf("line %d: the setting \"actions\" of %s must be a list of actions, each with a key, a name and a command", node.Line, groupLabel)
 	}
 	var actions []Action
+	lineOf := map[string]int{}
 	for i, entry := range node.Content {
-		action, err := readAction(entry, fmt.Sprintf("action %d of %s", i+1, groupLabel))
+		label := fmt.Sprintf("action %d of %s", i+1, groupLabel)
+		action, err := readAction(entry, label)
 		if err != nil {
 			return nil, err
 		}
+		if line, ok := lineOf[action.Key]; ok {
+			return nil, fmt.Errorf("line %d: the key %q of %s is already the key of the action on line %d, and no two actions of a group can have the same key", entry.Line, action.Key, label, line)
+		}
+		lineOf[action.Key] = entry.Line
 		actions = append(actions, action)
 	}
 	return actions, nil

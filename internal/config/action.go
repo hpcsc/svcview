@@ -2,12 +2,17 @@ package config
 
 import (
 	"fmt"
+	"slices"
+	"strings"
 	"unicode"
 	"unicode/utf8"
 
 	"github.com/hpcsc/svcview/internal/status"
 	"go.yaml.in/yaml/v3"
 )
+
+// tui.Screen handles each of these keys, and / is kept for the filter of the list.
+var keysOfSvcview = []string{"?", "/", "h", "j", "k", "l", "o", "q", "r", "s", "x"}
 
 type Action struct {
 	Key     string
@@ -31,6 +36,9 @@ func readAction(entry *yaml.Node, label string) (Action, error) {
 	}
 	if action.Key = text(key); !isActionKey(action.Key) {
 		return Action{}, fmt.Errorf("line %d: the setting \"key\" of %s must be one character that prints and is not a space, such as L", key.Line, label)
+	}
+	if slices.Contains(keysOfSvcview, action.Key) {
+		return Action{}, fmt.Errorf("line %d: the key %q of %s is a key of svcview, and an action cannot take one of %s", key.Line, action.Key, label, strings.Join(keysOfSvcview, " "))
 	}
 	name, ok := valueOf["name"]
 	if !ok {

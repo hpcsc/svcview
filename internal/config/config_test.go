@@ -847,6 +847,56 @@ func TestSettings(t *testing.T) {
 			}
 		})
 
+		t.Run("an action whose key is a key of svcview gives an error that names the file, the group, the action and the key, and no settings", func(t *testing.T) {
+			for _, key := range []string{"?", "/", "h", "j", "k", "l", "o", "q", "r", "s", "x"} {
+				folder, path := folderWith(t, "groups:\n  - name: Workers\n    match: worker\n    actions:\n      - {key: R, name: reset, command: [reset]}\n      - {key: '"+key+"', name: worker log, command: [less]}\n")
+
+				settings, err := config.Read(folder, os.Getuid(), noACL)
+
+				require.ErrorContains(t, err, path, key)
+				require.ErrorContains(t, err, `the key "`+key+`" of action 2 of group "Workers" is a key of svcview`, key)
+				require.Equal(t, config.Settings{}, settings, key)
+			}
+		})
+
+		t.Run("two actions of one group with the same key give an error that names the file, the group, the second action, the key and the line of the first action, and no settings", func(t *testing.T) {
+			folder, path := folderWith(t, "groups:\n  - name: Workers\n    match: worker\n    actions:\n      - {key: L, name: worker log, command: [less]}\n      - {key: R, name: reset, command: [reset]}\n      - {key: L, name: worker errors, command: [less]}\n")
+
+			settings, err := config.Read(folder, os.Getuid(), noACL)
+
+			require.ErrorContains(t, err, path)
+			require.ErrorContains(t, err, `line 7: the key "L" of action 3 of group "Workers" is already the key of the action on line 5`)
+			require.Equal(t, config.Settings{}, settings)
+		})
+
+		t.Run("a key of svcview in upper case, two keys that differ only in case, and one key in two groups give their actions", func(t *testing.T) {
+			settings := readSettings(t, `groups:
+  - name: Workers
+    match: worker
+    actions:
+      - {key: L, name: worker log, command: [less]}
+      - {key: S, name: worker status, command: [cat]}
+      - {key: X, name: worker exit, command: [kill]}
+      - {key: a, name: archive, command: [tar]}
+      - {key: A, name: archive all, command: [tar]}
+  - name: Jobs
+    match: job
+    actions:
+      - {key: L, name: job log, command: [less]}
+`)
+			keysAndNames := map[string][]string{}
+			for _, group := range settings.Groups {
+				for _, action := range group.Actions {
+					keysAndNames[group.Name] = append(keysAndNames[group.Name], action.Key+" "+action.Name)
+				}
+			}
+
+			require.Equal(t, map[string][]string{
+				"Workers": {"L worker log", "S worker status", "X worker exit", "a archive", "A archive all"},
+				"Jobs":    {"L job log"},
+			}, keysAndNames)
+		})
+
 		t.Run("an action in a group of a file in conf.d gives an error that names that file", func(t *testing.T) {
 			folder, path := folderWithConfD(t, "groups:\n  - name: Workers\n    match: worker\n    actions:\n      - {key: ctrl+l, name: worker log, command: [less]}\n")
 

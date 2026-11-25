@@ -55,7 +55,7 @@
     },
     {
       "n": 3,
-      "done": false,
+      "done": true,
       "title": "Refuse a key of svcview and a key that two actions of one group use",
       "language": "Go",
       "testable": true,

@@ -284,15 +284,15 @@ action and the key; the error of two actions also gives the line of the first ac
 and `X` are not keys of svcview, and two groups can each have an action with the same key.
 
 **Acceptance Criteria:**
-- [ ] An action whose key is a key of svcview gives an error that names the file, the group, the action and the key,
+- [x] An action whose key is a key of svcview gives an error that names the file, the group, the action and the key,
       and says that the key is a key of svcview, and gives no settings. The keys of svcview are each one-character key
       that `Screen.press` handles (`?`, `h`, `j`, `k`, `l`, `o`, `q`, `r`, `s` and `x` in `screen.go:184-245`), and
       `/`.
-- [ ] Two actions of one group with the same key give an error that names the file, the group, the second action and
+- [x] Two actions of one group with the same key give an error that names the file, the group, the second action and
       the key, and gives the line of the first action, and no settings.
-- [ ] An action whose key is a key of svcview in upper case, for example `L`, `S` or `X`, and two groups that each
+- [x] An action whose key is a key of svcview in upper case, for example `L`, `S` or `X`, and two groups that each
       have an action with the key `L`, give their actions with no error.
-- [ ] An e2e test starts svcview with a `config.yaml` whose action has the key `s`, and with one whose group has two
+- [x] An e2e test starts svcview with a `config.yaml` whose action has the key `s`, and with one whose group has two
       actions with the key `L`. Each stops svcview with the exit code 1 before the screen opens, with an error that
       names the file and the group.
 
