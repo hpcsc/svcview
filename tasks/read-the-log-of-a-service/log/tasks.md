@@ -154,13 +154,13 @@ lists `o` with "show the log of the selected service", on the line after `r`, wi
 task changes only the text of the help; Task 2 gives `o` its action.
 
 **Acceptance Criteria:**
-- [ ] The help line shows `s start · x stop · r restart · o log · ? help` under the panes and under the help, cut at
+- [x] The help line shows `s start · x stop · r restart · o log · ? help` under the panes and under the help, cut at
       the width of the terminal as before.
-- [ ] `?` shows `o` with its action on the line after `r`, and each other key with its action as before. The golden
+- [x] `?` shows `o` with its action on the line after `r`, and each other key with its action as before. The golden
       file of the help shows all of its lines, in a terminal that is high enough for them.
-- [ ] Each golden file in `internal/tui/testdata` shows the new help line, and no other line of them changes, except
+- [x] Each golden file in `internal/tui/testdata` shows the new help line, and no other line of them changes, except
       the help in `keys.golden`.
-- [ ] The tests that hold the text of the help line hold the new text, and the test of the cut at 12 columns keeps
+- [x] The tests that hold the text of the help line hold the new text, and the test of the cut at 12 columns keeps
       its text.
 
 **Affected Files/Modules:**

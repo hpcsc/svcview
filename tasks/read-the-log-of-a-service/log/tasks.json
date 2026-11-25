@@ -5,7 +5,7 @@
   "tasks": [
     {
       "n": 1,
-      "done": false,
+      "done": true,
       "title": "Show o log in the help line and in the help",
       "language": "Go",
       "testable": true,

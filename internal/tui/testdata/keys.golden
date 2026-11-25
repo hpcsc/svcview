@@ -9,8 +9,9 @@
 │ s         start the selected service                                         │
 │ x         stop the selected service, after a confirmation                    │
 │ r         restart the selected service, after a confirmation                 │
+│ o         show the log of the selected service                               │
 │ ?         show or hide this help                                             │
 │ esc       hide this help                                                     │
 │ q ctrl+c  quit                                                               │
 ╰──────────────────────────────────────────────────────────────────────────────╯
- s start · x stop · r restart · ? help
+ s start · x stop · r restart · o log · ? help

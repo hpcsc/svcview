@@ -16,4 +16,4 @@
 [34m│[m                              [34m│[m[2m│[m 09:04 ● step review                          [2m│[m
 [34m│[m                              [34m│[m[2m│[m 09:00 [33m●[m claimed ENG-692                      [2m│[m
 [34m╰──────────────────────────────╯[m[2m╰──────────────────────────────────────────────╯[m
- s start · x stop · r restart · ? help
+ s start · x stop · r restart · o log · ? help
