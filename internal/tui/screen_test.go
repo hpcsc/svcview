@@ -3163,7 +3163,7 @@ func TestScreen(t *testing.T) {
 
 	t.Run("message line", func(t *testing.T) {
 		listBottom := "╰" + strings.Repeat("─", 30) + "╯╰" + strings.Repeat("─", 46) + "╯"
-		helpLine := " s start · x stop · r restart · o log · ? help"
+		helpLine := " s start · x stop · r restart · o log · / filter · a all · ? help"
 
 		t.Run("when the start gives an error, the line above the help line shows its text, and the panes end one line higher", func(t *testing.T) {
 			screen := openStarting(t, servicesNamed("com.example.a"), failingWith("Bootstrap failed: 5: Input/output error"))
@@ -3295,7 +3295,7 @@ func TestScreen(t *testing.T) {
 		loaded := service.Service{Name: "com.example.b", State: service.Loaded, PlistPath: "/Users/me/Library/LaunchAgents/com.example.b.plist"}
 		running := service.Service{Name: "com.example.c", State: service.Running, PID: 4122, PlistPath: "/Users/me/Library/LaunchAgents/com.example.c.plist"}
 		listBottom := "╰" + strings.Repeat("─", 30) + "╯╰" + strings.Repeat("─", 46) + "╯"
-		helpLine := " s start · x stop · r restart · o log · ? help"
+		helpLine := " s start · x stop · r restart · o log · / filter · a all · ? help"
 
 		t.Run("x on a loaded service and on a running service shows the confirmation with the full name of the service on the message line, and calls nothing yet", func(t *testing.T) {
 			stops := &serviceCalls{}
@@ -3490,7 +3490,7 @@ func TestScreen(t *testing.T) {
 		loaded := service.Service{Name: "com.example.b", State: service.Loaded, PlistPath: "/Users/me/Library/LaunchAgents/com.example.b.plist"}
 		running := service.Service{Name: "com.example.c", State: service.Running, PID: 4122, PlistPath: "/Users/me/Library/LaunchAgents/com.example.c.plist"}
 		listBottom := "╰" + strings.Repeat("─", 30) + "╯╰" + strings.Repeat("─", 46) + "╯"
-		helpLine := " s start · x stop · r restart · o log · ? help"
+		helpLine := " s start · x stop · r restart · o log · / filter · a all · ? help"
 
 		t.Run("r on a loaded service and on a running service shows the confirmation with the full name of the service on the message line, and calls nothing yet", func(t *testing.T) {
 			stops, restarts := &serviceCalls{}, &serviceCalls{}
@@ -3712,7 +3712,7 @@ func TestScreen(t *testing.T) {
 		loaded := service.Service{Name: "com.example.b", State: service.Loaded, StdoutPath: "/Users/me/Library/Logs/b.out.log"}
 		running := service.Service{Name: "com.example.c", State: service.Running, PID: 4122, StdoutPath: "/Users/me/Library/Logs/c.out.log"}
 		listBottom := "╰" + strings.Repeat("─", 30) + "╯╰" + strings.Repeat("─", 46) + "╯"
-		helpLine := " s start · x stop · r restart · o log · ? help"
+		helpLine := " s start · x stop · r restart · o log · / filter · a all · ? help"
 
 		t.Run("o on a not loaded, a loaded and a running service gives the terminal to less +F with the StandardOutPath of the service", func(t *testing.T) {
 			for _, svc := range []service.Service{notLoaded, loaded, running} {
@@ -3904,11 +3904,11 @@ func TestScreen(t *testing.T) {
 	})
 
 	t.Run("show the actions of a group", func(t *testing.T) {
-		baseHelpLine := " s start · x stop · r restart · o log · ? help"
-		workersHelpLine := " s start · x stop · r restart · o log · L worker log · E worker errors · ? help"
+		baseHelpLine := " s start · x stop · r restart · o log · / filter · a all · ? help"
+		workersHelpLine := " s start · x stop · r restart · o log · L worker log · E worker errors · / filter · a all · ? help"
 		services := servicesNamed("com.example.worker.01", "com.example.job.a", "homebrew.mxcl.redis", "com.apple.a")
 
-		t.Run("with a service of a group with actions selected, the help line under the panes and under the help shows the key and the name of each action after o log and before ? help, in the order of the file", func(t *testing.T) {
+		t.Run("with a service of a group with actions selected, the help line under the panes and under the help shows the key and the name of each action after o log and before / filter, in the order of the file", func(t *testing.T) {
 			screen := openWith(t, groupsWithActions(t), services, 100, 12)
 
 			require.Equal(t, workersHelpLine, bottomLines(screen, 1)[0])
@@ -3937,31 +3937,33 @@ func TestScreen(t *testing.T) {
 
 			require.Equal(t, []string{
 				workersHelpLine,
-				" s start · x stop · r restart · o log · B job backlog · ? help",
+				" s start · x stop · r restart · o log · B job backlog · / filter · a all · ? help",
 				baseHelpLine,
 				baseHelpLine,
 			}, helpLines)
 			require.Equal(t, workersHelpLine, bottomLines(screen, 1)[0])
 		})
 
-		t.Run("the help line shows no action with no rows, and while the list shows a read error after a read that selected a service of a group with actions", func(t *testing.T) {
+		t.Run("the help line shows no action, and still / filter and a all, with no rows, before the first read ends, and while the list shows a read error after a read that selected a service of a group with actions", func(t *testing.T) {
 			failing := func() ([]service.Service, error) {
 				return []service.Service{{Name: "com.example.worker.01"}}, errors.New("launchctl list: exit status 3")
 			}
 			noRows := openWith(t, groupsWithActions(t), servicesNamed(), 100, 12)
+			var beforeRead tea.Model = tui.NewScreen("gui/501", servicesNamed("com.example.worker.01"), nil, false, nil, nil, nil, nil, groupsWithActions(t))
+			beforeRead, _ = beforeRead.Update(tea.WindowSizeMsg{Width: 100, Height: 12})
 			selected := openWith(t, groupsWithActions(t), readsInTurn(servicesNamed("com.example.worker.01"), failing), 100, 12)
 			readError := readNow(selected)
 
 			require.Equal(t, workersHelpLine, bottomLines(selected, 1)[0])
-			require.Equal(t, []string{baseHelpLine, baseHelpLine}, []string{bottomLines(noRows, 1)[0], bottomLines(readError, 1)[0]})
+			require.Equal(t, []string{baseHelpLine, baseHelpLine, baseHelpLine}, []string{bottomLines(noRows, 1)[0], bottomLines(beforeRead, 1)[0], bottomLines(readError, 1)[0]})
 		})
 
-		t.Run("the help line with actions shows whole at the exact fit of the width, and one cell less cuts its last cell", func(t *testing.T) {
+		t.Run("the help line with one action has 80 columns: it shows whole in a terminal of 80 columns, and 79 columns cut its last cell", func(t *testing.T) {
 			settings := groups(t, "Workers", `^com\.example\.worker\.`)
 			settings.Groups[0].Actions = []config.Action{newAction(t, "L", "worker log", "less")}
-			helpLine := " s start · x stop · r restart · o log · L worker log · ? help"
-			exactFit := openWith(t, settings, servicesNamed("com.example.worker.01"), 61, 12)
-			oneLess := openWith(t, settings, servicesNamed("com.example.worker.01"), 60, 12)
+			helpLine := " s start · x stop · r restart · o log · L worker log · / filter · a all · ? help"
+			exactFit := openWith(t, settings, servicesNamed("com.example.worker.01"), 80, 12)
+			oneLess := openWith(t, settings, servicesNamed("com.example.worker.01"), 79, 12)
 
 			require.Equal(t, []string{helpLine, strings.TrimSuffix(helpLine, "p")}, []string{bottomLines(exactFit, 1)[0], bottomLines(oneLess, 1)[0]})
 		})
@@ -3990,7 +3992,7 @@ func TestScreen(t *testing.T) {
 			screen := openWith(t, settings, servicesNamed("com.example.worker.01"), 100, 19)
 			help := pressKeys(screen, question)
 
-			require.Equal(t, " s start · x stop · r restart · o log · L worker�[2Jlog · ? help", bottomLines(screen, 1)[0])
+			require.Equal(t, " s start · x stop · r restart · o log · L worker�[2Jlog · / filter · a all · ? help", bottomLines(screen, 1)[0])
 			require.Contains(t, ansi.Strip(help.View().Content), "│ L         worker�[2Jlog ")
 			require.NotContains(t, screen.View().Content, "\x1b[2J")
 			require.NotContains(t, help.View().Content, "\x1b[2J")
@@ -4000,7 +4002,7 @@ func TestScreen(t *testing.T) {
 	t.Run("run the action of a group", func(t *testing.T) {
 		keyUpperL := tea.KeyPressMsg{Code: 'L', Text: "L"}
 		listBottom := "╰" + strings.Repeat("─", 30) + "╯╰" + strings.Repeat("─", 46) + "╯"
-		helpLine := " s start · x stop · r restart · o log · L worker log · ? help"
+		helpLine := " s start · x stop · r restart · o log · L worker log · / filter · a all · ? help"
 		workerLog := func(t *testing.T) config.Settings {
 			t.Helper()
 			settings := groups(t, "Workers", `^com\.example\.worker\.`, "Databases", "redis")
@@ -4233,7 +4235,7 @@ func TestScreen(t *testing.T) {
 	t.Run("confirm the action of a group", func(t *testing.T) {
 		keyUpperL := tea.KeyPressMsg{Code: 'L', Text: "L"}
 		listBottom := "╰" + strings.Repeat("─", 30) + "╯╰" + strings.Repeat("─", 46) + "╯"
-		helpLine := " s start · x stop · r restart · o log · L worker log · E worker errors · ? help"
+		helpLine := " s start · x stop · r restart · o log · L worker log · E worker errors · / filte"
 		confirmed := func(t *testing.T) config.Settings {
 			t.Helper()
 			settings := groups(t, "Workers", `^com\.example\.worker\.`)
@@ -4422,13 +4424,13 @@ func TestScreen(t *testing.T) {
 			require.NoError(t, runWithInput(t, tui.NewScreen("gui/501", servicesNamed("com.example.worker"), nil, false, nil, nil, nil, nil, refreshEvery2s), "?q"))
 		})
 
-		t.Run("the help line at the bottom of the screen shows s start, x stop, r restart, o log and ? help, under the panes and under the help", func(t *testing.T) {
+		t.Run("the help line at the bottom of the screen shows s start, x stop, r restart, o log, / filter, a all and ? help, under the panes and under the help", func(t *testing.T) {
 			screen := open(t, "gui/501", servicesNamed("com.example.worker"), 80, 12)
 			panes := strings.Split(ansi.Strip(screen.View().Content), "\n")
 			help := strings.Split(ansi.Strip(pressKeys(screen, question).View().Content), "\n")
 
-			require.Equal(t, []string{"╰" + strings.Repeat("─", 30) + "╯╰" + strings.Repeat("─", 46) + "╯", " s start · x stop · r restart · o log · ? help"}, panes[10:])
-			require.Equal(t, []string{"╰" + strings.Repeat("─", 78) + "╯", " s start · x stop · r restart · o log · ? help"}, help[10:])
+			require.Equal(t, []string{"╰" + strings.Repeat("─", 30) + "╯╰" + strings.Repeat("─", 46) + "╯", " s start · x stop · r restart · o log · / filter · a all · ? help"}, panes[10:])
+			require.Equal(t, []string{"╰" + strings.Repeat("─", 78) + "╯", " s start · x stop · r restart · o log · / filter · a all · ? help"}, help[10:])
 		})
 
 		t.Run("the help line is cut at the width of the terminal", func(t *testing.T) {
@@ -4555,7 +4557,7 @@ func TestScreen(t *testing.T) {
 			closed := pressKeys(opened, escape)
 
 			require.Equal(t, openFilterHelpLine, bottomLines(opened, 1)[0])
-			require.Equal(t, " s start · x stop · r restart · o log · L worker log · E worker errors · ? help", bottomLines(closed, 1)[0])
+			require.Equal(t, " s start · x stop · r restart · o log · L worker log · E worker errors · / filter · a all · ? help", bottomLines(closed, 1)[0])
 		})
 
 		t.Run("/ moves the focus to the list", func(t *testing.T) {
@@ -4595,7 +4597,7 @@ func TestScreen(t *testing.T) {
 			afterError := bottomLines(screen, 4)
 			screen = pressKeys(screen, keyX)
 
-			require.Equal(t, []string{" com.example.a failed", " s start · x stop · r restart · o log · ? help"}, withMessage)
+			require.Equal(t, []string{" com.example.a failed", " s start · x stop · r restart · o log · / filter · a all · ? help"}, withMessage)
 			require.Equal(t, []string{listBottom, " / ", openFilterHelpLine}, afterSlash)
 			require.Equal(t, []string{listBottom, " / ", " com.example.b failed", openFilterHelpLine}, afterError)
 			require.Equal(t, []string{listBottom, " /x ", openFilterHelpLine}, bottomLines(screen, 3))
@@ -4899,7 +4901,7 @@ func TestScreen(t *testing.T) {
 
 			screen = pressKeys(screen, append(append([]tea.KeyPressMsg{slash}, typing("job")...), enter)...)
 
-			require.Equal(t, " s start · x stop · r restart · o log · B job backlog · ? help", bottomLines(screen, 1)[0])
+			require.Equal(t, " s start · x stop · r restart · o log · B job backlog · / filter · a all · ? help", bottomLines(screen, 1)[0])
 		})
 
 		t.Run("after enter, s, x with y and r with y act on the selected service that the list shows, and not on the service that was selected before / and that the filter hides", func(t *testing.T) {
@@ -4960,7 +4962,7 @@ func TestScreen(t *testing.T) {
 
 			help := pressKeys(screen, question)
 
-			require.Equal(t, " s start · x stop · r restart · o log · ? help", bottomLines(screen, 1)[0])
+			require.Equal(t, " s start · x stop · r restart · o log · / filter · a all · ? help", bottomLines(screen, 1)[0])
 			require.Contains(t, help.View().Content, "show the log of the selected service")
 			require.NotContains(t, help.View().Content, "worker log")
 		})
@@ -4984,7 +4986,7 @@ func TestScreen(t *testing.T) {
 
 			require.Equal(t, []string{"Other", "▌○ com.example.b-x", "", "", ""}, listRows(kept))
 			require.Equal(t, []string{"Other", "○ com.example.a", "▌○ com.example.b-x", "○ com.example.c", "", ""}, listRows(cleared))
-			require.Equal(t, []string{listBottom, " s start · x stop · r restart · o log · ? help"}, bottomLines(cleared, 2))
+			require.Equal(t, []string{listBottom, " s start · x stop · r restart · o log · / filter · a all · ? help"}, bottomLines(cleared, 2))
 		})
 
 		t.Run("while the help shows over a kept filter, esc hides the help and keeps the filter, and the next esc clears it", func(t *testing.T) {
@@ -5063,6 +5065,22 @@ func TestScreen(t *testing.T) {
 				append([]string{headerTop(withPlist)}, listRows(withPlist)...),
 				append([]string{headerTop(all)}, listRows(all)...),
 			})
+		})
+
+		t.Run("on a screen that starts with the services with a plist, a and the next read show · all in the header, and the help line stays the line it showed before a", func(t *testing.T) {
+			screen := openWithReads(t, refreshEvery2s, servicesNamed("com.example.worker"), servicesNamed("com.apple.a", "com.example.worker"), false, 80, 12)
+
+			all := readNow(pressKeys(screen, keyA))
+
+			require.Equal(t,
+				[][]string{
+					{"╭ svcview " + strings.Repeat("─", 60) + " gui/501 ╮", " s start · x stop · r restart · o log · / filter · a all · ? help"},
+					{"╭ svcview " + strings.Repeat("─", 54) + " gui/501 · all ╮", " s start · x stop · r restart · o log · / filter · a all · ? help"},
+				},
+				[][]string{
+					{headerTop(screen), bottomLines(screen, 1)[0]},
+					{headerTop(all), bottomLines(all, 1)[0]},
+				})
 		})
 
 		t.Run("after a and the next read, the selected service stays selected when the new rows show it, also when new rows come before it in its group and in a group before it", func(t *testing.T) {

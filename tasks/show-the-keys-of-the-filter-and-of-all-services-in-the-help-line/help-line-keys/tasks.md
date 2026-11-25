@@ -112,30 +112,30 @@ text stays `a all` while all services show. While the filter line is open, the h
 ` enter keep the filter · esc clear the filter`. svcview cuts the line at the right edge of the terminal, as before.
 
 **Acceptance Criteria:**
-- [ ] With a service of `Workers` of `groupsWithActions` selected, the help line is
+- [x] With a service of `Workers` of `groupsWithActions` selected, the help line is
       ` s start · x stop · r restart · o log · L worker log · E worker errors · / filter · a all · ? help` at 100
       columns. The line follows the selection: ` s start · x stop · r restart · o log · B job backlog · / filter · a all · ? help`
       on a service of `Jobs`, and the line with no action on a service of a group with no actions and of `Other`.
-- [ ] With no selected service, the help line is ` s start · x stop · r restart · o log · / filter · a all · ? help`:
+- [x] With no selected service, the help line is ` s start · x stop · r restart · o log · / filter · a all · ? help`:
       with no rows, while the list shows a read error after a read that selected a service of a group with actions,
       with a kept filter that the name of no service contains, and before the first read ends.
-- [ ] On a screen that starts with all services, the header shows `gui/501 · all` and the help line is
+- [x] On a screen that starts with all services, the header shows `gui/501 · all` and the help line is
       ` s start · x stop · r restart · o log · / filter · a all · ? help`. On a screen that starts with the services
       with a plist, `a` and the next read show the mark, and the help line is the same line as before `a`.
-- [ ] While the filter line is open, the help line is ` enter keep the filter · esc clear the filter`, also with a
+- [x] While the filter line is open, the help line is ` enter keep the filter · esc clear the filter`, also with a
       service of a group with actions selected. After `enter` with a kept filter, and after `esc`, the help line of the
       selected service shows again, with `/ filter` and `a all`.
-- [ ] Under the help that `?` shows, and under a confirmation of `x` or `r`, the help line shows the same keys as under
+- [x] Under the help that `?` shows, and under a confirmation of `x` or `r`, the help line shows the same keys as under
       the panes, with `/ filter` and `a all`.
-- [ ] The help line with the one action `L worker log` has 80 columns: it shows whole in a terminal of 80 columns, and
+- [x] The help line with the one action `L worker log` has 80 columns: it shows whole in a terminal of 80 columns, and
       a terminal of 79 columns cuts its last cell, so `? help` loses its end first. In a terminal of 12 columns, the
       help line is still ` s start · x`.
-- [ ] Each golden file in `internal/tui/testdata` that ends with the help line under the panes or under the help shows
+- [x] Each golden file in `internal/tui/testdata` that ends with the help line under the panes or under the help shows
       the new line in its last line and changes in no other line. `keys-with-actions.golden` shows the line with two
       actions cut at 80 columns. The golden files of the open filter line do not change.
-- [ ] Each other test in `internal/tui/screen_test.go` that names a help line expects the new line, cut at the width of
+- [x] Each other test in `internal/tui/screen_test.go` that names a help line expects the new line, cut at the width of
       its terminal when the line is wider.
-- [ ] e2e: on a worker of a group with the action `L worker log`, the help line contains
+- [x] e2e: on a worker of a group with the action `L worker log`, the help line contains
       `o log · L worker log · / filter · a all · ? help`. After `↓` selects a service of `Other`, it contains
       `o log · / filter · a all · ? help` and no `worker log`.
 

@@ -9,4 +9,4 @@
 [2m│[m                              [2m│[m[34m│[m Events                                       [34m│[m
 [2m│[m                              [2m│[m[34m│[m 09:00 ● event 01                             [34m│[m
 [2m╰──────────────────────────────╯[m[34m╰──────────────────────────────────────────────╯[m
- s start · x stop · r restart · o log · ? help
+ s start · x stop · r restart · o log · / filter · a all · ? help

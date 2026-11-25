@@ -5,7 +5,7 @@
   "tasks": [
     {
       "n": 1,
-      "done": false,
+      "done": true,
       "title": "Show / filter and a all on the help line before ? help",
       "language": "Go",
       "testable": true,

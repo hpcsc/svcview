@@ -620,7 +620,7 @@ func (s Screen) helpLine() string {
 	for _, action := range s.selectedActions() {
 		keys = append(keys, terminal.ReplaceControlCharacters(action.Key+" "+action.Name))
 	}
-	return " " + strings.Join(append(keys, "? help"), " · ")
+	return " " + strings.Join(append(keys, "/ filter", "a all", "? help"), " · ")
 }
 
 func (s Screen) helpText() []string {

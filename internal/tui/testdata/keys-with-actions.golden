@@ -20,4 +20,4 @@
 │ esc       hide this help, or clear the filter                                │
 │ q ctrl+c  quit                                                               │
 ╰──────────────────────────────────────────────────────────────────────────────╯
- s start · x stop · r restart · o log · L worker log · E worker errors · ? help
+ s start · x stop · r restart · o log · L worker log · E worker errors · / filte

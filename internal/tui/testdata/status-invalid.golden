@@ -10,4 +10,4 @@
 [34m│[m                              [34m│[m[2m│[m "version": 2                                 [2m│[m
 [34m│[m                              [34m│[m[2m│[m }                                            [2m│[m
 [34m╰──────────────────────────────╯[m[2m╰──────────────────────────────────────────────╯[m
- s start · x stop · r restart · o log · ? help
+ s start · x stop · r restart · o log · / filter · a all · ? help

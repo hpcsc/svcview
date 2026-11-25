@@ -18,4 +18,4 @@
 │ esc       hide this help, or clear the filter                                │
 │ q ctrl+c  quit                                                               │
 ╰──────────────────────────────────────────────────────────────────────────────╯
- s start · x stop · r restart · o log · ? help
+ s start · x stop · r restart · o log · / filter · a all · ? help
