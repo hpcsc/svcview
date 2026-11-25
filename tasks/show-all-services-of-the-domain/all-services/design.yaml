@@ -1,0 +1,26 @@
+design: planned
+types:
+  - name: Domain
+    package: internal/launchd
+    change: changed
+    does: the gui domain of the user, as launchctl knows it
+    owns:
+      - AllServices gives one service for each name that launchctl list prints, also for a name that no plist in ~/Library/LaunchAgents has, and one not loaded service for each plist whose name launchctl list does not print
+      - a service with no plist has the state, the PID, the last exit and the uptime that launchctl list and ps give, and no environment, no log paths and no plist path
+      - a service with a plist has the same values from AllServices as from Services
+      - AllServices runs launchctl list one time, and ps at most one time with the PID of each running service, also of each service with no plist
+      - AllServices gives the error of launchctl list and the error of a LaunchAgents folder that cannot be read, with no services, as Services does; a home with no LaunchAgents folder gives the services of launchctl list
+      - Services gives only the services that have a plist in ~/Library/LaunchAgents
+      - callers must not call Services or AllServices from two goroutines at the same time, because both read the plists through the one plist folder that keeps what it read
+    fields: [uid, plists]
+    methods: [Services, AllServices, String, Start, Stop, Restart]
+functions:
+  - launchd.Domain.AllServices() ([]service.Service, error)
+words:
+  - concept: each service that launchctl list prints in the domain gui/<uid> of the user, also the services of macOS, with each service that has a plist in ~/Library/LaunchAgents
+    word: all
+    not: [system, global, every, full, everything, unfiltered]
+  - concept: a service that launchctl list prints and that no plist in ~/Library/LaunchAgents names; svcview cannot tell whether macOS or another program owns it
+    word: service with no plist
+    not: [system service, macOS service, orphan, unmanaged, external, foreign, unowned]
+dependencies: []

@@ -1,0 +1,79 @@
+{
+  "story": "svcview --all lists each service of the domain",
+  "story_id": "launchd-tui/US-013",
+  "tasks_file": "tasks/show-all-services-of-the-domain/all-services/tasks.md",
+  "design_file": "tasks/show-all-services-of-the-domain/all-services/design.yaml",
+  "tasks": [
+    {
+      "n": 1,
+      "done": false,
+      "title": "Read each service of the domain, also each service with no plist",
+      "language": "Go",
+      "testable": true,
+      "certainty": "high",
+      "blast_radius": "low",
+      "patterns_to_follow": [
+        "internal/launchd/domain.go:21-48",
+        "internal/launchd/launchctl_list.go:20-22",
+        "internal/launchd/launchctl_list.go:74-79",
+        "internal/launchd/domain_test.go:317-336",
+        "internal/launchd/domain_test.go:338-362",
+        "internal/launchd/domain_test.go:446-465",
+        "internal/launchd/domain_test.go:489-533"
+      ],
+      "depends_on": [],
+      "affected_files": [
+        "internal/launchd/domain.go",
+        "internal/launchd/domain_test.go",
+        "internal/launchd/launchctl_list.go",
+        "internal/launchd/testdata/"
+      ]
+    },
+    {
+      "n": 2,
+      "done": false,
+      "title": "Show each service of the domain on the screen with svcview --all",
+      "language": "Go",
+      "testable": true,
+      "certainty": "high",
+      "blast_radius": "high",
+      "patterns_to_follow": [
+        "internal/cli/update.go:24-28",
+        "internal/cli/update.go:52",
+        "internal/cli/root.go:39-80",
+        "internal/cli/root_test.go:23-56",
+        "e2e/tests/screen.test.ts:119-139",
+        "e2e/tests/screen.test.ts:221-240",
+        "e2e/tests/config.test.ts:140-150",
+        "e2e/tests/status.test.ts:78-86",
+        "e2e/tests/actions.test.ts:103-118",
+        "e2e/tests/log.test.ts:66-80"
+      ],
+      "depends_on": [1],
+      "affected_files": [
+        "internal/cli/root.go",
+        "internal/cli/root_test.go",
+        "e2e/tests/all-services.test.ts"
+      ]
+    },
+    {
+      "n": 3,
+      "done": false,
+      "title": "Describe --all in docs/cli.md and the README",
+      "language": "Markdown",
+      "testable": false,
+      "certainty": "high",
+      "blast_radius": "low",
+      "patterns_to_follow": [
+        "docs/cli.md:35-80",
+        "docs/cli.md:243-300",
+        "docs/cli.md:533-565"
+      ],
+      "depends_on": [2],
+      "affected_files": [
+        "docs/cli.md",
+        "README.md"
+      ]
+    }
+  ]
+}
