@@ -44,6 +44,22 @@ describe('svcview --all', () => {
     expect(screen).toContain('● 1 running   ◐ 0 loaded   ○ 1 not loaded')
   })
 
+  it('shows · all after the domain in the header', async () => {
+    const session = await openCli(scratchDir(), ['--all'], { HOME: homeWithServicesWithAndWithoutPlist() })
+
+    await session.waitForText('com.example.worker')
+    expect(await session.text()).toContain(`gui/${process.getuid?.()} · all`)
+  })
+
+  it('with no flag, on the same plists and the same launchctl list, shows the domain with no · all in the header', async () => {
+    const session = await openCli(scratchDir(), [], { HOME: homeWithServicesWithAndWithoutPlist() })
+
+    await session.waitForText('com.example.worker')
+    const screen = await session.text()
+    expect(screen).toContain(`gui/${process.getuid?.()}`)
+    expect(screen).not.toContain('· all')
+  })
+
   it('shows the state, the PID, the uptime and the last exit of a running service with no plist in the detail pane', async () => {
     const home = homeWithPlists([])
     setLaunchctlList(home, [{ name: 'com.apple.a', pid: 4123, status: -9 }])

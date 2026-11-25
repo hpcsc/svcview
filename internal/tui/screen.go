@@ -33,6 +33,7 @@ type refresh struct{}
 type servicesRead struct {
 	rows []row
 	err  error
+	all  bool
 }
 
 type runEnded struct {
@@ -97,7 +98,9 @@ func (p pane) other() pane {
 
 type Screen struct {
 	domain                string
-	read                  func() ([]service.Service, error)
+	readWithPlist         func() ([]service.Service, error)
+	readAll               func() ([]service.Service, error)
+	all                   bool
 	runStatus             func(status.Command, service.Service) status.Result
 	start                 func(service.Service) error
 	stop                  func(service.Service) error
@@ -122,10 +125,12 @@ type Screen struct {
 	height                int
 }
 
-func NewScreen(domain string, read func() ([]service.Service, error), runStatus func(status.Command, service.Service) status.Result, start, stop, restart func(service.Service) error, settings config.Settings) Screen {
+func NewScreen(domain string, readWithPlist, readAll func() ([]service.Service, error), all bool, runStatus func(status.Command, service.Service) status.Result, start, stop, restart func(service.Service) error, settings config.Settings) Screen {
 	return Screen{
 		domain:                domain,
-		read:                  read,
+		readWithPlist:         readWithPlist,
+		readAll:               readAll,
+		all:                   all,
 		runStatus:             runStatus,
 		start:                 start,
 		stop:                  stop,
@@ -323,13 +328,17 @@ func (s Screen) View() tea.View {
 }
 
 func (s Screen) readServices() tea.Msg {
-	services, err := s.read()
+	read := s.readWithPlist
+	if s.all {
+		read = s.readAll
+	}
+	services, err := read()
 	rows := make([]row, 0, len(services))
 	for _, svc := range services {
 		rows = append(rows, s.rowOf(svc))
 	}
 	slices.SortFunc(rows, row.compare)
-	return servicesRead{rows: rows, err: err}
+	return servicesRead{rows: rows, err: err, all: s.all}
 }
 
 func (s Screen) startStatusRuns() tea.Cmd {
@@ -512,7 +521,7 @@ func (s Screen) content() string {
 	if s.width == 0 {
 		return ""
 	}
-	header := box{title: "svcview", right: s.domain, width: s.width, height: headerHeight, text: s.headerText()}
+	header := box{title: "svcview", right: s.headerRight(), width: s.width, height: headerHeight, text: s.headerText()}
 	lines := header.render()
 	if s.showHelp {
 		help := box{title: "Help", width: s.width, height: s.paneHeight(), text: s.helpText()}
@@ -607,6 +616,13 @@ func (s Screen) helpText() []string {
 		"esc       hide this help, or clear the filter",
 		"q ctrl+c  quit",
 	)
+}
+
+func (s Screen) headerRight() string {
+	if s.lastRead.all {
+		return s.domain + " · all"
+	}
+	return s.domain
 }
 
 func (s Screen) headerText() []string {

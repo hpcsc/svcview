@@ -5,7 +5,7 @@
   "tasks": [
     {
       "n": 1,
-      "done": false,
+      "done": true,
       "title": "Show all after the domain while the screen shows all services",
       "language": "Go",
       "testable": true,

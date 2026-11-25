@@ -139,22 +139,22 @@ the services with a plist. The screen calls only the read that it asks for. Whil
 read of all services, the header shows `· all` after the domain, for example `gui/501 · all`. No key changes.
 
 **Acceptance Criteria:**
-- [ ] A screen that starts with all services calls only the read of all services, at start and at each refresh, and
+- [x] A screen that starts with all services calls only the read of all services, at start and at each refresh, and
       shows its rows. A screen that starts with the services with a plist calls only the read of the services with a
       plist, as before. The test records the calls of each read.
-- [ ] While the rows on the screen come from a read of all services, the top border of the header shows
+- [x] While the rows on the screen come from a read of all services, the top border of the header shows
       `gui/501 · all` at its right, where it shows `gui/501` with the services with a plist. A new golden file shows
       the header with the mark and the counts of a read of all services.
-- [ ] With the services with a plist, the header shows the domain alone, and each golden file in
+- [x] With the services with a plist, the header shows the domain alone, and each golden file in
       `internal/tui/testdata` stays as it is.
-- [ ] Before the first read ends, the header shows the domain alone, also on a screen that starts with all services.
-- [ ] A read of all services that gives an error shows the error in the list, no counts, and the mark in the header.
-- [ ] With the mark, svcview cuts `svcview` with `…` first and cuts neither the domain nor `all`: the top border of
+- [x] Before the first read ends, the header shows the domain alone, also on a screen that starts with all services.
+- [x] A read of all services that gives an error shows the error in the list, no counts, and the mark in the header.
+- [x] With the mark, svcview cuts `svcview` with `…` first and cuts neither the domain nor `all`: the top border of
       the header is as wide as the terminal at each width from 19 to 30 columns, and at 25 columns it is
       `╭ svcvi…  gui/501 · all ╮`.
-- [ ] `showScreen` gives the screen `Domain.Services`, `Domain.AllServices`, and whether `--all` is set, in place of
+- [x] `showScreen` gives the screen `Domain.Services`, `Domain.AllServices`, and whether `--all` is set, in place of
       one read. `svcview status` does not change.
-- [ ] e2e: `svcview --all` shows `gui/<uid> · all` in the header. `svcview` with no flag, on the same plists and the
+- [x] e2e: `svcview --all` shows `gui/<uid> · all` in the header. `svcview` with no flag, on the same plists and the
       same launchctl list, shows `gui/<uid>` and no `· all`. The other tests of `e2e/tests/all-services.test.ts` pass
       as they are.
 

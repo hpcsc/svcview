@@ -71,15 +71,11 @@ func showScreen(ctx context.Context, cmd *cli.Command) error {
 	if err != nil {
 		return err
 	}
-	read := domain.Services
-	if cmd.Bool("all") {
-		read = domain.AllServices
-	}
 	runs := newStatusRuns(ctx)
 	start := func(svc service.Service) error { return domain.Start(ctx, svc) }
 	stop := func(svc service.Service) error { return domain.Stop(ctx, svc) }
 	restart := func(svc service.Service) error { return domain.Restart(ctx, svc) }
-	screen := tui.NewScreen(domain.String(), read, runs.run, start, stop, restart, settings)
+	screen := tui.NewScreen(domain.String(), domain.Services, domain.AllServices, cmd.Bool("all"), runs.run, start, stop, restart, settings)
 	interrupts := make(chan os.Signal, 1)
 	// Bubble Tea stops its SIGINT handler when ctx ends, and less can still have the terminal then.
 	signal.Notify(interrupts, os.Interrupt)
