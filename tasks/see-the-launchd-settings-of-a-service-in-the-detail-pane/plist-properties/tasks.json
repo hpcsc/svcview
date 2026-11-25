@@ -1,0 +1,165 @@
+{
+  "story": "The detail pane shows the properties of the plist of a service",
+  "story_id": "launchd-tui/US-019",
+  "tasks_file": "tasks/see-the-launchd-settings-of-a-service-in-the-detail-pane/plist-properties/tasks.md",
+  "tasks": [
+    {
+      "n": 1,
+      "done": false,
+      "title": "Read the program, the work folder, the log paths and the names of the environment as properties of a service",
+      "language": "Go",
+      "testable": true,
+      "certainty": "medium",
+      "blast_radius": "high",
+      "patterns_to_follow": [
+        "internal/launchd/plist.go:10-45",
+        "internal/launchd/plist.go:47-52",
+        "internal/launchd/domain.go:84-92",
+        "internal/service/service.go:35-50",
+        "internal/launchd/domain_test.go:23-46",
+        "internal/launchd/domain_test.go:175-188",
+        "internal/launchd/domain_test.go:216-265",
+        "internal/launchd/domain_test.go:664-679",
+        "internal/launchd/domain_test.go:873-891"
+      ],
+      "depends_on": [],
+      "affected_files": [
+        "internal/service/service.go",
+        "internal/launchd/plist.go",
+        "internal/launchd/domain.go",
+        "internal/launchd/domain_test.go",
+        "internal/launchd/testdata/"
+      ]
+    },
+    {
+      "n": 2,
+      "done": false,
+      "title": "Show the plist path and the properties of a service in the detail pane",
+      "language": "Go",
+      "testable": true,
+      "certainty": "medium",
+      "blast_radius": "high",
+      "patterns_to_follow": [
+        "internal/tui/screen.go:775-809",
+        "internal/tui/screen.go:811-838",
+        "internal/tui/screen.go:848-850",
+        "internal/tui/screen_test.go:154-165",
+        "internal/tui/screen_test.go:489-499",
+        "internal/tui/screen_test.go:1580-1586",
+        "internal/tui/screen_test.go:1774-1799",
+        "internal/tui/screen_test.go:1854-1870",
+        "internal/tui/screen_test.go:2117-2158",
+        "internal/tui/screen_test.go:2750-2765",
+        "internal/tui/screen_test.go:3300-3312",
+        "e2e/tests/status.test.ts:23-37",
+        "e2e/tests/all-services.test.ts:64-75",
+        "e2e/testUtils.ts:34-58",
+        "e2e/testUtils.ts:72-77",
+        "task:1"
+      ],
+      "depends_on": [1],
+      "affected_files": [
+        "internal/tui/screen.go",
+        "internal/tui/screen_test.go",
+        "internal/tui/testdata/",
+        "e2e/tests/plist.test.ts"
+      ]
+    },
+    {
+      "n": 3,
+      "done": false,
+      "title": "Continue a long part of a value on the next lines of the detail pane",
+      "language": "Go",
+      "testable": true,
+      "certainty": "medium",
+      "blast_radius": "low",
+      "patterns_to_follow": [
+        "internal/tui/screen.go:674-681",
+        "internal/tui/screen.go:593-607",
+        "internal/tui/screen.go:492-495",
+        "internal/tui/box.go:18-33",
+        "internal/tui/screen_test.go:938-949",
+        "internal/tui/screen_test.go:2992-3006",
+        "internal/tui/screen_test.go:3025-3033",
+        "task:2"
+      ],
+      "depends_on": [2],
+      "affected_files": [
+        "internal/tui/screen.go",
+        "internal/tui/screen_test.go",
+        "internal/tui/testdata/"
+      ]
+    },
+    {
+      "n": 4,
+      "done": false,
+      "title": "Show run at load and keep alive with each of its conditions",
+      "language": "Go",
+      "testable": true,
+      "certainty": "medium",
+      "blast_radius": "low",
+      "patterns_to_follow": [
+        "internal/launchd/plist.go:24-43",
+        "internal/launchd/domain_test.go:216-265",
+        "internal/launchd/domain_test.go:873-891",
+        "e2e/tests/screen.test.ts:119-139",
+        "task:1",
+        "task:2"
+      ],
+      "depends_on": [1, 2],
+      "affected_files": [
+        "internal/launchd/plist.go",
+        "internal/launchd/domain_test.go",
+        "internal/launchd/testdata/",
+        "e2e/tests/plist.test.ts"
+      ]
+    },
+    {
+      "n": 5,
+      "done": false,
+      "title": "Show the start interval, the start times, the watch paths and the throttle",
+      "language": "Go",
+      "testable": true,
+      "certainty": "medium",
+      "blast_radius": "low",
+      "patterns_to_follow": [
+        "internal/launchd/plist.go:24-43",
+        "internal/launchd/domain_test.go:175-188",
+        "internal/launchd/domain_test.go:248-265",
+        "task:1",
+        "task:4"
+      ],
+      "depends_on": [4],
+      "affected_files": [
+        "internal/launchd/plist.go",
+        "internal/launchd/domain_test.go",
+        "internal/launchd/testdata/"
+      ]
+    },
+    {
+      "n": 6,
+      "done": false,
+      "title": "Describe the properties of the plist in docs/cli.md",
+      "language": "Markdown",
+      "testable": false,
+      "certainty": "high",
+      "blast_radius": "low",
+      "patterns_to_follow": [
+        "docs/cli.md:79-91",
+        "docs/cli.md:93-102",
+        "docs/cli.md:127-135",
+        "docs/cli.md:278-284",
+        "docs/cli.md:953-956",
+        "docs/proposal-launchd-tui.md:152-182",
+        "task:2",
+        "task:4",
+        "task:5"
+      ],
+      "depends_on": [3, 5],
+      "affected_files": [
+        "docs/cli.md"
+      ]
+    }
+  ],
+  "design_file": "tasks/see-the-launchd-settings-of-a-service-in-the-detail-pane/plist-properties/design.yaml"
+}

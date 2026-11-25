@@ -1,0 +1,60 @@
+design: planned
+types:
+  - name: Property
+    package: internal/service
+    change: new
+    does: one property of the plist of a service as the detail pane shows it, a plain name with the texts of its value
+    owns:
+      - the name is the name of the plist property in plain words, such as keep alive for KeepAlive, so that a person finds the property in the plist
+      - a value with more than one part, such as the program with its arguments or the conditions of KeepAlive, has one text for each part, in the order of the plist, or sorted by name where the plist keeps no order
+      - a property never holds the value of a variable of EnvironmentVariables, only its name
+    fields: [Name, Values]
+  - name: Service
+    package: internal/service
+    change: changed
+    does: one launchd service of the user, as the packages other than internal/launchd see it
+    owns:
+      - Properties holds the properties of the plist that the detail pane shows, in the order that it shows them
+      - a service with no plist has no properties
+      - the properties are not template values - status.values does not read them, so a status command or an action cannot use them
+    fields: [Properties]
+  - name: plist
+    package: internal/launchd
+    change: changed
+    does: the part of one plist file that svcview reads, which it reads again only when the modification time of the file changes
+    owns:
+      - which plist properties give a Property, in the order program, work folder, run at load, keep alive, start every, start at, watch paths, throttle, stdout, stderr, environment
+      - program comes from ProgramArguments, or from Program when the plist has no ProgramArguments
+      - the text of each value, from an XML plist and from a binary plist alike - yes and no for a boolean, the seconds with s for an interval, a plain phrase for each condition of KeepAlive and a time for each entry of StartCalendarInterval
+      - a property that the plist does not have gives no Property; a value of a type that launchd does not take for the property is left out, and the other properties and parts keep theirs
+      - environment holds the names of EnvironmentVariables, sorted, and never a value
+    fields: [properties]
+  - name: Screen
+    package: internal/tui
+    change: changed
+    does: the Bubble Tea model of the screen of svcview
+    owns:
+      - the detail pane of a service with a plist path shows an empty line, Plist with the plist path, and each property of the service, after the last line of the status, or after the data from launchd when no line of the status shows; a service with no plist path shows none of these lines
+      - each name of a property starts a line in the first column, each part of its value starts a line of its own in the column of PID and last exit, and a name with no value shows alone
+      - a part of a value that is wider than the room after that column continues on the next lines in the same column, so each of its cells shows; the other lines of the detail pane keep the cut with …
+      - each control character in the plist path or in a value shows as �
+      - the screen shows the properties of a service and never reads its Env for the detail pane
+    methods: [detailText]
+functions: []
+words:
+  - concept: an entry of a plist with its value, for example KeepAlive; the word of the proposal for an entry in a plist, which the story calls a setting of the plist
+    word: property
+    not: [setting, option, attribute, field, key, entry]
+  - concept: the folder that launchd changes to before it runs the program, the WorkingDirectory of the plist
+    word: work folder
+    not: [directory, working directory, cwd, root]
+  - concept: one entry of the dictionary of KeepAlive, such as SuccessfulExit or PathState, while which launchd starts the service again
+    word: condition
+    not: [rule, trigger, reason, criterion, state]
+  - concept: one entry of StartCalendarInterval, the minute, hour, day, weekday and month at which launchd starts the service
+    word: start time
+    not: [schedule, cron, calendar interval, timer, event]
+  - concept: an end of the process by a signal that launchd counts as a crash, such as SIGSEGV or SIGILL; the word of the condition Crashed
+    word: crash
+    not: [fault, failure, abort, panic]
+dependencies: []
