@@ -43,7 +43,7 @@ type statusTick struct {
 	group config.Group
 }
 
-type actionEnded struct {
+type launchdActionEnded struct {
 	name string
 	err  error
 }
@@ -91,43 +91,43 @@ func (p pane) other() pane {
 }
 
 type Screen struct {
-	domain         string
-	read           func() ([]service.Service, error)
-	runStatus      func(status.Command, service.Service) status.Result
-	start          func(service.Service) error
-	stop           func(service.Service) error
-	restart        func(service.Service) error
-	settings       config.Settings
-	groupOrder     []config.Group
-	lastRead       servicesRead
-	hasRead        bool
-	statuses       map[string]status.Result
-	runNotEnded    map[string]bool
-	actionNotEnded map[string]bool
-	message        string
-	confirmation   *confirmation
-	selected       string
-	listTop        int
-	detailTop      int
-	focus          pane
-	showHelp       bool
-	width          int
-	height         int
+	domain                string
+	read                  func() ([]service.Service, error)
+	runStatus             func(status.Command, service.Service) status.Result
+	start                 func(service.Service) error
+	stop                  func(service.Service) error
+	restart               func(service.Service) error
+	settings              config.Settings
+	groupOrder            []config.Group
+	lastRead              servicesRead
+	hasRead               bool
+	statuses              map[string]status.Result
+	runNotEnded           map[string]bool
+	launchdActionNotEnded map[string]bool
+	message               string
+	confirmation          *confirmation
+	selected              string
+	listTop               int
+	detailTop             int
+	focus                 pane
+	showHelp              bool
+	width                 int
+	height                int
 }
 
 func NewScreen(domain string, read func() ([]service.Service, error), runStatus func(status.Command, service.Service) status.Result, start, stop, restart func(service.Service) error, settings config.Settings) Screen {
 	return Screen{
-		domain:         domain,
-		read:           read,
-		runStatus:      runStatus,
-		start:          start,
-		stop:           stop,
-		restart:        restart,
-		settings:       settings,
-		groupOrder:     slices.Concat(settings.Groups, []config.Group{config.Other}),
-		statuses:       map[string]status.Result{},
-		runNotEnded:    map[string]bool{},
-		actionNotEnded: map[string]bool{},
+		domain:                domain,
+		read:                  read,
+		runStatus:             runStatus,
+		start:                 start,
+		stop:                  stop,
+		restart:               restart,
+		settings:              settings,
+		groupOrder:            slices.Concat(settings.Groups, []config.Group{config.Other}),
+		statuses:              map[string]status.Result{},
+		runNotEnded:           map[string]bool{},
+		launchdActionNotEnded: map[string]bool{},
 	}
 }
 
@@ -160,8 +160,8 @@ func (s Screen) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case runEnded:
 		delete(s.runNotEnded, msg.name)
 		s.statuses[msg.name] = msg.result
-	case actionEnded:
-		delete(s.actionNotEnded, msg.name)
+	case launchdActionEnded:
+		delete(s.launchdActionNotEnded, msg.name)
 		if msg.err != nil {
 			s.message = terminal.ReplaceControlCharacters(strings.ReplaceAll(msg.err.Error(), "\n", " "))
 		}
@@ -202,21 +202,21 @@ func (s Screen) press(key tea.KeyPressMsg) (Screen, tea.Cmd) {
 			s.focus = listPane
 		}
 	case "s":
-		if svc, ok := s.serviceToActOn(); ok && svc.State != service.Running {
-			return s, s.actionOn(svc, s.start)
+		if svc, ok := s.serviceForLaunchdAction(); ok && svc.State != service.Running {
+			return s, s.beginLaunchdAction(svc, s.start)
 		}
 	case "x":
-		if svc, ok := s.serviceToActOn(); ok && svc.State != service.NotLoaded {
-			s.confirmation = newConfirmation("Stop", svc, func(screen Screen) tea.Cmd { return screen.actionOn(svc, screen.stop) })
+		if svc, ok := s.serviceForLaunchdAction(); ok && svc.State != service.NotLoaded {
+			s.confirmation = newConfirmation("Stop", svc, func(screen Screen) tea.Cmd { return screen.beginLaunchdAction(svc, screen.stop) })
 		}
 	case "r":
-		svc, ok := s.serviceToActOn()
+		svc, ok := s.serviceForLaunchdAction()
 		switch {
 		case !ok:
 		case svc.State == service.NotLoaded:
 			s.message = terminal.ReplaceControlCharacters(svc.Name) + " is not loaded, so svcview cannot restart it"
 		default:
-			s.confirmation = newConfirmation("Restart", svc, func(screen Screen) tea.Cmd { return screen.actionOn(svc, screen.restart) })
+			s.confirmation = newConfirmation("Restart", svc, func(screen Screen) tea.Cmd { return screen.beginLaunchdAction(svc, screen.restart) })
 		}
 	case "o":
 		svc, ok := s.serviceForKeys()
@@ -328,13 +328,13 @@ func (s Screen) runStatusOf(r row) tea.Cmd {
 	}
 }
 
-func (s Screen) actionOn(svc service.Service, action func(service.Service) error) tea.Cmd {
-	if s.actionNotEnded[svc.Name] {
+func (s Screen) beginLaunchdAction(svc service.Service, launchdAction func(service.Service) error) tea.Cmd {
+	if s.launchdActionNotEnded[svc.Name] {
 		return nil
 	}
-	s.actionNotEnded[svc.Name] = true
+	s.launchdActionNotEnded[svc.Name] = true
 	return func() tea.Msg {
-		return actionEnded{name: svc.Name, err: action(svc)}
+		return launchdActionEnded{name: svc.Name, err: launchdAction(svc)}
 	}
 }
 
@@ -429,9 +429,9 @@ func (s Screen) serviceForKeys() (service.Service, bool) {
 	return svc, ok && !s.showHelp
 }
 
-func (s Screen) serviceToActOn() (service.Service, bool) {
+func (s Screen) serviceForLaunchdAction() (service.Service, bool) {
 	svc, ok := s.serviceForKeys()
-	return svc, ok && !s.actionNotEnded[svc.Name]
+	return svc, ok && !s.launchdActionNotEnded[svc.Name]
 }
 
 func (s Screen) selectedAt() int {
