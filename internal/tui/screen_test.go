@@ -128,6 +128,18 @@ func headerTop(screen tea.Model) string {
 	return top
 }
 
+func headerTopAndList(screen tea.Model) []string {
+	return append([]string{headerTop(screen)}, listRows(screen)...)
+}
+
+func slowRead(duration time.Duration, read func() ([]service.Service, error)) func() ([]service.Service, error) {
+	return func() ([]service.Service, error) {
+		services, err := read()
+		time.Sleep(duration)
+		return services, err
+	}
+}
+
 func groups(t *testing.T, nameAndMatch ...string) config.Settings {
 	t.Helper()
 	settings := config.Settings{Refresh: 2 * time.Second}
@@ -550,8 +562,31 @@ func (r drawRecorder) View() tea.View {
 	return r.screen.View()
 }
 
+type timedMessage struct {
+	at  time.Duration
+	msg tea.Msg
+}
+
+func drawAt(at time.Duration) timedMessage {
+	return timedMessage{at: at, msg: drawNow{}}
+}
+
+func keyAt(at time.Duration, key tea.KeyPressMsg) timedMessage {
+	return timedMessage{at: at, msg: key}
+}
+
 // drawsAt must run in a synctest bubble: it waits a minute on the clock of the bubble.
 func drawsAt(t *testing.T, screen tui.Screen, width, height int, times ...time.Duration) []tea.Model {
+	t.Helper()
+	var draws []timedMessage
+	for _, at := range times {
+		draws = append(draws, drawAt(at))
+	}
+	return drawsAfter(t, screen, width, height, draws...)
+}
+
+// drawsAfter must run in a synctest bubble: it waits a minute on the clock of the bubble.
+func drawsAfter(t *testing.T, screen tui.Screen, width, height int, messages ...timedMessage) []tea.Model {
 	t.Helper()
 	var draws []tea.Model
 	program := tea.NewProgram(drawRecorder{screen: screen, draws: &draws},
@@ -561,9 +596,9 @@ func drawsAt(t *testing.T, screen tui.Screen, width, height int, times ...time.D
 		tea.WithWindowSize(width, height))
 	start := time.Now()
 	go func() {
-		for _, at := range times {
-			time.Sleep(at - time.Since(start))
-			program.Send(drawNow{})
+		for _, message := range messages {
+			time.Sleep(message.at - time.Since(start))
+			program.Send(message.msg)
 		}
 		program.Quit()
 	}()
@@ -5157,6 +5192,153 @@ func TestScreen(t *testing.T) {
 			require.Equal(t, before, screen.View().Content)
 			require.Empty(t, stops.get())
 			require.Empty(t, allReads.get())
+		})
+
+		t.Run("with no read running, a reads the services that the screen asks for at once, also with a refresh of 1 m: the rows of all services and · all show 100 ms after a, and the services with a plist 100 ms after a again", func(t *testing.T) {
+			for _, refresh := range []time.Duration{2 * time.Second, time.Minute} {
+				t.Run("with a refresh of "+refresh.String(), func(t *testing.T) {
+					synctest.Test(t, func(t *testing.T) {
+						screen := tui.NewScreen("gui/501", servicesNamed("com.example.worker"), servicesNamed("com.apple.a", "com.example.worker"), false, nil, nil, nil, nil, config.Settings{Refresh: refresh})
+
+						draws := drawsAfter(t, screen, 80, 12, keyAt(time.Second, keyA), drawAt(1100*time.Millisecond), keyAt(1500*time.Millisecond, keyA), drawAt(1600*time.Millisecond))
+
+						require.Equal(t, [][]string{
+							{"╭ svcview " + strings.Repeat("─", 54) + " gui/501 · all ╮", "Other", "○ com.apple.a", "▌○ com.example.worker", "", "", ""},
+							{"╭ svcview " + strings.Repeat("─", 60) + " gui/501 ╮", "Other", "▌○ com.example.worker", "", "", "", ""},
+						}, [][]string{headerTopAndList(draws[0]), headerTopAndList(draws[1])})
+					})
+				})
+			}
+		})
+
+		t.Run("while a read runs, a starts no second read; the rows of that read do not show when it ends, the header keeps the mark of the rows on the screen, and the read of the services that a asks for starts at once", func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				withPlistReads, allReads := newReadTimes(), newReadTimes()
+				read := withPlistReads.recording(slowRead(3*time.Second, changingAt(time.Second, servicesNamed("com.example.worker"), servicesNamed("com.example.added", "com.example.worker"))))
+				readAll := allReads.recording(slowRead(3*time.Second, servicesNamed("com.apple.a", "com.example.worker")))
+				screen := tui.NewScreen("gui/501", read, readAll, false, nil, nil, nil, nil, refreshEvery2s)
+
+				draws := drawsAfter(t, screen, 80, 12, keyAt(6*time.Second, keyA), drawAt(9*time.Second), drawAt(11100*time.Millisecond))
+
+				require.Equal(t, [][]time.Duration{{0, 5 * time.Second}, {8 * time.Second}}, [][]time.Duration{withPlistReads.get(), allReads.get()})
+				require.Equal(t, [][]string{
+					{"╭ svcview " + strings.Repeat("─", 60) + " gui/501 ╮", "Other", "▌○ com.example.worker", "", "", "", ""},
+					{"╭ svcview " + strings.Repeat("─", 54) + " gui/501 · all ╮", "Other", "○ com.apple.a", "▌○ com.example.worker", "", "", ""},
+				}, [][]string{headerTopAndList(draws[0]), headerTopAndList(draws[1])})
+			})
+		})
+
+		t.Run("a twice while a read runs: the rows of that read show when it ends, and the next read starts one refresh after it", func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				withPlistReads, allReads := newReadTimes(), newReadTimes()
+				read := withPlistReads.recording(slowRead(3*time.Second, changingAt(time.Second, servicesNamed("com.example.worker"), servicesNamed("com.example.added", "com.example.worker"))))
+				readAll := allReads.recording(servicesNamed("com.apple.a", "com.example.worker"))
+				screen := tui.NewScreen("gui/501", read, readAll, false, nil, nil, nil, nil, refreshEvery2s)
+
+				draws := drawsAfter(t, screen, 80, 12, keyAt(6*time.Second, keyA), keyAt(6500*time.Millisecond, keyA), drawAt(8100*time.Millisecond), drawAt(10500*time.Millisecond))
+
+				require.Equal(t, [][]time.Duration{{0, 5 * time.Second, 10 * time.Second}, nil}, [][]time.Duration{withPlistReads.get(), allReads.get()})
+				require.Equal(t, []string{"╭ svcview " + strings.Repeat("─", 60) + " gui/501 ╮", "Other", "○ com.example.added", "▌○ com.example.worker", "", "", ""}, headerTopAndList(draws[0]))
+			})
+		})
+
+		t.Run("no two reads run at the same time, whatever the time of a: with reads that take 3 s and a at several times over 20 s, at most one read runs at any time, and the screen reads more than three times", func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				var running, mostAtOnce, reads atomic.Int32
+				slow := func(names ...string) func() ([]service.Service, error) {
+					return func() ([]service.Service, error) {
+						reads.Add(1)
+						now := running.Add(1)
+						if now > mostAtOnce.Load() {
+							mostAtOnce.Store(now)
+						}
+						time.Sleep(3 * time.Second)
+						running.Add(-1)
+						return servicesNamed(names...)()
+					}
+				}
+				screen := tui.NewScreen("gui/501", slow("com.example.worker"), slow("com.apple.a", "com.example.worker"), false, nil, nil, nil, nil, refreshEvery2s)
+
+				drawsAfter(t, screen, 80, 12,
+					keyAt(time.Second, keyA), keyAt(2500*time.Millisecond, keyA), keyAt(4*time.Second, keyA), keyAt(6500*time.Millisecond, keyA),
+					keyAt(9*time.Second, keyA), keyAt(13*time.Second, keyA), keyAt(16500*time.Millisecond, keyA), drawAt(20*time.Second))
+
+				require.Equal(t, int32(1), mostAtOnce.Load())
+				require.Greater(t, reads.Load(), int32(3))
+			})
+		})
+
+		t.Run("each a adds at most one read: over 10 s with a refresh of 2 s, a at 1 s reads all services at once and then one refresh after each read ends, where the screen with no a reads every 2 s", func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				noAReads := newReadTimes()
+				drawsAfter(t, tui.NewScreen("gui/501", noAReads.recording(servicesNamed("com.example.worker")), servicesNamed("com.apple.a"), false, nil, nil, nil, nil, refreshEvery2s), 80, 12, drawAt(9900*time.Millisecond))
+				withPlistReads, allReads := newReadTimes(), newReadTimes()
+				drawsAfter(t, tui.NewScreen("gui/501", withPlistReads.recording(servicesNamed("com.example.worker")), allReads.recording(servicesNamed("com.apple.a")), false, nil, nil, nil, nil, refreshEvery2s), 80, 12, keyAt(time.Second, keyA), drawAt(9900*time.Millisecond))
+
+				require.Equal(t, [][]time.Duration{
+					{0, 2 * time.Second, 4 * time.Second, 6 * time.Second, 8 * time.Second},
+					{0},
+					{time.Second, 3 * time.Second, 5 * time.Second, 7 * time.Second, 9 * time.Second},
+				}, [][]time.Duration{noAReads.get(), withPlistReads.get(), allReads.get()})
+			})
+		})
+
+		t.Run("after a, a service that a later read adds shows no later than 2 s after the read before it", func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				readAll := changingAt(4*time.Second, servicesNamed("com.apple.a"), servicesNamed("com.apple.a", "com.apple.added"))
+				screen := tui.NewScreen("gui/501", servicesNamed("com.example.worker"), readAll, false, nil, nil, nil, nil, refreshEvery2s)
+
+				draws := drawsAfter(t, screen, 80, 12, keyAt(time.Second, keyA), drawAt(3100*time.Millisecond), drawAt(5100*time.Millisecond))
+
+				require.NotContains(t, draws[0].View().Content, "com.apple.added")
+				require.Contains(t, draws[1].View().Content, "com.apple.added")
+			})
+		})
+
+		t.Run("a before the first read ends: the rows of the first read do not show, the list shows the services that a asks for, and a group with a status command runs it once for each service of that read and then once in each every", func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				starts := newRunStarts()
+				run := func(_ status.Command, svc service.Service) status.Result {
+					starts.add(svc.Name)
+					return status.Result{}
+				}
+				settings := workersWithStatus(t)
+				settings.Groups[0].Status = statusEvery(t, 4*time.Second)
+				read := slowRead(time.Second, servicesNamed("com.example.worker.01"))
+				readAll := slowRead(time.Second, servicesNamed("com.example.worker.01", "com.example.worker.02"))
+				screen := tui.NewScreen("gui/501", read, readAll, false, run, nil, nil, nil, settings)
+
+				draws := drawsAfter(t, screen, 80, 12, keyAt(500*time.Millisecond, keyA), drawAt(1500*time.Millisecond), drawAt(2100*time.Millisecond), drawAt(11*time.Second))
+
+				require.Equal(t, [][]string{
+					{"╭ svcview " + strings.Repeat("─", 60) + " gui/501 ╮", "", "", "", "", "", ""},
+					{"╭ svcview " + strings.Repeat("─", 54) + " gui/501 · all ╮", "Workers", "▌○ 01", "○ 02", "", "", ""},
+				}, [][]string{headerTopAndList(draws[0]), headerTopAndList(draws[1])})
+				require.Equal(t, map[string][]time.Duration{
+					"com.example.worker.01": {2 * time.Second, 6 * time.Second, 10 * time.Second},
+					"com.example.worker.02": {2 * time.Second, 6 * time.Second, 10 * time.Second},
+				}, starts.get())
+			})
+		})
+
+		t.Run("a read after a that gives an error shows the error in the list, · all and no counts, and the next read comes one refresh after it", func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				allReads := newReadTimes()
+				failing := func() ([]service.Service, error) {
+					return nil, errors.New("launchctl list: exit status 3")
+				}
+				screen := tui.NewScreen("gui/501", servicesNamed("com.example.worker"), allReads.recording(failing), false, nil, nil, nil, nil, refreshEvery2s)
+
+				draws := drawsAfter(t, screen, 100, 12, keyAt(time.Second, keyA), drawAt(1100*time.Millisecond), drawAt(3500*time.Millisecond))
+
+				lines := strings.Split(ansi.Strip(draws[0].View().Content), "\n")
+				require.Equal(t, []string{
+					"╭ svcview " + strings.Repeat("─", 74) + " gui/501 · all ╮",
+					"│" + strings.Repeat(" ", 98) + "│",
+				}, lines[:2])
+				require.Contains(t, lines[4], "│ launchctl list: exit status 3 ")
+				require.Equal(t, []time.Duration{time.Second, 3 * time.Second}, allReads.get())
+			})
 		})
 	})
 }

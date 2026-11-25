@@ -160,4 +160,21 @@ describe('the key a', () => {
     expect(await session.text()).not.toContain('· all')
     expect(launchctlCalls(home)).toEqual([])
   })
+
+  it('with refresh: 1m in the config, shows com.apple.a and · all after the domain long before the next refresh, and a again hides both', async () => {
+    const home = homeWithServicesWithAndWithoutPlist()
+    writeConfig(join(home, '.config', 'svcview'), 'refresh: 1m\n')
+    const session = await openCli(scratchDir(), [], { HOME: home })
+    await session.waitForText('com.example.worker')
+
+    await session.type('a')
+
+    await session.waitForText('com.apple.a', { timeout: 2000 })
+    expect(await session.text()).toContain(`gui/${process.getuid?.()} · all`)
+
+    await session.type('a')
+
+    await expect.poll(async () => (await session.text()).includes('com.apple.a'), { timeout: 2000 }).toBe(false)
+    expect(await session.text()).not.toContain('· all')
+  })
 })

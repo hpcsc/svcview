@@ -71,7 +71,7 @@
     },
     {
       "n": 3,
-      "done": false,
+      "done": true,
       "title": "Read the services that a asks for at once",
       "language": "Go",
       "testable": true,

@@ -286,25 +286,25 @@ services that it asks for as soon as that read ends, and the rows of that read d
 read ends, also after `a`, so each `a` adds at most one read and the screen keeps one chain of refreshes.
 
 **Acceptance Criteria:**
-- [ ] With no read running, `a` starts the read of the services that the screen asks for at once: with a refresh of
+- [x] With no read running, `a` starts the read of the services that the screen asks for at once: with a refresh of
       2 s, the rows of all services and the mark show 100 ms after `a`, and with a refresh of 1 m too. `a` again shows
       the services with a plist at once in the same way.
-- [ ] While a read runs (a read that takes 3 s), `a` starts no second read. When the read that runs ends, its rows do
+- [x] While a read runs (a read that takes 3 s), `a` starts no second read. When the read that runs ends, its rows do
       not show, the header keeps the mark of the rows on the screen, and the read of the services that `a` asks for
       starts at once.
-- [ ] `a` twice while a read runs: the rows of the read that runs show when it ends, and no other read starts before
+- [x] `a` twice while a read runs: the rows of the read that runs show when it ends, and no other read starts before
       the next refresh.
-- [ ] No two reads run at the same time, whatever the time of `a`: with reads that take 3 s and `a` pressed at several
+- [x] No two reads run at the same time, whatever the time of `a`: with reads that take 3 s and `a` pressed at several
       times over 20 s, at most one read runs at any time, and the screen reads more than three times.
-- [ ] Each `a` adds at most one read: over 10 s with a refresh of 2 s, a screen with one `a` reads at most one time
+- [x] Each `a` adds at most one read: over 10 s with a refresh of 2 s, a screen with one `a` reads at most one time
       more than the same screen with no `a`. After `a`, a service that a later read adds shows no later than 2 s after
       the read before it.
-- [ ] `a` before the first read ends: the rows of the first read do not show, the list shows the services that `a`
+- [x] `a` before the first read ends: the rows of the first read do not show, the list shows the services that `a`
       asks for, and each group with a status command runs its command once for each service of that read and then
       once in each `every`, with no second chain of status runs.
-- [ ] A read after `a` that gives an error shows the error in the list and the mark of that read, and the next read
+- [x] A read after `a` that gives an error shows the error in the list and the mark of that read, and the next read
       comes one `refresh` after it.
-- [ ] e2e: with `refresh: 1m` in the config, `a` shows `com.apple.a` and `gui/<uid> · all` long before the next
+- [x] e2e: with `refresh: 1m` in the config, `a` shows `com.apple.a` and `gui/<uid> · all` long before the next
       refresh, and `a` again hides both.
 
 **Affected Files/Modules:**

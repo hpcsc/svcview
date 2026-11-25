@@ -28,7 +28,9 @@ const (
 	barCells        = 10
 )
 
-type refresh struct{}
+type refresh struct {
+	readsStarted int
+}
 
 type servicesRead struct {
 	rows []row
@@ -109,6 +111,8 @@ type Screen struct {
 	groupOrder            []config.Group
 	lastRead              servicesRead
 	hasRead               bool
+	readNotEnded          bool
+	readsStarted          int
 	statuses              map[string]status.Result
 	runNotEnded           map[string]bool
 	launchdActionNotEnded map[string]bool
@@ -137,6 +141,7 @@ func NewScreen(domain string, readWithPlist, readAll func() ([]service.Service, 
 		restart:               restart,
 		settings:              settings,
 		groupOrder:            slices.Concat(settings.Groups, []config.Group{config.Other}),
+		readNotEnded:          true,
 		statuses:              map[string]status.Result{},
 		runNotEnded:           map[string]bool{},
 		launchdActionNotEnded: map[string]bool{},
@@ -163,11 +168,10 @@ func (s Screen) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			s, cmd = s.press(msg)
 		}
 	case servicesRead:
-		firstRead := !s.hasRead
-		s.lastRead, s.hasRead = msg, true
-		cmd = tea.Tick(s.settings.Refresh, func(time.Time) tea.Msg { return refresh{} })
-		if firstRead {
-			cmd = tea.Batch(cmd, s.startStatusRuns())
+		if msg.all == s.all {
+			s, cmd = s.showRead(msg)
+		} else {
+			s, cmd = s.startRead()
 		}
 	case statusTick:
 		cmd = tea.Batch(s.runStatuses(msg.group), s.nextStatusTick(msg.group))
@@ -184,7 +188,9 @@ func (s Screen) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			s.message = terminal.ReplaceControlCharacters(s.programFailureText(msg))
 		}
 	case refresh:
-		return s, s.readServices
+		if msg.readsStarted == s.readsStarted {
+			s, cmd = s.startRead()
+		}
 	}
 	s.selected = s.selectedInList()
 	if s.selected != selected {
@@ -227,6 +233,9 @@ func (s Screen) press(key tea.KeyPressMsg) (Screen, tea.Cmd) {
 	case "a":
 		if !s.showHelp {
 			s.all = !s.all
+			if !s.readNotEnded {
+				return s.startRead()
+			}
 		}
 	case "s":
 		if svc, ok := s.serviceForLaunchdAction(); ok && svc.State != service.Running {
@@ -329,6 +338,23 @@ func (s Screen) View() tea.View {
 	view := tea.NewView(s.content())
 	view.AltScreen = true
 	return view
+}
+
+func (s Screen) startRead() (Screen, tea.Cmd) {
+	s.readNotEnded = true
+	s.readsStarted++
+	return s, s.readServices
+}
+
+func (s Screen) showRead(read servicesRead) (Screen, tea.Cmd) {
+	firstRead := !s.hasRead
+	s.lastRead, s.hasRead, s.readNotEnded = read, true, false
+	readsStarted := s.readsStarted
+	cmd := tea.Tick(s.settings.Refresh, func(time.Time) tea.Msg { return refresh{readsStarted: readsStarted} })
+	if firstRead {
+		cmd = tea.Batch(cmd, s.startStatusRuns())
+	}
+	return s, cmd
 }
 
 func (s Screen) readServices() tea.Msg {
