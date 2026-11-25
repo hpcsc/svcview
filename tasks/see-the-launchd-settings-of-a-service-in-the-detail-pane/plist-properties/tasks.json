@@ -147,7 +147,7 @@
     },
     {
       "n": 6,
-      "done": false,
+      "done": true,
       "title": "Describe the properties of the plist in docs/cli.md",
       "language": "Markdown",
       "testable": false,

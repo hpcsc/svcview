@@ -513,30 +513,30 @@ each line and what it shows, the texts of `keep alive`, the form of a start time
 values, a service with no plist, the continued lines, and that a change to a plist shows at the next refresh.
 
 **Acceptance Criteria:**
-- [ ] The row "The detail pane" of the table of parts says that the pane of a service with a plist shows the plist path
+- [x] The row "The detail pane" of the table of parts says that the pane of a service with a plist shows the plist path
       and the properties of its plist, after the status.
-- [ ] "The detail pane" has a row for each line: `Plist`, `program`, `work folder`, `run at load`, `keep alive`,
+- [x] "The detail pane" has a row for each line: `Plist`, `program`, `work folder`, `run at load`, `keep alive`,
       `start every`, `start at`, `watch paths`, `throttle`, `stdout`, `stderr` and `environment`. Each row names the
       plist property that the line comes from and what the line shows, and the section says that a property that the
       plist does not have shows no line, and that a boolean shows `yes` or `no`.
-- [ ] A table gives the text of each condition of `keep alive` with the condition and the value it comes from, and says
+- [x] A table gives the text of each condition of `keep alive` with the condition and the value it comes from, and says
       that launchd starts the service again while any one condition holds, that a crash is an end by a signal such as
       `SIGSEGV` or `SIGILL`, and that launchd no longer acts on `NetworkState`, so svcview shows `NetworkState yes` or
       `NetworkState no` and no phrase.
-- [ ] The section gives the form of a start time, with `*` for each hour or each minute, and examples.
-- [ ] The section says that the pane shows the names of `EnvironmentVariables` and never their values, which can hold a
+- [x] The section gives the form of a start time, with `*` for each hour or each minute, and examples.
+- [x] The section says that the pane shows the names of `EnvironmentVariables` and never their values, which can hold a
       token, and that `svcview status` prints the values as template values.
-- [ ] The section says that a part that is wider than the pane continues on the next lines in the column of the values,
+- [x] The section says that a part that is wider than the pane continues on the next lines in the column of the values,
       and that the other lines of the pane are cut with `…`.
-- [ ] An example of the detail pane at 80 columns shows a worker with a status and the lines of its plist, and each of
+- [x] An example of the detail pane at 80 columns shows a worker with a status and the lines of its plist, and each of
       its lines is a line that the tests of Tasks 2 to 5 expect.
-- [ ] "A service with no plist" says that its detail pane shows no plist path and no property.
-- [ ] "Refresh" says that a change to a plist shows at the next refresh, because svcview reads a plist again when its
+- [x] "A service with no plist" says that its detail pane shows no plist path and no property.
+- [x] "Refresh" says that a change to a plist shows at the next refresh, because svcview reads a plist again when its
       modification time changes, and that svcview runs no other command to read the properties.
-- [ ] The section says that svcview shows only these properties, and not what launchd infers from them (a `KeepAlive`
+- [x] The section says that svcview shows only these properties, and not what launchd infers from them (a `KeepAlive`
       that implies `RunAtLoad`), a default of launchd that the plist does not state, or other properties that can
       start a service, such as `Sockets`, `MachServices`, `QueueDirectories` or `LaunchEvents`.
-- [ ] `docs/cli.md` uses the word property for an entry of the plist, and keeps the word setting for an entry of a
+- [x] `docs/cli.md` uses the word property for an entry of the plist, and keeps the word setting for an entry of a
       config file.
 
 **Affected Files/Modules:**

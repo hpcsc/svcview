@@ -80,7 +80,7 @@ This screen has the group `Workers`, with the match `^com\.example\.worker\.` an
 | --- | --- |
 | The header | The domain `gui/<uid>` of the user, with `· all` after it while the list shows [all services](#all-services), and the number of services in each state. |
 | The list | One row for each service that has a plist in `~/Library/LaunchAgents`, and with `--all` or after [`a`](#all-services) also for each [service with no plist](#a-service-with-no-plist), in [the groups of the config files](#groups), and then in the group `Other`. Each group starts with a line with its name, and an empty line separates two groups. In each group, the services are sorted by name. Each row starts with the glyph of the state of the service, and a row in a group shows the short name of the service. svcview cuts a name that is too long for the list with `…`. When the list has more lines than the pane, it scrolls to keep the selected row in view. When the selected row is the first row of its group, and the pane has room for more than one line, the line of the group shows too. In a group with a status command, a row shows [the summary of the status](#in-the-list-and-the-detail-pane) after the short name. A [filter](#the-filter) hides each service whose name does not contain it, and each group with no service that the list shows. The list takes 40 percent of the width. At start, the list has [the focus](#the-focus-and-the-scroll). |
-| The detail pane | The selected service. Its title is the full name of the service. The pane shows the state, the PID, the uptime, and the last exit. In a group with a status command, it also shows the age of the status, and the [fields and the events](#in-the-list-and-the-detail-pane) of the last output or the [failure](#failures) of the last run. When the detail pane has [the focus](#the-focus-and-the-scroll), `↑` and `↓`, or `k` and `j`, scroll it. |
+| The detail pane | The selected service. Its title is the full name of the service. The pane shows the state, the PID, the uptime, and the last exit. In a group with a status command, it also shows the age of the status, and the [fields and the events](#in-the-list-and-the-detail-pane) of the last output or the [failure](#failures) of the last run. For a service with a plist, the pane then shows the plist path and the [properties of the plist](#the-properties-of-the-plist), after the status. When the detail pane has [the focus](#the-focus-and-the-scroll), `↑` and `↓`, or `k` and `j`, scroll it. |
 | The filter line | `/` and the [filter](#the-filter) of the list, with a cursor after the filter while the line is open. The line shows under the panes, or under the help, and above the message line, while the filter line is open and while a filter is kept. The panes, or the help, are one line shorter while it shows. |
 | The message line | The [confirmation](#start-stop-and-restart-a-service) of `x` or of `r`, what launchctl printed when a start, a stop or a restart fails, the text of `r` on a `not loaded` service, the text of `o` on a service with [no log path](#the-log-of-a-service), or why `less` failed. After the key of an [action](#the-actions-of-a-group), the confirmation of the action, a template value that the plist does not have, or why the command failed. The line shows above the help line only while it has a text, and the panes are one line shorter while it shows. See [The message line](#the-message-line). |
 | The help line | `s start · x stop · r restart · o log · / filter · a all · ? help`. When the selected service is in a group with [actions](#the-actions-of-a-group), the key and the name of each action show after `o log` and before `/ filter`, for example `s start · x stop · r restart · o log · L worker log · / filter · a all · ? help`. While the [filter line](#the-filter) is open, the help line is `enter keep the filter · esc clear the filter`. |
@@ -97,8 +97,9 @@ plist in `~/Library/LaunchAgents` names. svcview reads no plist outside `~/Libra
 `launchctl print`. Thus a service with no plist has no environment, no log paths and no plist path, also when a plist
 in another folder, for example `/Library/LaunchAgents` or `/System/Library/LaunchAgents`, defines it.
 
-A service with no plist shows its state, its PID, its uptime and its last exit, as each other service does. It goes
-into the group that its name matches, or into `Other`. No glyph, color or text marks it. It is `loaded` or `running`,
+A service with no plist shows its state, its PID, its uptime and its last exit, as each other service does. Its detail
+pane shows no plist path and no [property](#the-properties-of-the-plist). It goes into the group that its name
+matches, or into `Other`. No glyph, color or text marks it. It is `loaded` or `running`,
 because `launchctl list` prints it.
 
 ### Glyphs and colors
@@ -133,6 +134,114 @@ glyph of a different shape, so the screen shows the state without color too.
 | `last exit` | The exit code of the last run, or the name of the signal that ended it, for example `SIGKILL`. |
 | `Status` | The age of the status, for example `Status 1s ago`, in a group with a [status command](#the-status-command). The line shows after the first run of the status command of the service ends. After a valid output, the lines under `Status` show [each field](#in-the-list-and-the-detail-pane) of the output with its name and its value, and a bar of 10 cells under the value of a field with a `progress`. After a [failure](#failures), the lines under `Status` tell why the run failed. |
 | `Events` | The [events](#in-the-list-and-the-detail-pane) of the last output, after the fields: for each event, the hours and minutes of its `at`, a `●` in the color of its `level`, and its `text`. The line `Events` shows only when the output has events. |
+| `Plist` | The path of the plist of the service. The lines from `Plist` on show only for a service with a plist. |
+| `program` | Each argument of `ProgramArguments`, the program first. When the plist has no `ProgramArguments`, the `Program`. |
+| `work folder` | `WorkingDirectory`: the folder that launchd changes to before it runs the program. |
+| `run at load` | `RunAtLoad`: `yes` when launchd starts the service when it loads the plist, for example at login, and `no` when it does not. |
+| `keep alive` | `KeepAlive`: `yes` or `no`, or each [condition](#keep-alive) of a `KeepAlive` dictionary. |
+| `start every` | `StartInterval`: the seconds from one start of the service to the next, for example `300s`. |
+| `start at` | `StartCalendarInterval`: each [start time](#start-times). |
+| `watch paths` | `WatchPaths`: each path that starts the service when the path changes, in the order of the plist. |
+| `throttle` | `ThrottleInterval`: the seconds that launchd waits at least between two starts of the service, for example `10s`. |
+| `stdout` | `StandardOutPath`: the file that gets the output of the service. |
+| `stderr` | `StandardErrorPath`: the file that gets the errors of the service. |
+| `environment` | The names of `EnvironmentVariables`, sorted, and [no value](#the-properties-of-the-plist). |
+
+#### The properties of the plist
+
+The detail pane of a service with a plist shows what the plist tells launchd, so that you can see why launchd starts
+the service or leaves it stopped. After the last line of the status, an empty line and `Plist` with the plist path show,
+and then one line for each property of the plist that the table above names. The last line of the status is the last
+event, the last field, or the last line of a failure. When no line of the status shows, for example before the first
+run of the status command, or in a group with no status command, the lines of the plist follow `last exit`.
+
+Each line starts with the name of the property in the first column. Its value is in the column of `PID` and
+`last exit`. A value with more than one part, such as the program with its arguments, shows each part on a line of its
+own in that column. A property that the plist does not have shows no line. A boolean shows `yes` or `no`, also when it
+is false, because the plist has it. svcview checks only the type of a value: a value of a type that launchd does not
+take for the property shows no line, or no part. svcview does not check that a path exists, that a program can run, or
+that a number is in its range.
+
+At 80 columns, a worker of the group `Workers` with a status of one field looks like this:
+
+```
+╭ com.example.worker.01 ───────────────────────╮
+│ ◐ loaded      PID -                          │
+│ up -          last exit 1                    │
+│ Status 1s ago                                │
+│ mode  idle                                   │
+│                                              │
+│ Plist         /Users/me/Library/LaunchAgents │
+│               /com.example.worker.plist      │
+│ program       /usr/local/bin/worker          │
+│               --queue                        │
+│               jobs                           │
+│ work folder   /Users/me/work                 │
+│ run at load   yes                            │
+│ keep alive    when the last exit is 0        │
+│ start every   300s                           │
+│ stdout        /Users/me/Library/Logs/worker. │
+│               out.log                        │
+│ environment   WORKER_STATUS_FILE             │
+│               WORKER_TOKEN                   │
+╰──────────────────────────────────────────────╯
+```
+
+The red `last exit 1` above `keep alive    when the last exit is 0` tells why launchd does not start this worker
+again.
+
+A part that is wider than the room after the column of the values continues on the next lines in that column, so each
+of its cells shows. At 80 columns the room is 30 cells, so the plist path and `stdout` above take two lines each. The
+other lines of the pane, the data from launchd and the lines of the status, are cut with `…` at the edge of the pane.
+
+The line `environment` shows the names of `EnvironmentVariables` and never their values, because a value can hold a
+token or a password. [`svcview status`](#test-a-status-command-with-svcview-status) prints each value as a template
+value.
+
+##### Keep alive
+
+launchd starts the service again while any one condition of `KeepAlive` holds. A crash is an end of the process by a
+signal such as `SIGSEGV` or `SIGILL`. The conditions show in the order of this table. The paths of `PathState` and the
+names of `OtherJobEnabled` are sorted, and each other condition comes last, sorted by its name.
+
+| Condition in the plist | Line |
+| --- | --- |
+| `SuccessfulExit` true | `when the last exit is 0` |
+| `SuccessfulExit` false | `when the last exit is not 0` |
+| `Crashed` true | `when the last exit is a crash` |
+| `Crashed` false | `when the last exit is not a crash` |
+| A path of `PathState` with true | `while <path> exists` |
+| A path of `PathState` with false | `while <path> does not exist` |
+| A name of `OtherJobEnabled` with true | `while <name> is loaded or running` |
+| A name of `OtherJobEnabled` with false | `while <name> is not loaded` |
+| Each other condition, for example `NetworkState` or `AfterInitialDemand` | Its name with `yes` or `no`, for example `NetworkState yes`. A condition whose value is not a boolean shows its name alone. |
+
+launchd no longer acts on `NetworkState`, so svcview shows `NetworkState yes` or `NetworkState no` and no phrase.
+
+##### Start times
+
+Each entry of `StartCalendarInterval` is one start time, and `start at` shows one line for each, in the order of the
+plist. A start time shows the `Hour` and the `Minute` in two digits, joined by `:`, with `*` for each hour or each
+minute when the entry does not have it. Then `on <weekday>` for `Weekday`, where 0 and 7 are Sunday, and `on day <n>`
+for `Day`. With both, `on <weekday> or on day <n>` shows, because launchd then starts the service on either one. Then
+`in <month>` for `Month`. A number out of its range shows as the number.
+
+| Entry | Line |
+| --- | --- |
+| `Hour` 3, `Minute` 0 | `03:00` |
+| `Minute` 30 | `*:30` |
+| `Hour` 9, `Minute` 0, `Weekday` 1 | `09:00 on Monday` |
+| `Hour` 0, `Minute` 0, `Day` 1, `Month` 6 | `00:00 on day 1 in June` |
+| `Weekday` 7, `Day` 15 | `*:* on Sunday or on day 15` |
+| `Weekday` 9, `Month` 13 | `*:* on weekday 9 in month 13` |
+
+##### What the pane does not show
+
+svcview shows only the properties of the table above, as the plist states them. It does not show what launchd infers
+from them, for example that a `KeepAlive` also starts the service when launchd loads the plist. It does not show a
+default of launchd that the plist does not state, for example a `ThrottleInterval` of 10 s or a `RunAtLoad` of false.
+It shows no other property, also none that can start a service, such as `Sockets`, `MachServices`,
+`QueueDirectories` or `LaunchEvents`.
 
 ### The focus and the scroll
 
@@ -279,7 +388,10 @@ other service in its state, and `x` asks `Stop <name>? (y/N)` for each service.
 
 One `refresh` after each read ends, svcview reads the plists and runs `launchctl list` and `ps` again, with no key
 press. The setting `refresh` of [the config file](#the-config-file) sets the time, and the default is 2 s. svcview
-reads a plist again only when the modification time of the file changes. The same service stays selected. When the
+reads a plist again only when the modification time of the file changes, so a change to a plist shows in the
+[detail pane](#the-properties-of-the-plist) at the next refresh. svcview reads the properties from the plist that it
+reads already, and runs no other command for them: no `launchctl print` and no `plutil`. The same service stays
+selected. When the
 selected service is gone, the row after it in the list is selected, or the last row when it was the last. A
 [filter](#the-filter) applies to each read, also a kept filter: a service that is added shows only when its name
 contains the filter.
