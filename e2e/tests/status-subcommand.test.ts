@@ -1,5 +1,6 @@
-import { existsSync, writeFileSync } from 'node:fs'
+import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { setTimeout as sleep } from 'node:timers/promises'
 import { describe, expect, it } from 'vitest'
 import { addPlist, homeWithPlists, openCli, runCli, scratchDir, writeConfig } from '../testUtils'
 
@@ -61,6 +62,29 @@ describe('svcview status', () => {
     expect(result.stdout).toContain('\nOutput\n  busy\n')
     expect(result.stdout).toContain('\nResult\n  status invalid\n  the output is not valid JSON')
     expect(result.status).toBe(1)
+  })
+
+  it('SIGINT during the run stops the program with each process that it started, prints no valid, and exits with 1', async () => {
+    const home = homeWithPlists(['com.example.worker'])
+    const marker = join(scratchDir(), 'written')
+    writeConfig(
+      join(home, '.config', 'svcview'),
+      workersWithStatusCommand(
+        `[sh, -c, 'echo $PPID > "$0.svcview.new"; mv "$0.svcview.new" "$0.svcview"; (sleep 2; touch "$0") & sleep 30', '${marker}']`,
+        '10s',
+      ),
+    )
+
+    const running = runCli(scratchDir(), ['status', 'com.example.worker'], { HOME: home })
+    await expect.poll(() => existsSync(`${marker}.svcview`)).toBe(true)
+    process.kill(Number(readFileSync(`${marker}.svcview`, 'utf8').trim()), 'SIGINT')
+    const result = await running
+    await sleep(3000)
+
+    expect(result.stdout).toContain('svcview got a signal and stopped the status command before the command ended')
+    expect(result.stdout).not.toContain('valid')
+    expect(result.status).toBe(1)
+    expect(existsSync(marker)).toBe(false)
   })
 
   it('a variable that the plist does not have prints the plist has no and the variable, runs no program, and exits with 1', async () => {

@@ -271,14 +271,14 @@ ends svcview and stops each status run. `svcview status` still stops its run at 
 end svcview as before.
 
 **Acceptance Criteria:**
-- [ ] e2e: after `o`, `ctrl-c` in the terminal reaches the fake `less`, which shows that it got it and goes on.
+- [x] e2e: after `o`, `ctrl-c` in the terminal reaches the fake `less`, which shows that it got it and goes on.
       After `q` and `enter`, the screen shows again with the same service selected, and `↓` then selects the next
       row, so svcview still runs. The test does not wait for `EXIT:0` after `ctrl-c`.
-- [ ] e2e: a `SIGINT` to svcview while the screen shows, with no program in the terminal, ends svcview, and the
+- [x] e2e: a `SIGINT` to svcview while the screen shows, with no program in the terminal, ends svcview, and the
       child process of a status command does not write its file, as for `SIGHUP` and `SIGTERM`.
-- [ ] e2e: `svcview status` that gets `SIGINT` during its run stops the program with each process that it started,
+- [x] e2e: `svcview status` that gets `SIGINT` during its run stops the program with each process that it started,
       prints no `valid`, and exits with 1.
-- [ ] The fake `less` traps `SIGINT`, shows that it got it, and goes on, as `less +F` does. `docs/e2e-tests.md`
+- [x] The fake `less` traps `SIGINT`, shows that it got it, and goes on, as `less +F` does. `docs/e2e-tests.md`
       says so.
 
 **Affected Files/Modules:**

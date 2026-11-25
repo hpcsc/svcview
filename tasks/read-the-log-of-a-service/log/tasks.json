@@ -61,7 +61,7 @@
     },
     {
       "n": 3,
-      "done": false,
+      "done": true,
       "title": "Keep svcview open when ctrl-c reaches a program that has the terminal",
       "language": "Go",
       "testable": true,

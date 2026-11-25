@@ -186,7 +186,7 @@ describe('the status command', () => {
     expect(existsSync(marker)).toBe(false)
   })
 
-  it.each(['SIGHUP', 'SIGTERM'] as const)('a status command whose child process writes a file after 2 s does not write it when svcview gets %s', async (signal) => {
+  it.each(['SIGHUP', 'SIGTERM', 'SIGINT'] as const)('svcview ends at %s, and a status command whose child process writes a file after 2 s does not write it', async (signal) => {
     const home = homeWithPlists(['com.example.worker.01'])
     const marker = join(scratchDir(), 'written')
     writeConfig(
@@ -198,6 +198,7 @@ describe('the status command', () => {
     await session.waitForText('com.example.worker.01')
     await expect.poll(() => existsSync(`${marker}.svcview`)).toBe(true)
     process.kill(Number(readFileSync(`${marker}.svcview`, 'utf8').trim()), signal)
+    await session.waitForText(/EXIT:\d/)
     await sleep(3000)
 
     expect(existsSync(marker)).toBe(false)

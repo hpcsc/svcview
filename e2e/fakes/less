@@ -3,8 +3,11 @@ printf '%s\n' "$*" >> "$HOME/less-calls.txt"
 if [ -f "$HOME/less-exit.txt" ]; then
   exit "$(cat "$HOME/less-exit.txt")"
 fi
+interrupted=
+trap 'interrupted=1; echo "the fake less got SIGINT"' INT
 echo "the fake less shows: $*"
-while read -r line; do
+while read -r line || [ -n "$interrupted" ]; do
+  interrupted=
   if [ "$line" = q ]; then
     exit 0
   fi

@@ -157,6 +157,10 @@ that a test does not know. So `e2e/fakes` also holds a fake `less`:
   `+F -- /var/log/com.example.worker.out.log`.
 - Then it shows `the fake less shows: <arguments>` on the terminal, and reads lines until it reads `q`. So a test
   waits for that text, types `q`, presses `enter`, and the screen of svcview shows again.
+- The fake traps `SIGINT`, as `less +F` does: at `ctrl-c` it shows `the fake less got SIGINT` and goes on reading
+  lines. The terminal sends the `SIGINT` of `ctrl-c` to svcview too, so a test of `ctrl-c` shows that svcview does
+  not end. When svcview ends after such a `ctrl-c`, the shell of `openCli` ends itself by the `SIGINT` that it got
+  and writes no `EXIT:` line, so such a test does not wait for `EXIT:0`.
 - `lessCalls(home)` gives the lines of `less-calls.txt`, one for each call, or no lines when svcview did not call the
   fake.
 - `failLess(home, exitCode)` makes each later call exit with `exitCode` at once, after the fake records it, with no

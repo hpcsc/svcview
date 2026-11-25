@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/signal"
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/fatih/color"
@@ -40,11 +41,11 @@ func newCommand() *cli.Command {
 		Name:                  "svcview",
 		Version:               version.Current(),
 		EnableShellCompletion: true,
-		Commands: []*cli.Command{
+		Commands: endAtInterrupt(
 			newVersionCommand(),
 			newUpdateCommand(),
 			newStatusSubcommand(),
-		},
+		),
 		Action: showScreenOrHelp,
 	}
 }
@@ -69,9 +70,25 @@ func showScreen(ctx context.Context, input io.Reader, output io.Writer) error {
 	stop := func(svc service.Service) error { return domain.Stop(ctx, svc) }
 	restart := func(svc service.Service) error { return domain.Restart(ctx, svc) }
 	screen := tui.NewScreen(domain.String(), domain.Services, runs.run, start, stop, restart, settings)
+	interrupts := make(chan os.Signal, 1)
+	// Bubble Tea stops its SIGINT handler when ctx ends, and less can still have the terminal then.
+	signal.Notify(interrupts, os.Interrupt)
+	defer signal.Stop(interrupts)
 	_, err = tea.NewProgram(screen, tea.WithContext(ctx), tea.WithInput(input), tea.WithOutput(output)).Run()
 	runs.stop()
 	return err
+}
+
+func endAtInterrupt(commands ...*cli.Command) []*cli.Command {
+	for _, command := range commands {
+		action := command.Action
+		command.Action = func(ctx context.Context, cmd *cli.Command) error {
+			ctx, stop := signal.NotifyContext(ctx, os.Interrupt)
+			defer stop()
+			return action(ctx, cmd)
+		}
+	}
+	return commands
 }
 
 func readSettingsAndDomain() (config.Settings, *launchd.Domain, error) {

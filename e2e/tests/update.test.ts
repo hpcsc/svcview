@@ -5,7 +5,7 @@ import { createServer } from 'node:http'
 import type { AddressInfo } from 'node:net'
 import { join } from 'node:path'
 import { describe, expect, it, onTestFinished } from 'vitest'
-import { buildTag, getExecutablePath, runCli, scratchDir } from '../testUtils'
+import { buildTag, getExecutablePath, openCli, runCli, scratchDir } from '../testUtils'
 
 function platform(): string {
   const arch = process.arch === 'x64' ? 'amd64' : process.arch
@@ -69,6 +69,37 @@ async function fakeReleases(releases: FakeRelease[]): Promise<string> {
   })
   await new Promise<void>((done) => server.listen(0, '127.0.0.1', done))
   onTestFinished(() => new Promise<void>((done) => server.close(() => done())))
+  return `http://127.0.0.1:${(server.address() as AddressInfo).port}`
+}
+
+async function heldDownload(): Promise<string> {
+  const server = createServer((request, response) => {
+    const base = `http://127.0.0.1:${(server.address() as AddressInfo).port}`
+    const archive = `svcview-${platform()}.tar.gz`
+    const path = new URL(request.url ?? '/', base).pathname
+    if (path === '/repos/hpcsc/svcview/releases/latest') {
+      response.setHeader('content-type', 'application/json')
+      response.end(
+        JSON.stringify({
+          tag_name: 'v9.0.0',
+          prerelease: false,
+          published_at: new Date(Date.UTC(2026, 8, 1)).toISOString(),
+          assets: [archive, 'checksums.txt'].map((name) => ({ name, url: `${base}/assets/v9.0.0/${name}` })),
+        }),
+      )
+      return
+    }
+    response.setHeader('content-length', String(1 << 20))
+    response.write(Buffer.alloc(1 << 10))
+  })
+  await new Promise<void>((done) => server.listen(0, '127.0.0.1', done))
+  onTestFinished(
+    () =>
+      new Promise<void>((done) => {
+        server.closeAllConnections()
+        server.close(() => done())
+      }),
+  )
   return `http://127.0.0.1:${(server.address() as AddressInfo).port}`
 }
 
@@ -159,5 +190,15 @@ describe('svcview update', () => {
 
     expect(result.status).toBe(0)
     expect(result.stdout).toContain(`svcview ${buildTag()} is the latest release.`)
+  })
+
+  it('ctrl-c during the download stops the update and says why', async () => {
+    const api = await heldDownload()
+    const session = await openCli(scratchDir(), ['update'], againstApi(api))
+    await session.waitForText('Downloading svcview v9.0.0')
+
+    await session.press(['ctrl', 'c'])
+
+    await session.waitForText('interrupt signal received')
   })
 })
