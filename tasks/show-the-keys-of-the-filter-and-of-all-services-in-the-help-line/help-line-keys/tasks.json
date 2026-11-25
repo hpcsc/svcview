@@ -31,7 +31,7 @@
     },
     {
       "n": 2,
-      "done": false,
+      "done": true,
       "title": "Show the help line with / filter and a all in docs/cli.md",
       "language": "Markdown",
       "testable": false,

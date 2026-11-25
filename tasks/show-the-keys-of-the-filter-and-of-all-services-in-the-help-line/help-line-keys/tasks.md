@@ -176,17 +176,17 @@ each with one changed line; `mise exec -- task test:e2e` passes `e2e/tests/actio
 table of the parts of the screen, the filter, all services, and the help line of the actions of a group.
 
 **Acceptance Criteria:**
-- [ ] The example screen under "The screen" ends with ` s start · x stop · r restart · o log · / filter · a all · ? help`.
-- [ ] The row "The help line" of the table of parts gives `s start · x stop · r restart · o log · / filter · a all · ? help`,
+- [x] The example screen under "The screen" ends with ` s start · x stop · r restart · o log · / filter · a all · ? help`.
+- [x] The row "The help line" of the table of parts gives `s start · x stop · r restart · o log · / filter · a all · ? help`,
       says that the key and the name of each action show after `o log` and before `/ filter`, with the example
       `s start · x stop · r restart · o log · L worker log · / filter · a all · ? help`, and keeps the help line of the
       open filter line.
-- [ ] "The filter" says that the help line shows `/ filter` while the filter line is not open.
-- [ ] "All services" says that the help line shows `a all`, also while all services show, and that the mark `· all` in
+- [x] "The filter" says that the help line shows `/ filter` while the filter line is not open.
+- [x] "All services" says that the help line shows `a all`, also while all services show, and that the mark `· all` in
       the header says which list shows. No sentence of `docs/cli.md` says that the help line does not show `a`.
-- [ ] "The help line and the help" of the actions shows its example with `/ filter · a all` after the actions and
+- [x] "The help line and the help" of the actions shows its example with `/ filter · a all` after the actions and
       before `? help`.
-- [ ] Each help line in `docs/cli.md` is a line that the tests of Task 1 expect.
+- [x] Each help line in `docs/cli.md` is a line that the tests of Task 1 expect.
 
 **Affected Files/Modules:**
 - `docs/cli.md` — the example screen, the table of parts, "The filter", "All services", and "The help line and the help"

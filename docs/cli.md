@@ -70,7 +70,7 @@ the screen only: `svcview status`, `svcview version` and `svcview update` do not
 │                              ││ 09:00 ● claimed ENG-692                      │
 │                              ││                                              │
 ╰──────────────────────────────╯╰──────────────────────────────────────────────╯
- s start · x stop · r restart · o log · ? help
+ s start · x stop · r restart · o log · / filter · a all · ? help
 ```
 
 This screen has the group `Workers`, with the match `^com\.example\.worker\.` and a
@@ -83,7 +83,7 @@ This screen has the group `Workers`, with the match `^com\.example\.worker\.` an
 | The detail pane | The selected service. Its title is the full name of the service. The pane shows the state, the PID, the uptime, and the last exit. In a group with a status command, it also shows the age of the status, and the [fields and the events](#in-the-list-and-the-detail-pane) of the last output or the [failure](#failures) of the last run. When the detail pane has [the focus](#the-focus-and-the-scroll), `↑` and `↓`, or `k` and `j`, scroll it. |
 | The filter line | `/` and the [filter](#the-filter) of the list, with a cursor after the filter while the line is open. The line shows under the panes, or under the help, and above the message line, while the filter line is open and while a filter is kept. The panes, or the help, are one line shorter while it shows. |
 | The message line | The [confirmation](#start-stop-and-restart-a-service) of `x` or of `r`, what launchctl printed when a start, a stop or a restart fails, the text of `r` on a `not loaded` service, the text of `o` on a service with [no log path](#the-log-of-a-service), or why `less` failed. After the key of an [action](#the-actions-of-a-group), the confirmation of the action, a template value that the plist does not have, or why the command failed. The line shows above the help line only while it has a text, and the panes are one line shorter while it shows. See [The message line](#the-message-line). |
-| The help line | `s start · x stop · r restart · o log · ? help`. When the selected service is in a group with [actions](#the-actions-of-a-group), the key and the name of each action show after `o log`, for example `s start · x stop · r restart · o log · L worker log · ? help`. While the [filter line](#the-filter) is open, the help line is `enter keep the filter · esc clear the filter`. |
+| The help line | `s start · x stop · r restart · o log · / filter · a all · ? help`. When the selected service is in a group with [actions](#the-actions-of-a-group), the key and the name of each action show after `o log` and before `/ filter`, for example `s start · x stop · r restart · o log · L worker log · / filter · a all · ? help`. While the [filter line](#the-filter) is open, the help line is `enter keep the filter · esc clear the filter`. |
 
 The name of a service is the `Label` of its plist. With `--all`, or after [`a`](#all-services), the list also shows
 each [service with no plist](#a-service-with-no-plist), whose name is the name that `launchctl list` prints, and which
@@ -185,9 +185,10 @@ not go into the filter. These keys do not go into the filter:
 | `ctrl+c` | Quit. |
 | `↑`, `↓`, `tab`, `←`, `→`, and each other key that types no text | Nothing. The cursor stays after the last character of the filter. |
 
-While the filter line is open, the help line shows `enter keep the filter · esc clear the filter`. A key that goes into
-the filter hides the message line, as each key press does. An error of a start, a stop or a restart that ends while the
-filter line is open shows on the message line, under the filter line.
+While the filter line is not open, the help line shows `/ filter`, also while a filter is kept. While the filter line
+is open, the help line shows `enter keep the filter · esc clear the filter`. A key that goes into the filter hides the
+message line, as each key press does. An error of a start, a stop or a restart that ends while the filter line is open
+shows on the message line, under the filter line.
 
 After each key, the list shows only the services whose name contains the filter, with no regard to case. The filter is
 a part of the name: it is not a regular expression and not a glob. The filter compares with the full name of the
@@ -263,8 +264,9 @@ setting `refresh`.
 
 While the [filter line](#the-filter) is open, `a` goes into the filter, as each other letter does. While the help
 shows, `a` does nothing. While a confirmation shows, `a` answers no, as each key other than `y` does. The help that
-`?` shows lists `a`, and the help line does not show it. An [action](#the-actions-of-a-group) cannot take `a`, so a
-config file with an action on `a` stops svcview at start. An action can take `A`.
+`?` shows lists `a`. The help line shows `a all` while the list shows the services with a plist and while it shows all
+services: the mark `· all` in the header says which services the list shows. An [action](#the-actions-of-a-group)
+cannot take `a`, so a config file with an action on `a` stops svcview at start. An action can take `A`.
 
 In a group with a [status command](#the-status-command), a service that `a` adds gets its first run at the next
 `every` of its group, as a service that a read adds. `a` starts no status run. A service that `a` shows again shows
@@ -1045,10 +1047,10 @@ and `r`. `ctrl+c` quits.
 #### The help line and the help
 
 When the selected service is in a group with actions, the help line shows the key and the name of each action of the
-group after `o log`, in the order of the file:
+group after `o log` and before `/ filter`, in the order of the file:
 
 ```
- s start · x stop · r restart · o log · L worker log · R reset worker · ? help
+ s start · x stop · r restart · o log · L worker log · R reset worker · / filter · a all · ? help
 ```
 
 `?` lists the same actions on the lines after `o`. With no selected service, while the list shows an error, and with
