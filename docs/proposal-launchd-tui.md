@@ -87,7 +87,7 @@ a new tool, and not as a change to one of them.
 │                              ││ 09:04 ● step review         │
 │                              ││ 09:00 ● claimed ENG-692     │
 ╰──────────────────────────────╯╰─────────────────────────────╯
- s start · x stop · r restart · o log · L worker log · ? help
+ s start · x stop · r restart · o log · L worker log · / filter · a all · ? help
 ```
 
 The screen has three parts:
@@ -95,7 +95,8 @@ The screen has three parts:
 - **The header:** the domain, and the number of services in each state.
 - **The list:** one row for each service, in groups. The groups come in the order of the config. The group `Other`
   comes last and holds each service that no group matches. In a group, svcview sorts the services by name.
-- **The detail pane:** the selected service, with the data from launchd, the fields of its status, and its events.
+- **The detail pane:** the selected service, with the data from launchd, the settings of its plist, the fields of its
+  status, and its events.
 
 A row shows the glyph of the state, the short name, and the `summary` of the status. The short name is the part of
 the name after the text that `match` matched, when the match starts at the first character. For example,
@@ -145,7 +146,7 @@ shows the state without color too.
 
 `h`, `j`, `k`, and `l` move as in vim, so a person who uses vim does not move a hand to the arrow keys.
 
-The help line shows the keys of the actions. A group can add more keys. See
+The help line shows the keys of the actions, `/`, and `a`. A group can add more keys. See
 [Actions of a Group](#actions-of-a-group).
 
 ## Data From launchd
@@ -158,6 +159,7 @@ builds on Linux, and the e2e tests can use a fake `launchctl`.
 | The names, the PIDs, and the last exits | `launchctl list`, which prints three columns: `PID`, `Status`, and `Label` |
 | The plist path for each name | svcview reads each `*.plist` in `~/Library/LaunchAgents` and gets its `Label` property |
 | The program, the environment, and the log paths | The properties `ProgramArguments`, `EnvironmentVariables`, `StandardOutPath`, and `StandardErrorPath` of the plist |
+| When launchd starts the service | The properties `RunAtLoad`, `KeepAlive`, `StartInterval`, `StartCalendarInterval`, `WatchPaths`, and `ThrottleInterval` of the plist |
 | The uptime of each process | `ps -o pid=,etime= -p <PID>,<PID>`, one call for all the PIDs at each refresh |
 
 svcview gets the state of a service from these two sources:

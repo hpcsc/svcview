@@ -42,6 +42,8 @@ flowchart LR
     S15["US-015<br/>Mac install"]
     S16["US-016<br/>Vim keys"]
     S17["US-017<br/>All-services key"]
+    S18["US-018<br/>Help-line hints"]
+    S19["US-019<br/>Plist settings"]
 
     S1 --> S2
     S1 --> S8
@@ -59,6 +61,9 @@ flowchart LR
     S3 --> S7
     S8 --> S9
     S13 --> S17
+    S12 --> S18
+    S17 --> S18
+    S4 --> S19
 
     classDef critical fill:#fde68a,stroke:#b45309,stroke-width:2px,color:#1f2937
     class S1,S2,S3,S4,S6,S7 critical
@@ -480,6 +485,59 @@ without `--all`. With all services, `x` on a service with no plist runs `bootout
 service again until the next login. The mark in the header shows which list is on the screen.
 
 **Depends on:** US-013
+
+### US-018: Show the keys of the filter and of all services in the help line
+
+**Goals:** G1
+
+**Description:** As a developer, I want the help line to show `/` and `a`, so that I find the filter and the list of
+all services with no look at the help.
+
+**Acceptance Criteria:**
+
+- [ ] The help line shows `/ filter` and `a all` after the keys of the actions of the group, and before `? help`, for
+      example `s start · x stop · r restart · o log · L worker log · / filter · a all · ? help`.
+- [ ] With no selected service, or when the group of the selected service has no actions, the help line shows
+      `s start · x stop · r restart · o log · / filter · a all · ? help`.
+- [ ] The text stays `a all` while all services show. The mark in the header shows which list is on the screen.
+- [ ] While the filter line is open, the help line stays `enter keep the filter · esc clear the filter`.
+- [ ] `docs/cli.md` shows the new help line.
+
+**Context:** With one action of a group, the help line has 78 columns, so it fits in a terminal of 80 columns.
+svcview cuts the help line at the right edge, so a narrow terminal loses `? help` first. US-014 handles narrow
+terminals.
+
+**Depends on:** US-012, US-017
+
+### US-019: See the launchd settings of a service in the detail pane
+
+**Goals:** G1
+
+**Description:** As a developer, I want to see the settings of the plist of a service in the detail pane, so that I
+know why launchd starts the service, or leaves it stopped, with no read of the plist.
+
+**Acceptance Criteria:**
+
+- [ ] The detail pane shows the program and its arguments from `ProgramArguments`, or from `Program` when the plist
+      has no `ProgramArguments`, and the `WorkingDirectory`.
+- [ ] The detail pane shows when launchd starts the service: `RunAtLoad`, `KeepAlive` with each of its conditions
+      (for example `SuccessfulExit`, `Crashed`, `OtherJobEnabled`, `PathState`, and `NetworkState`),
+      `StartInterval`, `StartCalendarInterval`, `WatchPaths`, and `ThrottleInterval`. A setting that the plist does
+      not have does not show.
+- [ ] The detail pane shows the plist path, the `StandardOutPath`, the `StandardErrorPath`, and the names of the
+      `EnvironmentVariables`, with no values.
+- [ ] A service with no plist shows none of these settings.
+- [ ] svcview reads these settings from the plist that it reads already, and runs no new command. A change to the
+      plist shows at the next refresh.
+- [ ] `docs/cli.md` describes the settings in the detail pane.
+
+**Context:** A plist with `KeepAlive: {SuccessfulExit: true}` makes launchd start the service again only after an
+exit with code 0. After an exit with another code, the service stays stopped, and only the plist explains why.
+launchd keeps no list of dependencies between agents: `OtherJobEnabled` is the one setting that names another
+service. The values of the environment can hold secrets, so the detail pane shows only their names. svcview does not
+parse `launchctl print`, because its output is not an API.
+
+**Depends on:** US-004
 
 ## Non-Goals
 
