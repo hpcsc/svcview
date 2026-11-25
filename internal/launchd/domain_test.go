@@ -661,6 +661,168 @@ func TestDomain(t *testing.T) {
 		})
 	})
 
+	t.Run("list all", func(t *testing.T) {
+		t.Run("a name that no plist has gives a service with the state, the PID, the last exit and the uptime of launchctl list and ps, and with no environment, no log paths and no plist path", func(t *testing.T) {
+			home := homeWith(t, nil)
+			fakeLaunchctlList(t, "launchctl-list-two-running.txt")
+			fakePs(t, "ps-two-pids.txt")
+
+			services, err := launchd.NewDomain(home, 501).AllServices()
+
+			require.NoError(t, err)
+			require.ElementsMatch(t, []service.Service{
+				{Name: "com.example.first", State: service.Running, PID: 4122, Uptime: new(3*time.Minute + 12*time.Second)},
+				{Name: "com.example.second", State: service.Running, LastExit: service.LastExit{Signal: "SIGKILL"}, PID: 4123, Uptime: new(time.Hour + 3*time.Minute + 12*time.Second)},
+				{Name: "com.example.loaded", State: service.Loaded},
+			}, services)
+		})
+
+		t.Run("a name that a plist has and that launchctl list prints gives one service, with the environment, the log paths and the plist path of the plist, and the state, the PID, the last exit and the uptime of launchctl list and ps", func(t *testing.T) {
+			home := homeWith(t, map[string]string{"com.example.worker.plist": "environment.plist"})
+			fakeLaunchctlList(t, "launchctl-list-worker-running.txt")
+			fakePs(t, "ps-two-pids.txt")
+
+			services, err := launchd.NewDomain(home, 501).AllServices()
+
+			require.NoError(t, err)
+			require.ElementsMatch(t, []service.Service{
+				{
+					Name:     "com.example.worker",
+					State:    service.Running,
+					LastExit: service.LastExit{Signal: "SIGKILL"},
+					PID:      4123,
+					Uptime:   new(time.Hour + 3*time.Minute + 12*time.Second),
+					Env: map[string]string{
+						"WORKER_STATUS_FILE": "/Users/me/Library/Application Support/worker/status.json",
+						"WORKER_QUIET":       "",
+					},
+					StdoutPath: "/Users/me/Library/Logs/worker.out.log",
+					StderrPath: "/Users/me/Library/Logs/worker.err.log",
+					PlistPath:  filepath.Join(home, "Library", "LaunchAgents", "com.example.worker.plist"),
+				},
+				{Name: "com.example.no-plist", State: service.Loaded, LastExit: service.LastExit{Code: 78}},
+			}, services)
+		})
+
+		t.Run("two plists whose names launchctl list prints give one service each, with the plist path of each plist", func(t *testing.T) {
+			home := homeWithPlists(t, "com.example.first", "com.example.second")
+			fakeLaunchctlList(t, "launchctl-list-two-running.txt")
+			fakePs(t, "ps-two-pids.txt")
+
+			services, err := launchd.NewDomain(home, 501).AllServices()
+
+			require.NoError(t, err)
+			require.ElementsMatch(t, []service.Service{
+				{
+					Name:      "com.example.first",
+					State:     service.Running,
+					PID:       4122,
+					Uptime:    new(3*time.Minute + 12*time.Second),
+					PlistPath: filepath.Join(home, "Library", "LaunchAgents", "com.example.first.plist"),
+				},
+				{
+					Name:      "com.example.second",
+					State:     service.Running,
+					LastExit:  service.LastExit{Signal: "SIGKILL"},
+					PID:       4123,
+					Uptime:    new(time.Hour + 3*time.Minute + 12*time.Second),
+					PlistPath: filepath.Join(home, "Library", "LaunchAgents", "com.example.second.plist"),
+				},
+				{Name: "com.example.loaded", State: service.Loaded},
+			}, services)
+		})
+
+		t.Run("a plist whose name launchctl list does not print gives a not loaded service", func(t *testing.T) {
+			home := homeWithPlists(t, "com.example.not-loaded")
+			fakeLaunchctlList(t, "launchctl-list-no-services.txt")
+
+			services, err := launchd.NewDomain(home, 501).AllServices()
+
+			require.NoError(t, err)
+			require.Equal(t, []service.Service{{
+				Name:      "com.example.not-loaded",
+				State:     service.NotLoaded,
+				PlistPath: filepath.Join(home, "Library", "LaunchAgents", "com.example.not-loaded.plist"),
+			}}, services)
+		})
+
+		t.Run("runs ps one time, with the PIDs of all running services, also of the services with no plist", func(t *testing.T) {
+			home := homeWithPlists(t, "com.example.first")
+			fakeLaunchctlList(t, "launchctl-list-two-running.txt")
+			calls := fakePs(t, "ps-two-pids.txt")
+
+			_, err := launchd.NewDomain(home, 501).AllServices()
+
+			require.NoError(t, err)
+			data, err := os.ReadFile(calls)
+			require.NoError(t, err)
+			pids, found := strings.CutPrefix(string(data), "-o pid=,etime= -p ")
+			require.True(t, found, string(data))
+			require.ElementsMatch(t, []string{"4122", "4123"}, strings.Split(strings.TrimSuffix(pids, "\n"), ","))
+		})
+
+		t.Run("does not run ps when no service is running", func(t *testing.T) {
+			home := homeWithPlists(t, "com.example.loaded")
+			fakeLaunchctlList(t, "launchctl-list-two-loaded.txt")
+			calls := fakePs(t, "ps-two-pids.txt")
+
+			services, err := launchd.NewDomain(home, 501).AllServices()
+
+			require.NoError(t, err)
+			require.ElementsMatch(t, []service.Service{
+				{Name: "com.example.loaded", State: service.Loaded},
+				{Name: "com.example.no-plist", State: service.Loaded, LastExit: service.LastExit{Code: 78}},
+			}, withoutPlistPath(services))
+			require.NoFileExists(t, calls)
+		})
+
+		t.Run("a home folder with no Library/LaunchAgents folder gives the services of launchctl list, and no error", func(t *testing.T) {
+			fakeLaunchctlList(t, "launchctl-list-two-loaded.txt")
+
+			services, err := launchd.NewDomain(t.TempDir(), 501).AllServices()
+
+			require.NoError(t, err)
+			require.ElementsMatch(t, []service.Service{
+				{Name: "com.example.loaded", State: service.Loaded},
+				{Name: "com.example.no-plist", State: service.Loaded, LastExit: service.LastExit{Code: 78}},
+			}, services)
+		})
+
+		t.Run("a LaunchAgents folder that cannot be read gives an error that names the folder, and no services", func(t *testing.T) {
+			fakeLaunchctlList(t, "launchctl-list-two-loaded.txt")
+			home := t.TempDir()
+			require.NoError(t, os.MkdirAll(filepath.Join(home, "Library"), 0o755))
+			folder := filepath.Join(home, "Library", "LaunchAgents")
+			require.NoError(t, os.WriteFile(folder, []byte("a file, not a folder"), 0o644))
+
+			services, err := launchd.NewDomain(home, 501).AllServices()
+
+			require.ErrorContains(t, err, folder)
+			require.Empty(t, services)
+		})
+
+		t.Run("an output whose header line is not PID, Status, Label gives an error that names the header line, and no services", func(t *testing.T) {
+			home := homeWithPlists(t, "com.example.loaded")
+			fakeLaunchctlList(t, "launchctl-list-unknown-header.txt")
+
+			services, err := launchd.NewDomain(home, 501).AllServices()
+
+			require.ErrorContains(t, err, `"PID\tStatus\tName"`)
+			require.Empty(t, services)
+		})
+
+		t.Run("a launchctl that exits with a code other than 0 gives an error with the exit code and what launchctl printed, and no services", func(t *testing.T) {
+			home := homeWithPlists(t, "com.example.loaded")
+			fakeLaunchctl(t, "echo 'Bootstrap failed: 5: Input/output error' >&2\necho 'printed on stdout'\nexit 3\n")
+
+			services, err := launchd.NewDomain(home, 501).AllServices()
+
+			require.ErrorContains(t, err, "exit status 3")
+			require.ErrorContains(t, err, "Bootstrap failed: 5: Input/output error\nprinted on stdout")
+			require.Empty(t, services)
+		})
+	})
+
 	t.Run("list again", func(t *testing.T) {
 		modTime := time.Date(2026, 11, 23, 9, 0, 0, 0, time.UTC)
 

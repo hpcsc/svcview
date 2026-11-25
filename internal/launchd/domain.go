@@ -9,6 +9,7 @@ import (
 	"github.com/hpcsc/svcview/internal/service"
 )
 
+// Callers must not call Services or AllServices of one Domain from two goroutines at the same time.
 type Domain struct {
 	uid    int
 	plists *plistFolder
@@ -18,7 +19,6 @@ func NewDomain(home string, uid int) *Domain {
 	return &Domain{uid: uid, plists: &plistFolder{path: filepath.Join(home, "Library", "LaunchAgents")}}
 }
 
-// Callers must not call Services from two goroutines at the same time.
 func (d *Domain) Services() ([]service.Service, error) {
 	plists, err := d.plists.read()
 	if err != nil {
@@ -28,22 +28,22 @@ func (d *Domain) Services() ([]service.Service, error) {
 	if err != nil {
 		return nil, err
 	}
-	services := make([]service.Service, 0, len(plists))
-	var pids []int
-	for _, p := range plists {
-		svc := listed.service(p.name)
-		svc.Env, svc.StdoutPath, svc.StderrPath, svc.PlistPath = p.env, p.stdoutPath, p.stderrPath, p.path
-		services = append(services, svc)
-		if svc.State == service.Running {
-			pids = append(pids, svc.PID)
-		}
+	services := d.servicesOfPlists(plists, listed)
+	d.setUptimes(services)
+	return services, nil
+}
+
+func (d *Domain) AllServices() ([]service.Service, error) {
+	plists, err := d.plists.read()
+	if err != nil {
+		return nil, err
 	}
-	uptimes := readUptimes(pids)
-	for i := range services {
-		if uptime, ok := uptimes[services[i].PID]; ok {
-			services[i].Uptime = &uptime
-		}
+	listed, err := readLaunchctlList()
+	if err != nil {
+		return nil, err
 	}
+	services := append(d.servicesOfPlists(plists, listed), listed.servicesWithNoPlist(plists)...)
+	d.setUptimes(services)
 	return services, nil
 }
 
@@ -79,4 +79,29 @@ func (d *Domain) Restart(ctx context.Context, svc service.Service) error {
 
 func (d *Domain) serviceTarget(svc service.Service) string {
 	return d.String() + "/" + svc.Name
+}
+
+func (d *Domain) servicesOfPlists(plists []plist, listed launchctlList) []service.Service {
+	services := make([]service.Service, 0, len(plists))
+	for _, p := range plists {
+		svc := listed.service(p.name)
+		svc.Env, svc.StdoutPath, svc.StderrPath, svc.PlistPath = p.env, p.stdoutPath, p.stderrPath, p.path
+		services = append(services, svc)
+	}
+	return services
+}
+
+func (d *Domain) setUptimes(services []service.Service) {
+	var pids []int
+	for _, svc := range services {
+		if svc.State == service.Running {
+			pids = append(pids, svc.PID)
+		}
+	}
+	uptimes := readUptimes(pids)
+	for i := range services {
+		if uptime, ok := uptimes[services[i].PID]; ok {
+			services[i].Uptime = &uptime
+		}
+	}
 }

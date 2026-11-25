@@ -78,6 +78,20 @@ func (l launchctlList) service(name string) service.Service {
 	return service.Service{Name: name, State: service.NotLoaded}
 }
 
+func (l launchctlList) servicesWithNoPlist(plists []plist) []service.Service {
+	named := make(map[string]bool, len(plists))
+	for _, p := range plists {
+		named[p.name] = true
+	}
+	var services []service.Service
+	for name, svc := range l.services {
+		if !named[name] {
+			services = append(services, svc)
+		}
+	}
+	return services
+}
+
 func lastExit(number int) service.LastExit {
 	if number >= 0 {
 		return service.LastExit{Code: number}

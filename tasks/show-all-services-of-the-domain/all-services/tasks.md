@@ -144,19 +144,19 @@ name that no plist in `~/Library/LaunchAgents` has, and one `not loaded` service
 values that `Services` gives it. `Services` still gives only the services that have a plist.
 
 **Acceptance Criteria:**
-- [ ] A name with a PID that no plist has gives a `running` service with that PID, the last exit of its Status, and
+- [x] A name with a PID that no plist has gives a `running` service with that PID, the last exit of its Status, and
       the uptime that `ps` reports for the PID; a name with `-` as the PID that no plist has gives a `loaded` service
       with no PID and no uptime.
-- [ ] A service with no plist has no environment, no `StdoutPath`, no `StderrPath` and no `PlistPath`.
-- [ ] A name that a plist has and that `launchctl list` prints gives one service, with the environment, the log paths
+- [x] A service with no plist has no environment, no `StdoutPath`, no `StderrPath` and no `PlistPath`.
+- [x] A name that a plist has and that `launchctl list` prints gives one service, with the environment, the log paths
       and the plist path of the plist, and the state, the PID and the last exit of `launchctl list`.
-- [ ] A plist whose name `launchctl list` does not print gives a `not loaded` service.
-- [ ] `ps` runs one time, with the PIDs of all running services, also of the services with no plist; with no running
+- [x] A plist whose name `launchctl list` does not print gives a `not loaded` service.
+- [x] `ps` runs one time, with the PIDs of all running services, also of the services with no plist; with no running
       service, `ps` does not run.
-- [ ] An output of `launchctl list` with an unknown header line, a `launchctl` that exits with a code other than 0,
+- [x] An output of `launchctl list` with an unknown header line, a `launchctl` that exits with a code other than 0,
       and a LaunchAgents folder that cannot be read each give the error and no services, as `Services` does. A home
       with no `Library/LaunchAgents` folder gives the services of `launchctl list`, with no error.
-- [ ] `Services` still gives no service for a name that no plist has: the test at
+- [x] `Services` still gives no service for a name that no plist has: the test at
       `internal/launchd/domain_test.go:353-362` passes unchanged.
 
 **Affected Files/Modules:**
