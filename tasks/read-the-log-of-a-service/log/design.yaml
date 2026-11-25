@@ -1,0 +1,43 @@
+design: planned
+types:
+  - name: Screen
+    package: internal/tui
+    change: changed
+    does: the Bubble Tea model of the screen of svcview
+    owns:
+      - the help line shows s start · x stop · r restart · o log · ? help, and ? lists o with its action
+      - the log path of a service is its StandardOutPath, or its StandardErrorPath when the plist has no StandardOutPath
+      - o on a selected service with a log path gives the terminal to less +F -- <log path>, in each state of the service, also while an action of the service has not ended, and asks no confirmation
+      - o on a selected service with no log path shows <name> has no log path in its plist on the message line, and runs nothing
+      - o does nothing while the help shows, with no rows, and while the list shows a read error; while a confirmation shows, o answers no
+      - giveTerminalTo is the one way the screen gives the terminal to a program, and each key that gives the terminal to a program calls it; it runs the program and its arguments with no shell, with no deadline, until the program ends
+      - when the program ends, the screen shows again with the same service selected and the same focus
+      - a program that cannot start, exits with a code other than 0, or ends by a signal shows why on the message line, on one line, with each control character as �
+    fields: [message, confirmation, selected, focus, showHelp]
+    methods: [Init, Update, View, giveTerminalTo]
+  - name: programEnded
+    package: internal/tui
+    change: new
+    does: the message that Bubble Tea sends to the screen when a program that had the terminal ends
+    owns:
+      - it holds the program with its arguments, and the error of its run, which is nil when the program exited with 0
+    fields: [program, err]
+    methods: []
+functions: []
+words:
+  - concept: the file that a service writes what it prints to, which o shows
+    word: log
+    not: [logfile, output file, journal, console]
+  - concept: the StandardOutPath, or the StandardErrorPath when the plist has no StandardOutPath, of a service
+    word: log path
+    not: [log file path, output path, log location]
+  - concept: svcview stops drawing and reading keys, and a program runs in the terminal until it ends, and then the screen shows again
+    word: give the terminal to
+    not: [exec, shell out, suspend, hand off, spawn, open a pager]
+  - concept: a program with its arguments, as a list of texts with the program first, that svcview runs with no shell
+    word: program
+    not: [process, binary, cmd]
+  - concept: the line above the help line that shows a confirmation, the error of an action, the failure of a program, or the text of a key that cannot act
+    word: message line
+    not: [status line, footer, notification, toast, flash, banner]
+dependencies: []

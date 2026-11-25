@@ -1,0 +1,138 @@
+{
+  "story": "o opens the log of the selected service in less",
+  "story_id": "launchd-tui/US-010",
+  "tasks_file": "tasks/read-the-log-of-a-service/log/tasks.md",
+  "tasks": [
+    {
+      "n": 1,
+      "done": false,
+      "title": "Show o log in the help line and in the help",
+      "language": "Go",
+      "testable": true,
+      "certainty": "high",
+      "blast_radius": "low",
+      "patterns_to_follow": [
+        "internal/tui/screen.go:21",
+        "internal/tui/screen.go:442-455",
+        "internal/tui/screen_test.go:3498-3505",
+        "internal/tui/screen_test.go:3556-3570"
+      ],
+      "depends_on": [],
+      "affected_files": [
+        "internal/tui/screen.go",
+        "internal/tui/screen_test.go",
+        "internal/tui/testdata/"
+      ]
+    },
+    {
+      "n": 2,
+      "done": false,
+      "title": "Open the StandardOutPath of the selected service in less +F with o",
+      "language": "Go",
+      "testable": true,
+      "certainty": "medium",
+      "blast_radius": "low",
+      "patterns_to_follow": [
+        "internal/tui/screen.go:201-209",
+        "internal/tui/screen.go:155-160",
+        "internal/tui/screen.go:286-294",
+        "internal/launchd/launchctl_command.go:76-88",
+        "internal/launchd/domain_test.go:64-102",
+        "internal/tui/screen_test.go:225-245",
+        "internal/tui/screen_test.go:3268-3489",
+        "e2e/fakes/launchctl",
+        "e2e/testUtils.ts:33-52",
+        "e2e/testUtils.ts:82-86",
+        "e2e/tests/restart.test.ts:50-64",
+        "docs/e2e-tests.md:103-152",
+        "task:1"
+      ],
+      "depends_on": [
+        1
+      ],
+      "affected_files": [
+        "internal/tui/screen.go",
+        "internal/tui/screen_test.go",
+        "e2e/fakes/less",
+        "e2e/testUtils.ts",
+        "e2e/tests/log.test.ts",
+        "docs/e2e-tests.md"
+      ]
+    },
+    {
+      "n": 3,
+      "done": false,
+      "title": "Keep svcview open when ctrl-c reaches a program that has the terminal",
+      "language": "Go",
+      "testable": true,
+      "certainty": "medium",
+      "blast_radius": "high",
+      "patterns_to_follow": [
+        "cmd/svcview/main.go:12-16",
+        "internal/cli/status.go:31-56",
+        "internal/cli/root.go:62-75",
+        "internal/cli/status_runs.go:42-48",
+        "e2e/tests/status.test.ts:189-203",
+        "e2e/tests/status-subcommand.test.ts:1-40",
+        "task:2"
+      ],
+      "depends_on": [
+        2
+      ],
+      "affected_files": [
+        "cmd/svcview/main.go",
+        "internal/cli/status.go",
+        "internal/cli/root.go",
+        "e2e/fakes/less",
+        "e2e/tests/log.test.ts",
+        "e2e/tests/status.test.ts",
+        "e2e/tests/status-subcommand.test.ts",
+        "docs/e2e-tests.md"
+      ]
+    },
+    {
+      "n": 4,
+      "done": false,
+      "title": "Open the StandardErrorPath, or say on the message line that the service has no log path",
+      "language": "Go",
+      "testable": true,
+      "certainty": "high",
+      "blast_radius": "low",
+      "patterns_to_follow": [
+        "internal/tui/screen.go:201-209",
+        "internal/tui/screen_test.go:3368-3390",
+        "e2e/tests/restart.test.ts:50-64",
+        "task:2"
+      ],
+      "depends_on": [
+        2
+      ],
+      "affected_files": [
+        "internal/tui/screen.go",
+        "internal/tui/screen_test.go",
+        "e2e/tests/log.test.ts"
+      ]
+    },
+    {
+      "n": 5,
+      "done": false,
+      "title": "Describe the log in docs/cli.md",
+      "language": "Markdown",
+      "testable": false,
+      "certainty": "high",
+      "blast_radius": "low",
+      "patterns_to_follow": [
+        "docs/cli.md:146-233",
+        "docs/cli.md:590-600"
+      ],
+      "depends_on": [
+        3,
+        4
+      ],
+      "affected_files": [
+        "docs/cli.md"
+      ]
+    }
+  ],
+  "design_file": "tasks/read-the-log-of-a-service/log/design.yaml"
+}
