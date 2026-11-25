@@ -220,8 +220,13 @@ func (s Screen) press(key tea.KeyPressMsg) (Screen, tea.Cmd) {
 			s.confirmation = newConfirmation("Restart", svc, s.restart)
 		}
 	case "o":
-		if svc, ok := s.selectedService(); ok && !s.showHelp {
-			return s, s.giveTerminalTo([]string{"less", "+F", "--", svc.StdoutPath})
+		svc, ok := s.selectedService()
+		switch {
+		case !ok || s.showHelp:
+		case svc.LogPath() == "":
+			s.message = terminal.ReplaceControlCharacters(svc.Name) + " has no log path in its plist"
+		default:
+			return s, s.giveTerminalTo([]string{"less", "+F", "--", svc.LogPath()})
 		}
 	case "up", "k", "down", "j":
 		step := 1

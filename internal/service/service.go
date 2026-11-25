@@ -1,6 +1,9 @@
 package service
 
-import "time"
+import (
+	"cmp"
+	"time"
+)
 
 type State int
 
@@ -40,4 +43,8 @@ type Service struct {
 	StdoutPath string
 	StderrPath string
 	PlistPath  string
+}
+
+func (s Service) LogPath() string {
+	return cmp.Or(s.StdoutPath, s.StderrPath)
 }

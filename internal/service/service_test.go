@@ -34,3 +34,23 @@ func TestLastExit(t *testing.T) {
 		})
 	})
 }
+
+func TestService(t *testing.T) {
+	t.Run("log path", func(t *testing.T) {
+		t.Run("is the StandardOutPath when the plist has both paths", func(t *testing.T) {
+			svc := service.Service{StdoutPath: "/Users/me/Library/Logs/a.out.log", StderrPath: "/Users/me/Library/Logs/a.err.log"}
+
+			require.Equal(t, "/Users/me/Library/Logs/a.out.log", svc.LogPath())
+		})
+
+		t.Run("is the StandardErrorPath when the plist has no StandardOutPath", func(t *testing.T) {
+			svc := service.Service{StderrPath: "/Users/me/Library/Logs/a.err.log"}
+
+			require.Equal(t, "/Users/me/Library/Logs/a.err.log", svc.LogPath())
+		})
+
+		t.Run("is empty when the plist has neither path", func(t *testing.T) {
+			require.Empty(t, service.Service{Name: "com.example.a"}.LogPath())
+		})
+	})
+}

@@ -51,6 +51,33 @@ describe('the log of a service', () => {
     await session.waitForText('▌○ com.example.x')
   })
 
+  it('o on a service with only a StandardErrorPath gives the terminal to less +F with the StandardErrorPath', async () => {
+    const home = homeWithPlists([])
+    addPlist(home, 'com.example.worker', {}, { stderrPath: '/var/log/com.example.worker.err.log' })
+    const session = await openCli(scratchDir(), [], { HOME: home })
+    await session.waitForText('▌○ com.example.worker')
+
+    await session.press('o')
+
+    await session.waitForText('the fake less shows: +F -- /var/log/com.example.worker.err.log')
+    expect(lessCalls(home)).toEqual(['+F -- /var/log/com.example.worker.err.log'])
+  })
+
+  it('o on a service with no log path shows on the line above the help line that the service has no log path, and runs no less', async () => {
+    const home = homeWithPlists(['com.example.worker'])
+    const session = await openCli(scratchDir(), [], { HOME: home })
+    await session.waitForText('▌○ com.example.worker')
+
+    await session.press('o')
+
+    await session.waitForText('com.example.worker has no log path in its plist')
+    const lines = (await session.text()).split('\n')
+    const help = lines.findIndex((line) => line.includes('? help'))
+    expect(lines[help - 1]).toMatch(/^ com\.example\.worker has no log path in its plist\s*$/)
+    await sleep(500)
+    expect(lessCalls(home)).toEqual([])
+  })
+
   it('when less exits with 1, the line above the help line names the command and the code', async () => {
     const home = homeWithPlists([])
     addPlist(home, 'com.example.worker', {}, { stdoutPath: '/var/log/com.example.worker.out.log' })

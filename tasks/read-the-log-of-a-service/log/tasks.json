@@ -92,7 +92,7 @@
     },
     {
       "n": 4,
-      "done": false,
+      "done": true,
       "title": "Open the StandardErrorPath, or say on the message line that the service has no log path",
       "language": "Go",
       "testable": true,

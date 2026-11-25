@@ -324,14 +324,14 @@ of its own gets no SIGHUP from the terminal"): a mistake leaves a status command
 hides each text of the message line.
 
 **Acceptance Criteria:**
-- [ ] `o` on a service with a `StandardErrorPath` and no `StandardOutPath` runs `less +F -- <StandardErrorPath>`.
-- [ ] `o` on a service with both paths runs `less +F -- <StandardOutPath>`.
-- [ ] `o` on a service with neither path runs nothing, and shows `<name> has no log path in its plist` on the
+- [x] `o` on a service with a `StandardErrorPath` and no `StandardOutPath` runs `less +F -- <StandardErrorPath>`.
+- [x] `o` on a service with both paths runs `less +F -- <StandardOutPath>`.
+- [x] `o` on a service with neither path runs nothing, and shows `<name> has no log path in its plist` on the
       message line, with each control character of the name as `�`.
-- [ ] The next key press hides the text and does what it does: for example `↓` also selects the next row.
-- [ ] `o` shows no text while the help shows, with no rows, and while the list shows a read error after a read that
+- [x] The next key press hides the text and does what it does: for example `↓` also selects the next row.
+- [x] `o` shows no text while the help shows, with no rows, and while the list shows a read error after a read that
       selected a service.
-- [ ] e2e: `o` on a service with only a `StandardErrorPath` makes the fake `less` record
+- [x] e2e: `o` on a service with only a `StandardErrorPath` makes the fake `less` record
       `+F -- <StandardErrorPath>`. `o` on a service with neither path shows the text on the line above the help
       line, and the fake `less` records no call.
 

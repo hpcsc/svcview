@@ -3645,6 +3645,68 @@ func TestScreen(t *testing.T) {
 			}
 		})
 
+		t.Run("o on a service with a StandardErrorPath and no StandardOutPath gives the terminal to less +F with the StandardErrorPath", func(t *testing.T) {
+			calls := fakeLess(t, "0")
+
+			synctest.Test(t, func(t *testing.T) {
+				runFor(t, tui.NewScreen("gui/501", readGiving(service.Service{Name: "com.example.a", StderrPath: "/Users/me/Library/Logs/a.err.log"}), nil, nil, nil, nil, refreshEvery2s), 100*time.Millisecond, keyO)
+			})
+
+			require.Equal(t, [][]string{{"+F", "--", "/Users/me/Library/Logs/a.err.log"}}, calls())
+		})
+
+		t.Run("o on a service with a StandardOutPath and a StandardErrorPath gives the terminal to less +F with the StandardOutPath", func(t *testing.T) {
+			calls := fakeLess(t, "0")
+
+			synctest.Test(t, func(t *testing.T) {
+				runFor(t, tui.NewScreen("gui/501", readGiving(service.Service{Name: "com.example.a", StdoutPath: "/Users/me/Library/Logs/a.out.log", StderrPath: "/Users/me/Library/Logs/a.err.log"}), nil, nil, nil, nil, refreshEvery2s), 100*time.Millisecond, keyO)
+			})
+
+			require.Equal(t, [][]string{{"+F", "--", "/Users/me/Library/Logs/a.out.log"}}, calls())
+		})
+
+		t.Run("o on a service with no log path runs nothing, and shows on the message line that the service has no log path in its plist", func(t *testing.T) {
+			screen := openActing(t, readGiving(service.Service{Name: "com.example.a", State: service.Running, PID: 4121}), nil, nil, nil)
+
+			screen, cmd := screen.Update(keyO)
+
+			require.Nil(t, cmd)
+			require.Equal(t, []string{listBottom, " com.example.a has no log path in its plist", helpLine}, bottomLines(screen, 3))
+		})
+
+		t.Run("the text of o on a service with no log path shows each control character of the name as �", func(t *testing.T) {
+			screen := openActing(t, readGiving(service.Service{Name: "com.example.\x1b[2Jworker"}), nil, nil, nil)
+			screen, _ = screen.Update(tea.WindowSizeMsg{Width: 100, Height: 12})
+
+			screen = pressKeys(screen, keyO)
+
+			require.Equal(t, " com.example.�[2Jworker has no log path in its plist", bottomLines(screen, 2)[0])
+			require.NotContains(t, screen.View().Content, "\x1b[2J")
+		})
+
+		t.Run("the next key press hides the text of o on a service with no log path, and also does what it does", func(t *testing.T) {
+			screen := openActing(t, readGiving(service.Service{Name: "com.example.a"}, loaded), nil, nil, nil)
+
+			screen = pressKeys(screen, keyO, down)
+
+			require.Equal(t, "com.example.b", selectedName(screen))
+			require.Equal(t, []string{listBottom, helpLine}, bottomLines(screen, 2))
+		})
+
+		t.Run("o on a service with no log path shows no text while the help shows, with no rows, and while the list shows a read error", func(t *testing.T) {
+			noLogPath := service.Service{Name: "com.example.a", State: service.Running, PID: 4121}
+			failing := func() ([]service.Service, error) {
+				return []service.Service{noLogPath}, errors.New("launchctl list: exit status 3")
+			}
+			inHelp := pressKeys(openActing(t, readGiving(noLogPath), nil, nil, nil), question, keyO)
+			noRows := pressKeys(openActing(t, readGiving(), nil, nil, nil), keyO)
+			readError := pressKeys(readNow(openActing(t, readsInTurn(readGiving(noLogPath), failing), nil, nil, nil)), keyO)
+
+			for name, screen := range map[string]tea.Model{"help": inHelp, "no rows": noRows, "read error": readError} {
+				require.NotContains(t, bottomLines(screen, 2)[0], "has no log path", name)
+			}
+		})
+
 		t.Run("o gives the terminal to less also while the start, the stop or the restart of the selected service has not ended", func(t *testing.T) {
 			slow := func(service.Service) error {
 				time.Sleep(5 * time.Second)
