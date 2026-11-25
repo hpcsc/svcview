@@ -68,11 +68,10 @@
 
 ## Each key of the screen goes into the help and docs/cli.md
 - Type: convention
-- Recorded: 2026-11-23
-- Observed: task 4 — see-the-launchd-services-in-a-list-detail-pane
-- Learning: The story says that ? shows all keys, so Screen.helpText must list every key that Screen.Update handles, ctrl+c too, and the Keys table of docs/cli.md must match it. The match-request step found ctrl+c missing from the help after the audit; the golden file keys.golden shows the help.
-- Apply when: A task adds or changes a key of the screen, for example s, x, r or l for an action, or plans the criteria of a story that says that ? shows all keys.
-
+- Recorded: 2026-11-25
+- Observed: add-keys-for-the-services-of-a-group-group-keys
+- Learning: The story says that ? shows all keys, so Screen.helpText must list every key that Screen.Update handles, ctrl+c too, and the Keys table of docs/cli.md must match it; the match-request step found ctrl+c missing from the help after the audit, and keys.golden shows the help. A new one-character key also goes into keysOfSvcview in internal/config/action.go, so that no action of a group can take it; the screen test 'config.Read refuses only the keys of svcview, and each other printable ASCII key of an action reaches that action on the screen' fails when the two lists differ.
+- Apply when: A task adds or changes a key of the screen, for example / for the filter of the list, or plans the criteria of a story that says that ? shows all keys.
 ## Plan the layout change of the screen as the first task
 - Type: constraint
 - Recorded: 2026-11-23
@@ -115,11 +114,10 @@
 
 ## Pass --integrate to clerk land when the request asks to land on main
 - Type: constraint
-- Recorded: 2026-11-23
-- Observed: put-the-services-in-groups-with-a-config-file-config-file
-- Learning: Bare clerk land reads only the integrate setting of the repo (integrate_source default), not the --integrate of the request, so it archives the breakdown and does not integrate. The run is then at the learn step, and clerk land refuses again; the branch then needs git merge --ff-only in the main checkout.
-- Apply when: A run whose request says --integrate, or land it on main, reaches the land step.
-
+- Recorded: 2026-11-25
+- Observed: add-keys-for-the-services-of-a-group-group-keys
+- Learning: Bare clerk land reads only the integrate setting of the repo (integrate_source default) and not the --integrate of the request, although facts.flags shows integrate on from the request; it archives the breakdown, does not integrate, and moves the run to the learn step, where clerk land --integrate refuses. Four runs hit this (groups, restart, log, group-keys). Run clerk land --integrate the first time; when bare clerk land already ran, fast-forward main with git merge --ff-only <branch> in the main checkout after clerk learn.
+- Apply when: A run whose request holds --integrate, or says to land the branch on main, reaches the land step.
 ## The list draws and counts its lines through linesAbove and row.compare
 - Type: convention
 - Recorded: 2026-11-23
@@ -250,12 +248,6 @@
 - Observed: read-the-log-of-a-service-log
 - Learning: clerk fixup mark folds a change made at HEAD into one commit. In fields-and-events the audit fix (a test of a task 2 criterion, and a rename of a golden subtest of tasks 2 and 3) went into the task 4 commit, and run-verifier reported tasks 2 and 3 as scattered. A fold onto an earlier commit also conflicts at the replay when its changed line is next to lines that a later task inserted, because git merges no change that touches a line next to another change: in read-the-log-of-a-service, a rename of the parameter of giveTerminalTo (task 2) sat under the method that task 4 inserted, the run routed it to task 4, and run-verifier reported it as a mixed concern. The split: write the file as each earlier commit must have it, build each commit with git commit-tree from a temporary GIT_INDEX_FILE with the old message and author, rebuild the later commits on their old trees, check that git diff of the old and the new tip is empty, run the tests at each new commit in a temporary worktree, and move the branch with git update-ref. The suite receipt stays valid, because it is bound to the tip tree. Run the script with bash: zsh here has an alias mk.
 - Apply when: An audit fix changes lines that two or more task commits added, a fold onto an earlier commit changes a line next to lines that a later task inserted, or run-verifier reports a task whose work is in a later commit, on a branch that is not pushed.
-## Match the learnings index with the clerk commands as well as the story
-- Type: constraint
-- Recorded: 2026-11-24
-- Observed: start-and-stop-a-service-start-and-stop
-- Learning: clerk learn index --match with only the packages and nouns of the story does not list the entries about clerk itself, and three runs (groups, fields-and-events, start-and-stop) missed 'Run clerk mutants and clerk audit run under mise exec', 'Pass --integrate to clerk land when the request asks to land on main' and the clerk fixup entries, and repeated their problems. Read clerk learn index --text with no --match at the ground step: it is one line for each entry, and no term can be left out.
-- Apply when: The ground step of a run in this repo reads the learnings index.
 ## A test that a pane does not move needs a pane that can scroll
 - Type: pattern
 - Recorded: 2026-11-23
@@ -417,13 +409,6 @@
 - Learning: The first task test:unit of restart-a-service failed 5 subtests of TestStatusSubcommand in internal/cli: the output of yes that is larger than 1 MiB gave status timeout in place of status invalid. That run took 18.8 s in place of about 9 s, and the package passed alone and in the next full run. Run the suite again before you read such a failure as a defect of the task.
 - Apply when: task test:unit fails in internal/cli TestStatusSubcommand with status timeout, in a task that does not change internal/cli or internal/status.
 
-## clerk land does not read --integrate from the request
-- Type: constraint
-- Recorded: 2026-11-25
-- Observed: restart-a-service-restart
-- Learning: In restart-a-service, the request held --integrate, and facts.flags gave integrate: true with the source request. Bare clerk land reported integrate: false with integrate_source default, archived the breakdown, and moved the run to the learn step. clerk land --integrate then refused, because the run was at the learn step. Pass --integrate to clerk land when the request asks to land, or land with git merge --ff-only <branch> on main after clerk learn.
-- Apply when: A run whose request holds --integrate, or says to land on main, reaches the land step.
-
 ## Each subcommand ends at SIGINT through endAtInterrupt, and the screen catches SIGINT itself
 - Type: constraint
 - Recorded: 2026-11-25
@@ -445,9 +430,24 @@
 - Learning: A pseudo-terminal from Python pty.fork has a size of 0x0 until TIOCSWINSZ sets one, and the real less then does not show the log. The help line shows before the first read of the services ends, so a key pressed when '? help' shows can reach a screen with no selected service and do nothing. In read-the-log-of-a-service, 11 of 15 checks with the real less failed for this reason and not for a defect; wait for the name of the service, as the e2e tests wait for the row with ▌.
 - Apply when: Checking svcview by hand in a pseudo-terminal, for example with the real less, launchctl or a status command in place of a fake.
 
-## clerk land does not read --integrate from the request, so pass it to clerk land
+
+## Read the whole learnings index at the ground step, with no --match
 - Type: constraint
 - Recorded: 2026-11-25
-- Observed: read-the-log-of-a-service-log
-- Learning: In read-the-log-of-a-service, clerk step reported integrate on from the request, but bare clerk land reported integrate_source default, archived the breakdown, and did not land the branch. After that clerk land refuses, because the run is at the learn step. Run clerk land --integrate when the request asks to land the branch, or fast-forward main by hand after clerk learn.
-- Apply when: The land step of a run whose request has --integrate, or says to land the branch on main.
+- Observed: add-keys-for-the-services-of-a-group-group-keys
+- Learning: clerk learn index --match with the packages and nouns of the story does not list the entries about clerk itself: four runs (groups, fields-and-events, start-and-stop, group-keys) missed the entries on clerk land --integrate, clerk mutants under mise exec or clerk fixup, and repeated their problems. Run clerk learn index --text with no --match at the ground step: it is one line for each entry, and then clerk learn show the entries that apply.
+- Apply when: The ground step of a run in this repo reads the learnings index.
+
+## A test folded into an earlier task commit uses only the behaviour of that commit
+- Type: recurring-finding
+- Recorded: 2026-11-25
+- Observed: task 5 — add-keys-for-the-services-of-a-group-group-keys
+- Learning: In group-keys, an audit guard test went into the commit of task 5 with clerk fixup mark --onto, but it used confirm: true, which task 6 adds, so go test failed at the task 5 commit and run-verifier raised it; HEAD passed. Before clerk fixup replay, check that the new test asserts only what its target commit does, and after the replay run go test -tags=unit ./... on git archive <the target commit> in the scratchpad.
+- Apply when: An audit fix adds or changes a test with clerk fixup mark --onto a task commit that later tasks of the branch build on, for example a test in internal/tui/screen_test.go.
+
+## A word that design.yaml widens must fit the names that already use it
+- Type: recurring-finding
+- Recorded: 2026-11-25
+- Observed: task 5 — add-keys-for-the-services-of-a-group-group-keys
+- Learning: The group-keys design gave 'action' to any thing that a key does, but internal/tui already named only the start, stop and restart on launchd actionOn, actionEnded and actionNotEnded, with a guard that the action of a group does not use. The audit raised the two meanings, and the rename to launchdAction... could not fold into the task that caused it, because a later task rewrote the same lines. When the words of design.yaml widen a word that code already uses in a narrow sense, plan the rename of the old names in the first task that adds the new meaning.
+- Apply when: Planning a story whose design.yaml gives a word that internal/tui, internal/config or internal/launchd already uses a wider or different meaning.
