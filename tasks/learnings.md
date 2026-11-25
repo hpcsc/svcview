@@ -513,3 +513,17 @@
 - Observed: task 1 — show-all-services-with-one-key-all-services-key
 - Learning: all-services-key planned the Screen field read beside a new readAll, so read meant only the read of the services with a plist, while readServices, lastRead, servicesRead and startRead use the word for any read; the audit raised the two meanings, and the field became readWithPlist. It is the narrow form of 'A word that design.yaml widens must fit the names that already use it': when a story adds a second variant of a field, a parameter or a function that the code already names with a general word, plan the old one under the name of its variant in the first task.
 - Apply when: Planning or building a task that adds a second variant beside an existing field, parameter or function of internal/tui, internal/config or internal/launchd, for example a second read, a second action or a second status command.
+
+## A golden file already holds each line of the screen that it draws
+- Type: recurring-finding
+- Recorded: 2026-11-25
+- Observed: task 1 — show-the-keys-of-the-filter-and-of-all-services-in-the-help-line-help-line-keys
+- Learning: The audit of help-line-keys raised a new screen test as redundant: it checked the header and the help line of a screen that starts with all services, and all-services.golden with the header test at internal/tui/screen_test.go:725 already held both, so the test had no other reason to fail. Before a task adds a test of one line of a screen state, find the golden test that draws the same state (rg requireGolden internal/tui/screen_test.go), and add one assertion there or let the golden file prove the line.
+- Apply when: Planning a criterion or writing a test in internal/tui that checks the header, the help line or another line of a screen state that a golden file in internal/tui/testdata draws, for example the help line with all services after a change to Screen.helpLine.
+
+## Proposed mutants test the words and the order of a text on the screen
+- Type: pattern
+- Recorded: 2026-11-25
+- Observed: task 1 — show-the-keys-of-the-filter-and-of-all-services-in-the-help-line-help-line-keys
+- Learning: clerk mutants makes only RETURN_EMPTY on a line that joins text literals, such as the return of Screen.helpLine, so the audit of help-line-keys reported that no mutant removed, swapped or moved the new keys. A proposals file with one mutant for each removed or swapped literal, and one whose old and new span several lines with \n to move the literals before the loop over the actions, ran with mise exec -- clerk mutants --base <base> --proposals <file> --proposals-anywhere --operators none, and the screen tests killed all four.
+- Apply when: A task adds, removes or reorders text literals that svcview shows, for example a key on the help line or a line of the help, and clerk mutants reports only RETURN_EMPTY for that line.
