@@ -333,21 +333,21 @@ of the status keep the cut with `…`. The scroll of the detail pane counts the 
 of the width of the terminal changes the number of lines, and the scroll stays inside the text.
 
 **Acceptance Criteria:**
-- [ ] At 80 columns the room is 30 cells: a part of exactly 30 cells shows on one line; a part of 31 cells shows its
+- [x] At 80 columns the room is 30 cells: a part of exactly 30 cells shows on one line; a part of 31 cells shows its
       first 30 cells, and its last cell on the next line in the column of the values; a part of 61 cells takes three
       lines.
-- [ ] A wide character that does not fit at the end of the room moves whole to the next line. A control character shows
+- [x] A wide character that does not fit at the end of the room moves whole to the next line. A control character shows
       as `�` before the break, and takes one cell.
-- [ ] A golden file `plist-wrapped` at 80 columns draws a plist path and a `stdout` that are each wider than 30 cells,
+- [x] A golden file `plist-wrapped` at 80 columns draws a plist path and a `stdout` that are each wider than 30 cells,
       each on two lines.
-- [ ] A field of the status, a line of a failure, and the data from launchd that are wider than the pane are still cut
+- [x] A field of the status, a line of a failure, and the data from launchd that are wider than the pane are still cut
       with `…`.
-- [ ] With the focus on the detail pane, `↓` stops when the last line of the last part is at the bottom of the pane.
+- [x] With the focus on the detail pane, `↓` stops when the last line of the last part is at the bottom of the pane.
       After the terminal gets wider, the same text takes fewer lines, the scroll stays inside the text, and no empty
       line shows under its last line.
-- [ ] A terminal of each width up to 32 columns, which gives a room of 2 cells, 1 cell, no cell or less, does not stop
+- [x] A terminal of each width up to 32 columns, which gives a room of 2 cells, 1 cell, no cell or less, does not stop
       the screen after `↓`. With no cell of room, the pane shows each part on one line, which it cuts.
-- [ ] `confirmation.golden` shows the plist path of the selected service on two lines, and `plist.golden` does not
+- [x] `confirmation.golden` shows the plist path of the selected service on two lines, and `plist.golden` does not
       change.
 
 **Affected Files/Modules:**

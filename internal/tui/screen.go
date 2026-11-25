@@ -591,9 +591,9 @@ func (s Screen) messageLines() []string {
 }
 
 func (s Screen) panes() []string {
-	list := box{title: "Services", width: s.width * 40 / 100, height: s.paneHeight(), borderStyle: s.borderStyle(listPane)}
+	list := box{title: "Services", width: s.listWidth(), height: s.paneHeight(), borderStyle: s.borderStyle(listPane)}
 	list.text = s.listText(list.textWidth())[s.listTop:]
-	detail := box{width: s.width - list.width, height: list.height, borderStyle: s.borderStyle(detailPane)}
+	detail := box{width: s.detailWidth(), height: list.height, borderStyle: s.borderStyle(detailPane)}
 	if at := s.selectedAt(); at >= 0 {
 		detail.title, detail.text = terminal.ReplaceControlCharacters(s.rowsInList()[at].service.Name), s.selectedDetailText()[s.detailTop:]
 	}
@@ -603,6 +603,14 @@ func (s Screen) panes() []string {
 		lines = append(lines, line+detailLines[i])
 	}
 	return lines
+}
+
+func (s Screen) listWidth() int {
+	return s.width * 40 / 100
+}
+
+func (s Screen) detailWidth() int {
+	return s.width - s.listWidth()
 }
 
 func (s Screen) borderStyle(p pane) ansi.Style {
@@ -777,10 +785,10 @@ func (s Screen) selectedDetailText() []string {
 	if at < 0 {
 		return nil
 	}
-	return s.detailText(s.rowsInList()[at].service)
+	return s.detailText(s.rowsInList()[at].service, box{width: s.detailWidth()}.textWidth())
 }
 
-func (s Screen) detailText(svc service.Service) []string {
+func (s Screen) detailText(svc service.Service, width int) []string {
 	pid, uptime := "-", "-"
 	if svc.PID != 0 {
 		pid = strconv.Itoa(svc.PID)
@@ -805,7 +813,7 @@ func (s Screen) detailText(svc service.Service) []string {
 			text = append(text, s.eventLines(result.Output.Events)...)
 		}
 	}
-	return append(text, s.plistLines(svc)...)
+	return append(text, s.plistLines(svc, width-detailLeftWidth)...)
 }
 
 func (s Screen) fieldLines(fields []status.Field) []string {
@@ -836,20 +844,29 @@ func (s Screen) eventLines(events []status.Event) []string {
 	return lines
 }
 
-func (s Screen) plistLines(svc service.Service) []string {
+func (s Screen) plistLines(svc service.Service, room int) []string {
 	if svc.PlistPath == "" {
 		return nil
 	}
-	lines := []string{"", s.detailLine("Plist", terminal.ReplaceControlCharacters(svc.PlistPath))}
+	lines := append([]string{""}, s.valueLines("Plist", svc.PlistPath, room)...)
 	for _, property := range svc.Properties {
 		if len(property.Values) == 0 {
 			lines = append(lines, property.Name)
 		}
 		name := property.Name
 		for _, value := range property.Values {
-			lines = append(lines, s.detailLine(name, terminal.ReplaceControlCharacters(value)))
+			lines = append(lines, s.valueLines(name, value, room)...)
 			name = ""
 		}
+	}
+	return lines
+}
+
+func (s Screen) valueLines(name, value string, room int) []string {
+	var lines []string
+	for line := range strings.SplitSeq(ansi.Hardwrap(terminal.ReplaceControlCharacters(value), room, true), "\n") {
+		lines = append(lines, s.detailLine(name, line))
+		name = ""
 	}
 	return lines
 }

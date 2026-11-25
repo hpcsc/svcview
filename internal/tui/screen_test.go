@@ -2254,6 +2254,110 @@ func TestScreen(t *testing.T) {
 			require.NotContains(t, screen.View().Content, "s3cret")
 		})
 
+		t.Run("at 80 columns, the room after the column of the values is 30 cells: a part of 30 cells shows on one line, a part of 31 cells shows its last cell on the next line in that column, and a part of 61 cells takes three lines", func(t *testing.T) {
+			screen := open(t, "gui/501", readGiving(service.Service{
+				Name:      "com.example.worker",
+				PlistPath: "/p/w.plist",
+				Properties: []service.Property{{Name: "program", Values: []string{
+					strings.Repeat("a", 30),
+					strings.Repeat("b", 30) + "c",
+					strings.Repeat("d", 30) + strings.Repeat("e", 30) + "f",
+				}}},
+			}), 80, 16)
+
+			require.Equal(t, []string{
+				"Plist         /p/w.plist",
+				"program       " + strings.Repeat("a", 30),
+				"              " + strings.Repeat("b", 30),
+				"              c",
+				"              " + strings.Repeat("d", 30),
+				"              " + strings.Repeat("e", 30),
+				"              f",
+			}, detailPane(screen)[3:])
+		})
+
+		t.Run("a wide character that does not fit at the end of the room moves whole to the next line, and a control character shows as � before the break and takes one cell", func(t *testing.T) {
+			screen := open(t, "gui/501", readGiving(service.Service{
+				Name:       "com.example.worker",
+				PlistPath:  "/p/w.plist",
+				Properties: []service.Property{{Name: "program", Values: []string{strings.Repeat("a", 29) + "界b", strings.Repeat("c", 29) + "\x07d"}}},
+			}), 80, 14)
+
+			require.Equal(t, []string{
+				"Plist         /p/w.plist",
+				"program       " + strings.Repeat("a", 29),
+				"              界b",
+				"              " + strings.Repeat("c", 29) + "�",
+				"              d",
+			}, detailPane(screen)[3:])
+		})
+
+		t.Run("a space at the end of the room shows at the start of the next line, so each cell of the part shows", func(t *testing.T) {
+			screen := open(t, "gui/501", readGiving(service.Service{
+				Name:       "com.example.worker",
+				PlistPath:  "/p/w.plist",
+				Properties: []service.Property{{Name: "stdout", Values: []string{strings.Repeat("a", 30) + " b"}}},
+			}), 80, 12)
+
+			require.Equal(t, []string{
+				"Plist         /p/w.plist",
+				"stdout        " + strings.Repeat("a", 30),
+				"               b",
+			}, detailPane(screen)[3:])
+		})
+
+		t.Run("draws a plist path and a stdout that are wider than the room after the column of the values on two lines each, at 80 columns", func(t *testing.T) {
+			screen := open(t, "gui/501", readGiving(service.Service{
+				Name:      "com.example.worker",
+				State:     service.Running,
+				PID:       4122,
+				Uptime:    new(3*time.Hour + 12*time.Minute),
+				PlistPath: "/Users/me/Library/LaunchAgents/com.example.worker.plist",
+				Properties: []service.Property{
+					{Name: "program", Values: []string{"/usr/local/bin/worker"}},
+					{Name: "stdout", Values: []string{"/Users/me/Library/Logs/worker.out.log"}},
+				},
+			}), 80, 14)
+
+			requireGolden(t, "plist-wrapped", screen)
+		})
+
+		t.Run("a field of the status, a line of a failure, and the data from launchd that are wider than the pane are still cut with …", func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				read := readGiving(
+					service.Service{Name: "com.example.worker.a", LastExit: service.LastExit{Signal: "signal 2147483648"}, PlistPath: "/p/a.plist"},
+					service.Service{Name: "com.example.worker.b", PlistPath: "/p/b.plist"},
+				)
+				run := runsGiving(map[string]status.Result{
+					"com.example.worker.a": {Output: &status.Output{Fields: []status.Field{{Name: "mode", Value: "busy with the ticket ENG-692 of the queue"}}}},
+					"com.example.worker.b": {Failure: &status.Failure{Kind: status.FailureKindError, Text: "exit code 3", Lines: []string{"the status file /Users/me/worker/status.json is not JSON"}}},
+				})
+
+				screen := runSized(t, tui.NewScreen("gui/501", read, nil, false, run, nil, nil, nil, workersWithStatus(t)), 60, 13, 100*time.Millisecond)
+
+				require.Equal(t, [][]string{
+					{"○ not loaded  PID -", "up -          last exit signal …", "Status 1m0s ago", "mode  busy with the ticket ENG-…"},
+					{"○ not loaded  PID -", "up -          last exit 0", "Status 1m0s ago", "exit code 3", "the status file /Users/me/worke…"},
+				}, [][]string{detailPane(screen)[:4], detailPane(pressKeys(screen, down))[:5]})
+			})
+		})
+
+		t.Run("with a room of 1 cell, each cell of a part shows on a line of its own, and with no room or less, each part shows on one line, which the pane cuts", func(t *testing.T) {
+			for width, expected := range map[int][]string{
+				31: {"Plist         /", "              p", "program       a", "              b"},
+				30: {"Plist        …", "program      …"},
+				28: {"Plist       …", "program     …"},
+			} {
+				screen := open(t, "gui/501", readGiving(service.Service{
+					Name:       "com.example.worker",
+					PlistPath:  "/p",
+					Properties: []service.Property{{Name: "program", Values: []string{"ab"}}},
+				}), width, 13)
+
+				require.Equal(t, expected, detailPane(screen)[3:3+len(expected)], "width %d", width)
+			}
+		})
+
 		t.Run("with no rows, shows no service", func(t *testing.T) {
 			screen := open(t, "gui/501", servicesNamed(), 80, 12)
 
@@ -3140,6 +3244,53 @@ func TestScreen(t *testing.T) {
 				"environment   WORKER_STATUS_FILE",
 				"              WORKER_TOKEN",
 			}, detailPane(bottom))
+		})
+
+		t.Run("↓ stops when the last line of a part that continues on the next lines is at the bottom of the pane, and after the terminal gets wider, the part takes fewer lines and the scroll stays inside the text with no empty line under its last line", func(t *testing.T) {
+			screen := open(t, "gui/501", readGiving(service.Service{
+				Name:      "com.example.worker",
+				PlistPath: "/p/w.plist",
+				Properties: []service.Property{
+					{Name: "program", Values: []string{"/bin/w"}},
+					{Name: "stdout", Values: []string{strings.Repeat("a", 30) + strings.Repeat("b", 30) + "c"}},
+				},
+			}), 80, 12)
+			bottom := pressKeys(screen, tab, down, down, down, down)
+
+			wider, _ := bottom.Update(tea.WindowSizeMsg{Width: 120, Height: 12})
+
+			require.Equal(t, [][]string{
+				{
+					"",
+					"Plist         /p/w.plist",
+					"program       /bin/w",
+					"stdout        " + strings.Repeat("a", 30),
+					"              " + strings.Repeat("b", 30),
+					"              c",
+				},
+				{
+					"up -          last exit 0",
+					"",
+					"Plist         /p/w.plist",
+					"program       /bin/w",
+					"stdout        " + strings.Repeat("a", 30) + strings.Repeat("b", 24),
+					"              " + strings.Repeat("b", 6) + "c",
+				},
+			}, [][]string{detailPane(bottom), detailPane(wider)})
+		})
+
+		t.Run("a terminal of each width up to 32 columns, with a room after the column of the values of 2 cells, 1 cell, no cell or less, does not stop the screen after ↓", func(t *testing.T) {
+			for width := range 33 {
+				require.NotPanics(t, func() {
+					screen := open(t, "gui/501", readGiving(service.Service{
+						Name:       "com.example.worker",
+						PlistPath:  "/Users/me/Library/LaunchAgents/com.example.worker.plist",
+						Properties: []service.Property{{Name: "program", Values: []string{"/usr/local/bin/界worker", "--queue"}}},
+					}), width, 12)
+					screen = pressKeys(screen, tab, down, down, down)
+					screen.View()
+				}, "width %d", width)
+			}
 		})
 
 		t.Run("a terminal with no room for a line of the detail pane does not stop the screen after ↓", func(t *testing.T) {

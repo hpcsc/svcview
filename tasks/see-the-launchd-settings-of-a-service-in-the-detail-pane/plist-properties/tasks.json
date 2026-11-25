@@ -69,7 +69,7 @@
     },
     {
       "n": 3,
-      "done": false,
+      "done": true,
       "title": "Continue a long part of a value on the next lines of the detail pane",
       "language": "Go",
       "testable": true,
