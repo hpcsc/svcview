@@ -115,4 +115,30 @@ describe('the actions of a group', () => {
     await sleep(500)
     expect(lessCalls(home)).toEqual([])
   })
+
+  it('with confirm: true, L shows the confirmation on the line above the help line, n hides it and runs no less, and L and then y give the terminal to less', async () => {
+    const home = homeWithPlists([])
+    addPlist(home, 'com.example.worker.01', { WORKER_LOG: '/Users/me/worker/01.log' })
+    writeConfig(join(home, '.config', 'svcview'), `${workerLogAction}        confirm: true\n`)
+    const session = await openCli(scratchDir(), [], { HOME: home })
+    await session.waitForText('▌○ com.example.worker.01')
+
+    await session.type('L')
+
+    await session.waitForText('Run worker log for com.example.worker.01? (y/N)')
+    const lines = (await session.text()).split('\n')
+    const help = lines.findIndex((line) => line.includes('? help'))
+    expect(lines[help - 1]).toMatch(/^ Run worker log for com\.example\.worker\.01\? \(y\/N\)\s*$/)
+
+    await session.type('n')
+    await expect.poll(async () => await session.text()).not.toContain('(y/N)')
+    await sleep(500)
+    expect(lessCalls(home)).toEqual([])
+
+    await session.type('L')
+    await session.waitForText('(y/N)')
+    await session.type('y')
+    await session.waitForText('the fake less shows: +F /Users/me/worker/01.log')
+    expect(lessCalls(home)).toEqual(['+F /Users/me/worker/01.log'])
+  })
 })

@@ -4074,6 +4074,132 @@ func TestScreen(t *testing.T) {
 		})
 	})
 
+	t.Run("confirm the action of a group", func(t *testing.T) {
+		keyUpperL := tea.KeyPressMsg{Code: 'L', Text: "L"}
+		listBottom := "╰" + strings.Repeat("─", 30) + "╯╰" + strings.Repeat("─", 46) + "╯"
+		helpLine := " s start · x stop · r restart · o log · L worker log · E worker errors · ? help"
+		confirmed := func(t *testing.T) config.Settings {
+			t.Helper()
+			settings := groups(t, "Workers", `^com\.example\.worker\.`)
+			log := newAction(t, "L", "worker log", "less", "+F", "{{.Env.WORKER_LOG}}")
+			log.Confirm = true
+			settings.Groups[0].Actions = []config.Action{log, newAction(t, "E", "worker errors", "less", "{{.StderrPath}}")}
+			return settings
+		}
+		worker := func(name string, state service.State) service.Service {
+			return service.Service{Name: "com.example.worker." + name, State: state, Env: map[string]string{"WORKER_LOG": "/Users/me/worker/" + name + ".log"}, StderrPath: "/Users/me/worker/" + name + ".err.log"}
+		}
+
+		t.Run("the key of an action with confirm shows the confirmation with the name of the action and the full name of the service on the message line, and runs no command yet", func(t *testing.T) {
+			screen := openWith(t, confirmed(t), readGiving(worker("01", service.Running), worker("02", service.Loaded)), 80, 12)
+
+			screen = pressKeys(screen, down)
+			screen, cmd := screen.Update(keyUpperL)
+
+			require.Nil(t, cmd)
+			require.Equal(t, []string{listBottom, " Run worker log for com.example.worker.02? (y/N)", helpLine}, bottomLines(screen, 3))
+		})
+
+		t.Run("y hides the confirmation and gives the terminal to the command line that the key made, one time", func(t *testing.T) {
+			calls := fakeLess(t, "0")
+
+			synctest.Test(t, func(t *testing.T) {
+				screen := runFor(t, tui.NewScreen("gui/501", readGiving(worker("01", service.Running), worker("02", service.Loaded)), nil, nil, nil, nil, confirmed(t)), 100*time.Millisecond, down, keyUpperL, keyY)
+
+				require.Equal(t, "02", selectedName(screen))
+				require.Equal(t, []string{listBottom, helpLine}, bottomLines(screen, 2))
+			})
+			require.Equal(t, [][]string{{"+F", "/Users/me/worker/02.log"}}, calls())
+		})
+
+		t.Run("y runs the command line of the service that the confirmation names, also when a refresh removed it from the list and changed the selected row while the confirmation showed", func(t *testing.T) {
+			calls := fakeLess(t, "0")
+
+			synctest.Test(t, func(t *testing.T) {
+				screen := tui.NewScreen("gui/501", readsInTurn(readGiving(worker("01", service.Running), worker("02", service.Loaded)), readGiving(worker("02", service.Loaded))), nil, nil, nil, nil, confirmed(t))
+				program := tea.NewProgram(screen, tea.WithInput(nil), tea.WithOutput(io.Discard), tea.WithoutSignalHandler(), tea.WithWindowSize(80, 12))
+				go func() {
+					time.Sleep(10 * time.Millisecond)
+					program.Send(keyUpperL)
+					time.Sleep(3 * time.Second)
+					program.Send(keyY)
+					time.Sleep(100 * time.Millisecond)
+					program.Quit()
+				}()
+
+				final, err := program.Run()
+				require.NoError(t, err)
+				time.Sleep(time.Minute)
+				synctest.Wait()
+
+				require.Equal(t, "02", selectedName(final))
+			})
+			require.Equal(t, [][]string{{"+F", "/Users/me/worker/01.log"}}, calls())
+		})
+
+		t.Run("each key other than y and ctrl+c answers no, the key of an action too: it hides the confirmation, runs no command, and does nothing else", func(t *testing.T) {
+			keyUpperE := tea.KeyPressMsg{Code: 'E', Text: "E"}
+			for _, key := range []tea.KeyPressMsg{keyN, escape, keyQ, up, down, keyJ, keyK, keyL, keyH, keyX, keyS, keyR, keyO, question, tab, keyUpperL, keyUpperE, tea.KeyPressMsg{Code: 'Y', Text: "Y"}} {
+				starts, stops, restarts := &serviceCalls{}, &serviceCalls{}, &serviceCalls{}
+				screen := openActingWith(t, confirmed(t), readGiving(worker("01", service.Running), worker("02", service.Loaded), worker("03", service.Running)), starts.record, stops.record, restarts.record)
+				screen = pressKeys(screen, down)
+				before := screen.View().Content
+
+				screen = pressKeys(screen, keyUpperL)
+				screen, cmd := screen.Update(key)
+				runAll(cmd)
+
+				require.Nil(t, cmd, key.String())
+				require.Equal(t, before, screen.View().Content, key.String())
+				require.Empty(t, slices.Concat(starts.get(), stops.get(), restarts.get()), key.String())
+			}
+		})
+
+		t.Run("ctrl+c ends the screen while the confirmation of an action shows", func(t *testing.T) {
+			screen := openWith(t, confirmed(t), readGiving(worker("01", service.Running)), 80, 12)
+
+			screen = pressKeys(screen, keyUpperL)
+			question := bottomLines(screen, 2)[0]
+			_, cmd := screen.Update(ctrlC)
+
+			require.Equal(t, " Run worker log for com.example.worker.01? (y/N)", question)
+			require.Equal(t, tea.QuitMsg{}, cmd())
+		})
+
+		t.Run("on a service whose plist does not have a template value of the command, the key of an action with confirm shows the failure and no confirmation, and y after it runs nothing", func(t *testing.T) {
+			screen := openWith(t, confirmed(t), readGiving(service.Service{Name: "com.example.worker.01"}), 80, 12)
+
+			screen, onKey := screen.Update(keyUpperL)
+			withFailure := bottomLines(screen, 3)
+			screen, onY := screen.Update(keyY)
+
+			require.Nil(t, onKey)
+			require.Nil(t, onY)
+			require.Equal(t, []string{listBottom, " the plist has no WORKER_LOG", helpLine}, withFailure)
+			require.Equal(t, []string{listBottom, helpLine}, bottomLines(screen, 2))
+		})
+
+		t.Run("the confirmation shows each control character of the name of the action and of the service as �", func(t *testing.T) {
+			settings := confirmed(t)
+			settings.Groups[0].Actions[0].Name = "worker\x1b[2Jlog"
+			screen := openWith(t, settings, readGiving(service.Service{Name: "com.example.worker.\x1b]0;01", Env: map[string]string{"WORKER_LOG": "/Users/me/worker/01.log"}}), 100, 12)
+
+			screen = pressKeys(screen, keyUpperL)
+
+			require.Equal(t, " Run worker�[2Jlog for com.example.worker.�]0;01? (y/N)", bottomLines(screen, 2)[0])
+			require.NotContains(t, screen.View().Content, "\x1b[2J")
+			require.NotContains(t, screen.View().Content, "\x1b]0;")
+		})
+
+		t.Run("the confirmation shows whole at the exact fit of the width, and one cell less cuts it with …", func(t *testing.T) {
+			question := " Run worker log for com.example.worker.01? (y/N)"
+			exactFit := pressKeys(openWith(t, confirmed(t), readGiving(worker("01", service.Running)), 48, 12), keyUpperL)
+			oneLess := pressKeys(openWith(t, confirmed(t), readGiving(worker("01", service.Running)), 47, 12), keyUpperL)
+
+			require.Equal(t, []string{question, " Run worker log for com.example.worker.01? (y/…"}, []string{bottomLines(exactFit, 2)[0], bottomLines(oneLess, 2)[0]})
+		})
+	})
+
 	t.Run("keys", func(t *testing.T) {
 		t.Run("q ends the screen", func(t *testing.T) {
 			require.NoError(t, runWithInput(t, tui.NewScreen("gui/501", servicesNamed("com.example.worker"), nil, nil, nil, nil, refreshEvery2s), "q"))

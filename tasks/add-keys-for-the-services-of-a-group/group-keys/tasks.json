@@ -136,7 +136,7 @@
     },
     {
       "n": 6,
-      "done": false,
+      "done": true,
       "title": "Ask for a confirmation before the command of an action with confirm",
       "language": "Go",
       "testable": true,

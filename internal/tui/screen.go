@@ -55,12 +55,11 @@ type programEnded struct {
 
 type confirmation struct {
 	question string
-	service  service.Service
-	action   func(service.Service) error
+	yes      func(Screen) tea.Cmd
 }
 
-func newConfirmation(verb string, svc service.Service, action func(service.Service) error) *confirmation {
-	return &confirmation{question: verb + " " + terminal.ReplaceControlCharacters(svc.Name) + "? (y/N)", service: svc, action: action}
+func newConfirmation(ask string, svc service.Service, yes func(Screen) tea.Cmd) *confirmation {
+	return &confirmation{question: ask + " " + terminal.ReplaceControlCharacters(svc.Name) + "? (y/N)", yes: yes}
 }
 
 type row struct {
@@ -208,7 +207,7 @@ func (s Screen) press(key tea.KeyPressMsg) (Screen, tea.Cmd) {
 		}
 	case "x":
 		if svc, ok := s.serviceToActOn(); ok && svc.State != service.NotLoaded {
-			s.confirmation = newConfirmation("Stop", svc, s.stop)
+			s.confirmation = newConfirmation("Stop", svc, func(screen Screen) tea.Cmd { return screen.actionOn(svc, screen.stop) })
 		}
 	case "r":
 		svc, ok := s.serviceToActOn()
@@ -217,7 +216,7 @@ func (s Screen) press(key tea.KeyPressMsg) (Screen, tea.Cmd) {
 		case svc.State == service.NotLoaded:
 			s.message = terminal.ReplaceControlCharacters(svc.Name) + " is not loaded, so svcview cannot restart it"
 		default:
-			s.confirmation = newConfirmation("Restart", svc, s.restart)
+			s.confirmation = newConfirmation("Restart", svc, func(screen Screen) tea.Cmd { return screen.actionOn(svc, screen.restart) })
 		}
 	case "o":
 		svc, ok := s.serviceForKeys()
@@ -257,11 +256,16 @@ func (s Screen) runAction(key string) (Screen, tea.Cmd) {
 		return s, nil
 	}
 	commandLine, failure := actions[at].Command.Apply(svc)
-	if failure != nil {
+	switch {
+	case failure != nil:
 		s.message = terminal.ReplaceControlCharacters(failure.Text)
-		return s, nil
+	case actions[at].Confirm:
+		ask := "Run " + terminal.ReplaceControlCharacters(actions[at].Name) + " for"
+		s.confirmation = newConfirmation(ask, svc, func(screen Screen) tea.Cmd { return screen.giveTerminalTo(commandLine) })
+	default:
+		return s, s.giveTerminalTo(commandLine)
 	}
-	return s, s.giveTerminalTo(commandLine)
+	return s, nil
 }
 
 func (s Screen) answer(key tea.KeyPressMsg) (Screen, tea.Cmd) {
@@ -271,7 +275,7 @@ func (s Screen) answer(key tea.KeyPressMsg) (Screen, tea.Cmd) {
 	case "ctrl+c":
 		return s, tea.Quit
 	case "y":
-		return s, s.actionOn(answered.service, answered.action)
+		return s, answered.yes(s)
 	}
 	return s, nil
 }

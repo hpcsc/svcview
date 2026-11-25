@@ -449,18 +449,18 @@ else. `ctrl+c` quits. The confirmation of `x` and `r` stays as it is: `y` after 
 `r` restarts it.
 
 **Acceptance Criteria:**
-- [ ] The key of an action with `confirm: true` shows `Run <name> for <full name of the service>? (y/N)` on the
+- [x] The key of an action with `confirm: true` shows `Run <name> for <full name of the service>? (y/N)` on the
       message line, with each control character of the name of the action and of the service as `�`, cut at the
       width of the terminal with `…`, and runs no command.
-- [ ] `y` runs the command line that the key made, one time, with the template values of the service that the
+- [x] `y` runs the command line that the key made, one time, with the template values of the service that the
       confirmation names, also when a refresh changed the selected row while the confirmation showed.
-- [ ] Each key other than `y` and `ctrl+c` answers no, the key of the action too: it hides the confirmation, runs no
+- [x] Each key other than `y` and `ctrl+c` answers no, the key of the action too: it hides the confirmation, runs no
       command, and does nothing else. `ctrl+c` ends the screen.
-- [ ] On a service whose plist does not have a template value of the command, the key of an action with
+- [x] On a service whose plist does not have a template value of the command, the key of an action with
       `confirm: true` shows the failure and no confirmation, and `y` after it runs nothing.
-- [ ] `y` after `x` still stops, and `y` after `r` still restarts, the service that the confirmation names, and calls
+- [x] `y` after `x` still stops, and `y` after `r` still restarts, the service that the confirmation names, and calls
       nothing else. Each test of the stop and the restart passes with no change to what it asserts.
-- [ ] An e2e test with `confirm: true`: `L` shows the confirmation on the line above the help line, `n` hides it and
+- [x] An e2e test with `confirm: true`: `L` shows the confirmation on the line above the help line, `n` hides it and
       runs no `less`, and `L` and then `y` give the terminal to the fake `less`.
 
 **Affected Files/Modules:**
